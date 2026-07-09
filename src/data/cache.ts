@@ -53,24 +53,31 @@ export function cachedSource(
     return data;
   }
 
+  // Shared by both entry points below, so an explicit Refresh click degrades
+  // to stale cached data exactly like an expiry-triggered refetch does —
+  // a failed refresh must never blank out a still-good cached list.
+  async function fetchFreshOrStale(game: GameKey, cached: GameEvents | null): Promise<GameEvents> {
+    try {
+      return await fetchFresh(game);
+    } catch (e) {
+      if (cached) {
+        return { ...cached, stale: true };
+      }
+      throw e;
+    }
+  }
+
   return {
-    async fetchEvents(game: GameKey): Promise<GameEvents> {
+    fetchEvents(game: GameKey): Promise<GameEvents> {
       const cached = readCache(game);
       if (cached && clock() - cached.fetchedAt < ttlMs) {
-        return cached;
+        return Promise.resolve(cached);
       }
-      try {
-        return await fetchFresh(game);
-      } catch (e) {
-        if (cached) {
-          return { ...cached, stale: true };
-        }
-        throw e;
-      }
+      return fetchFreshOrStale(game, cached);
     },
 
     forceRefresh(game: GameKey): Promise<GameEvents> {
-      return fetchFresh(game);
+      return fetchFreshOrStale(game, readCache(game));
     },
   };
 }

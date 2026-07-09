@@ -115,7 +115,8 @@ export function mountApp(root: HTMLElement): void {
     regionSelect.value = region;
 
     main.setAttribute('aria-busy', 'true');
-    main.innerHTML = '<p class="loading">Loading events…</p>';
+    main.innerHTML = '';
+    main.appendChild(buildSkeleton());
     status.hidden = true;
 
     let data: GameEvents;
@@ -159,6 +160,18 @@ export function mountApp(root: HTMLElement): void {
   }
 
   render();
+}
+
+function buildSkeleton(): HTMLElement {
+  const wrap = document.createElement('div');
+  wrap.className = 'event-grid skeleton';
+  wrap.setAttribute('aria-hidden', 'true');
+  for (let i = 0; i < 6; i++) {
+    const card = document.createElement('div');
+    card.className = 'skeleton-card';
+    wrap.appendChild(card);
+  }
+  return wrap;
 }
 
 function buildTitle(): HTMLElement {

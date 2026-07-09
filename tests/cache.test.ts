@@ -85,6 +85,30 @@ describe('cachedSource', () => {
     expect(second.current[0]).toMatchObject({ name: 'ok' });
   });
 
+  it('forceRefresh falls back to stale cache instead of throwing when one exists', async () => {
+    const now = 1_000_000;
+    const inner: EventSource = {
+      fetchEvents: vi
+        .fn()
+        .mockResolvedValueOnce(makeEvents(now, 'ok'))
+        .mockRejectedValueOnce(new Error('offline')),
+    };
+    const source = cachedSource(inner, 30 * 60_000, () => now);
+
+    await source.fetchEvents('genshin'); // populate cache
+    const refreshed = await source.forceRefresh('genshin'); // network fails this time
+
+    expect(refreshed.stale).toBe(true);
+    expect(refreshed.current[0]).toMatchObject({ name: 'ok' });
+  });
+
+  it('forceRefresh still throws when there is no cache to fall back to', async () => {
+    const inner: EventSource = { fetchEvents: vi.fn().mockRejectedValue(new Error('offline')) };
+    const source = cachedSource(inner, 30 * 60_000, () => 1_000_000);
+
+    await expect(source.forceRefresh('genshin')).rejects.toThrow('offline');
+  });
+
   it('throws when there is no cache and the fetch fails', async () => {
     const inner: EventSource = { fetchEvents: vi.fn().mockRejectedValue(new Error('down')) };
     const source = cachedSource(inner, 30 * 60_000, () => 1_000_000);

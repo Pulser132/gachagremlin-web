@@ -9,7 +9,7 @@
   --danger-text: #8a1f11;
   --genshin: #4a90d9;
   --hsr: #d4af37;
-  --zzz: #7ab816; /* darkened from the brand #b4f04b for AA contrast on white */
+  --zzz: #b4f04b;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
 }
@@ -23,7 +23,6 @@
     --border: #34343c;
     --danger-bg: #3a1a17;
     --danger-text: #ffb4a8;
-    --zzz: #b4f04b; /* full brightness reads fine on dark */
   }
 }
 
@@ -80,8 +79,12 @@ select {
 }
 
 .game-tab[aria-selected='true'] {
-  color: #fff;
+  /* Dark text, not white: the brand accents (esp. HSR gold, ZZZ green) are
+     too light for white text to hit WCAG AA (4.5:1) against them. Verified
+     via computed contrast: dark text scores 5.49-13.55 across all three. */
+  color: #14141a;
   border-color: transparent;
+  font-weight: 600;
 }
 
 .game-tab-genshin[aria-selected='true'] {
@@ -133,9 +136,32 @@ select {
   font-size: 0.9rem;
 }
 
-.loading,
 .empty {
   color: var(--text-muted);
+}
+
+.skeleton-card {
+  height: 140px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--surface) 25%, var(--border) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-card {
+    animation: none;
+    background: var(--border);
+  }
 }
 
 .event-section {
