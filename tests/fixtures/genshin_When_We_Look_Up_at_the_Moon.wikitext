@@ -1,0 +1,93 @@
+{{Event
+|name              = When We Look Up at the Moon
+|image             = When We Look Up at the Moon.png
+|type              = In-Game
+|group             = Exploration Mission
+|time_known        = yes
+|time_start        = 2026-07-01 11:00:00
+|time_start_offset = GMT+8
+|time_end          = 2026-09-22 14:59:59
+|link              = https://www.hoyolab.com/article/45647741
+}}
+{{Description|Long before the children of humanity were born from the cradle of the sky, three silver lights had already risen above the earth. The ancient spirits of the frostbound reaches called them "Dilimbabbar." By them, the waxing and waning of light were first distinguished, spring and autumn were set into order, and the passage of years slowly came to be. Now, as time flows ever onward, only one of those three silver lights remains...}}
+'''When We Look Up at the Moon''' is an [[Event]] in {{LL|Version "Luna VIII"|.}}
+
+==Event Details==
+===Duration===
+* After the "Luna VIII" version update – 2026/09/22 14:59
+
+===Summary===
+* Version "Luna VIII" introduces the following new areas: [[Dunanna Pit]], [[Lunar Highlands]], [[Moontide Sea]], and the [[Dark Side of the Moon]]
+* Complete the corresponding exploration missions within the specified duration to obtain an additional reward of Primogems ×400.
+
+==Rewards==
+{|class="article-table"
+!Task
+!Reward
+|-
+!colspan=2|World Quests
+|-
+|Complete "[[Moon Gazing]]"
+|{{Card|Primogem|100|mini=1}}
+|-
+!colspan=2|Regional Exploration Progress
+|-
+|Reach 40% total Exploration Progress in [[Dunanna Pit]], [[Lunar Highlands]], [[Moontide Sea]], and the [[Dark Side of the Moon]]
+|{{Card|Primogem|100|mini=1}}
+|-
+|Reach 60% total Exploration Progress in [[Dunanna Pit]], [[Lunar Highlands]], [[Moontide Sea]], and the [[Dark Side of the Moon]]
+|{{Card|Primogem|100|mini=1}}
+|-
+|Reach 80% total Exploration Progress in [[Dunanna Pit]], [[Lunar Highlands]], [[Moontide Sea]], and the [[Dark Side of the Moon]]
+|{{Card|Primogem|100|mini=1}}
+|}
+
+==Total Rewards==
+{{Event Rewards
+|Primogem = 400
+|sort = Primogem
+}}
+
+==Gallery==
+<gallery>
+When We Look Up at the Moon Event Menu.png|Event Menu
+</gallery>
+
+==Other Languages==
+{{Other Languages
+|en       = When We Look Up at the Moon
+|zhs      = 当我们抬头望月亮
+|zhs_rm   = 
+|zht      = 當我們抬頭望月亮
+|zht_rm   = 
+|zh_tl    = 
+|ja       = 月を見上げる時
+|ja_rm    = 
+|ja_tl    = 
+|ko       = 달을 바라보며
+|ko_tl    = 
+|es       = Cuando alzamos la mirada hacia la luna
+|es_tl    = 
+|fr       = Tout en levant les yeux vers la lune
+|fr_tl    = While Looking Up at the Moon
+|ru       = Когда мы смотрим на луну
+|ru_tl    = 
+|th       = เมื่อเราแหงนมองดวงจันทร์
+|th_rm    = 
+|th_tl    = 
+|vi       = Khi Chúng Ta Ngước Nhìn Ánh Trăng
+|vi_tl    = 
+|de       = Wenn wir hoch zum Mond blicken
+|de_tl    = 
+|id       = Kala Kita Menengadah ke Bulan
+|id_tl    = When We Look Up at the Moon
+|pt       = Quando Olhamos Para a Lua
+|pt_tl    = 
+|tr       = Aya Baktığımızda
+|tr_tl    = 
+|it       = Quando guardiamo la luna
+|it_tl    = 
+}}
+
+==Change History==
+{{Change History|Luna VIII}}

@@ -1,0 +1,147 @@
+{{Event Infobox
+|name              = Return to Ridu: Together in a New Chapter
+|image             = Event Return to Ridu Together in a New Chapter.png
+|status            = 
+|type              = Web
+|type2             = In-Game
+|type3             = Prize
+|group             = Assembly Commission
+|time_known        = yes
+|time_start        = 2026-06-06 20:00:00
+|time_start_offset = GMT+8
+|time_end          = 2026-07-17 03:59:59
+|link              = https://www.hoyolab.com/article/45353991
+|link2             = https://hoyo.link/E0T2fpjgC
+|link2name         = Website
+}}
+{{Description|Dear Proxies, the Version 3.0 "Return to Ridu: Together in a New Chapter" web event is now live.
+Invite friends to return or register for the game and receive up to Polychrome ×340!
+Earn Polychrome ×60 when New, Returning, or Inactive Proxies link your invite code!
+Join the lucky draw on the webpage for a chance to win game figures, consoles, merchandise, Polychromes, and more!}}
+'''Return to Ridu: Together in a New Chapter''' is a [[Web Event|Web]] [[Event]] in [[Version 2.8]].
+
+==Event Details==
+===Duration===
+* 2026/06/06 20:00 (UTC+8) – 2026/07/17 03:59:59 (server time)
+* The rewards cannot be claimed after the event is over, so don't forget to claim them.
+
+===Event Details===
+* During the event, invite friends to return or register for the game to receive up to Polychrome ×340.
+* Join the lucky draw on the webpage for a chance to win a PS5, figures, merch, and tons of Polychromes!
+* After a New Proxy links an invitation code, they need to reach Inter-Knot level 10.
+* The "Return to Ridu: Together in a New Chapter" web event will close on 2026/07/17 at 03:59:59 (server time). Proxies, make sure to participate before it ends!
+
+===Reward Preview===
+{{Card List|Polychrome; Senior Investigator Log; W-Engine Energy Module; Official Investigator Log; W-Engine Power Supply; Bangboo Algorithm Module; Denny}} 
+
+===Event Rewards===
+* PlayStation®5 ×5
+* [[Anby]] Demara 1/7 Scale Figure ×10
+* Framed Acrylic Standee Set - [[Ye Shunguang]] ×60
+* Bangboo Standee Figurine Surprise Box Vol. 2 ×200
+
+===How are New, Returning, and Inactive Proxies determined in this event?===
+# New Proxies: Proxies who register a new Zenless Zone Zero account during the "Return to Ridu: Together in a New Chapter" event, and whose registration date is less than 14 days prior to participating in the event.
+# Returning Proxies: Proxies who have returned to the game after being offline for ≥14 consecutive days.
+# Inactive Proxies: Proxies who have been offline for 14 consecutive days or more, have logged into the "Return to Ridu: Together in a New Chapter" event page, but have not yet returned to the game.
+* During the "Return to Ridu: Together in a New Chapter" event, even if a Proxy activates their Returning Proxy status multiple times, they can only link one invitation code, and the event page data will be retained.
+
+==Missions==
+===Invite Mission===
+* Invite friends to link your invitation code. They can claim rewards when returning or registering
+** (new players must reach Inter-Knot Lv. 10).
+{| class="wikitable"
+!Mission!!Reward
+|-
+|Visit the event page daily 3/3||8x Tickets
+|-
+|1 Returning/New Proxy invited||{{Card|Polychrome|80}}, 1x Tickets
+|-
+|2 Returning/New Proxies invited||{{Card|Polychrome|80}}, 1x Tickets
+|-
+|3 Returning/New Proxies invited||{{Card|Polychrome|80}}, 1x Tickets
+|-
+|4 Returning/New Proxies invited||{{Card|Polychrome|80}}, 1x Tickets
+|-
+|5 Returning/New Proxies invited||{{Card|Polychrome|80}}, 1x Tickets
+|-
+|Share event link||{{Card|Polychrome|20}}, 1x Tickets
+|}
+
+===Active Mission===
+* Invited returning friends or new Proxies with Inter-Knot Lv. 10 or above must claim the daily 400 Engagement reward for the specified number of days in-game.
+{| class="wikitable"
+!Mission!!Reward
+|-
+|3 days in total<br />400 [[Engagement Record Points|Engagement Points]]||{{Card|Senior Investigator Log|2}}, 2x Tickets
+|-
+|5 days in total<br />400 [[Engagement Record Points|Engagement Points]]||{{Card|W-Engine Power Supply|2}}, 2x Tickets
+|-
+|7 days in total<br />400 [[Engagement Record Points|Engagement Points]]||{{Card|Denny|10,000}}, 2x Tickets
+|}
+* Only 4 friends can be invited for the return mission.
+
+==Lucky Prize Rules==
+===Rules===
+# After the event launches, share your exclusive invite code and invite friends to link the code and return to or register for the game. Complete the "Invitation Missions" and "Active Missions" to earn draw chances. During the event, you can earn up to 39 draw chances.
+# Each draw will consume 1 draw chance.
+
+===What can I win?===
+1. In-Game Rewards
+{|class="wikitable" style="text-align:center"
+!Rewards!!Win Rate
+|-
+|{{Card|Polychrome|300}}||500 winners total, each UID can only win once.
+|-
+|{{Card|Polychrome|20}}||5%
+|-
+|{{Card|Official Investigator Log|2}}||19%
+|-
+|{{Card|W-Engine Power Supply|2}}||19%
+|-
+|{{Card|Bangboo Algorithm Module|2}}||19%
+|-
+|{{Card|Denny|1,888}}||35%
+|}
+
+2. Physical Prizes
+{|class="wikitable"
+!Prizes!!No. of Prizes
+|-
+|PlayStation®5 ||5
+|-
+|Anby Demara 1/7 Scale Figure||10
+|-
+|Framed Acrylic Standee Set - Ye Shunguang||60
+|-
+|Bangboo Standee Figurine Surprise Box Vol. 2||100
+|}
+
+==Gallery==
+<gallery>
+Version 2.8 Return to Ridu Together in a New Chapter.png
+</gallery>
+
+==Other Languages==
+{{Other Languages
+|en       = Return to Ridu: Together in a New Chapter
+|zhs      = 回归丽都：共启新章
+|zhs_rm   = 
+|zht      = 回歸麗都：共啟新章
+|zht_rm   = 
+|ja       = エリーへの帰還：ともに新章へ
+|ja_rm    = 
+|ko       = 리두로의 귀환, 새로운 장
+|es       = Regreso a Ridu: Juntos en un nuevo capítulo
+|fr       = Retour à Ridu : Un nouveau chapitre à écrire ensemble
+|ru       = Возвращение в Риду: наша новая глава
+|th       = หวนคืนสู่ Ridu: ร่วมเปิดบทใหม่
+|th_rm    = 
+|vi       = Trở Về Ridu: Cùng Mở Chương Mới
+|de       = Rückkehr nach Ridu: Ein gemeinsames neues Kapitel
+|id       = Kembali ke Ridu, Membuka Babak Baru
+|pt       = Retorno a Ridu: Juntos em um Novo Capítulo
+}}
+
+==Change History==
+{{Change History|2.8}}

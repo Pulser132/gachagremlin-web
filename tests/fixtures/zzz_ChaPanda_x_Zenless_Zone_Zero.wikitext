@@ -1,0 +1,35 @@
+{{Event Infobox
+|title             = ChaPanda × Zenless Zone Zero
+|type              = Collaboration
+|name              = ChaPanda × Zenless Zone Zero
+|image             = Event Collaboration ChaPanda x Zenless Zone Zero.png 
+|country           = China
+|time_known        = yes
+|time_start        = 2025-09-26 10:00
+|time_start_offset = GMT+8
+|time_end          = unknown
+|time_end_offset   = 
+}}
+'''ChaPanda × Zenless Zone Zero''' is a collaborative effort between ''[[Zenless Zone Zero]]'' creators [[miHoYo]] and {{w|ChaPanda}}.
+
+==Collaborations==
+To date, there has been '''1''' collaborations between ''Zenless Zone Zero'' and ChaPanda.
+
+===2025===
+This collaboration features ChaPanda drinks with a [[Orphie Magnusson & Magus]] and [[Seed]] themed menu. 
+* When purchased the special menu set, physical collectibles can be obtained, such as:
+** Acrylic key chain Accessories
+** Badges
+** Acrylic figure stands
+** Laser tickets
+
+===Stickers===
+{{Files by Category Gallery|ChaPanda emoji pack}}
+
+====Announcement Images====
+<gallery hideaddbutton="true" captionalign="center">
+ChaPanda x Zenless Zone Zero emoji pack announcement.png
+</gallery>
+
+==Change History==
+{{Change History|2.2}}

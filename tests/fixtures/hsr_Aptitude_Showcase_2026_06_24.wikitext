@@ -1,0 +1,694 @@
+{{Event
+|name              = Aptitude Showcase - Cyrene, Phainon, March 7th (Preservation), Arlan, Yukong
+|image             = Aptitude Showcase - Cyrene, Phainon, March 7th (Preservation), Arlan, Yukong.png
+|type              = In-Game
+|group             = Aptitude Showcase
+|time_known        = yes
+|time_start        = 2026-06-24 12:00:00
+<!--|time_start_offset = GMT+8-->
+|time_end          = 2026-07-14 15:00:00
+<!--|time_end_offset   = GMT+8-->
+|link              = https://www.hoyolab.com/article/45571163
+}}
+'''Cyrene, Phainon, March 7th (Preservation), Arlan, Yukong''' is an [[Aptitude Showcase]] in [[Version 4.3]].
+
+{{Aptitude Showcase
+|character_5_1 = Cyrene
+|rewards_5_1   = Stellar Jade*20;Adventure Log*3;Fear-Stomped Flesh*5
+|party_5_1     = Castorice; Evernight; Hyacine
+|character_5_2 = Phainon
+|rewards_5_2   = Stellar Jade*20;Adventure Log*3;Ethereal Omen*5
+|party_5_2     = Sunday; Cerydra; Dan Heng • Permansor Terrae
+|character_4_1 = March 7th (Preservation)
+|rewards_4_1   = Adventure Log*2;Thief's Instinct*4;Credit*10,000
+|party_4_1     = Dan Heng; Trailblazer (Destruction)
+|character_4_2 = Arlan
+|rewards_4_2   = Adventure Log*2;Extinguished Core*4;Credit*10,000
+|party_4_2     = March 7th (Preservation); Tingyun
+|character_4_3 = Yukong
+|rewards_4_3   = Adventure Log*2;Artifex's Module*4;Credit*10,000
+|party_4_3     = Trailblazer (Destruction); Dan Heng
+|warp          = Ripples Rejoined/2026-06-24
+|warp2         = To Evermore Burn as the Sun/2026-06-24
+}}
+
+==Trial Details==
+===Cyrene===
+{{Trial Character/Event/Header}}
+{{Trial Character/Event
+|character           = Cyrene
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = This Love, Forever
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+|memosprite_skill_lv  = 5
+|memosprite_talent_lv = 5
+
+|hp                  = 2667
+|+hp                 = 3047
+|atk                 = 922
+|+atk                = 432
+|def                 = 1045
+|+def                = 112
+|spd                 = 101
+|+spd                = 81
+
+|crit_rate           = 43.7
+|crit_dmg            = 206.2
+|break_effect        = 13.0
+|energy_regeneration = 100.0
+|effect_hit_rate     = 8.6
+|effect_res          = 8.6
+
+|ice_dmg             = 38.8
+
+|relic_level         = 15
+|set1                = World-Remaking Deliverer
+|set1_piece_bonus    = 4
+|set2                = Amphoreus, The Eternal Land
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Castorice
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Make Farewells More Beautiful
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+|memosprite_skill_lv  = 5
+|memosprite_talent_lv = 5
+
+|hp                  = 2900
+|+hp                 = 5305
+|atk                 = 1053
+|+atk                = 625
+|def                 = 882
+|+def                = 285
+|spd                 = 95
+|-spd                = 8
+
+|crit_rate           = 41.1
+|crit_dmg            = 173.5
+|break_effect        = 25.9
+|energy_regeneration = 100.0
+|effect_hit_rate     = 17.3
+|effect_res          = 17.3
+
+|quantum_dmg         = 56.8
+
+|relic_level         = 15
+|set1                = Poet of Mourning Collapse
+|set1_piece_bonus    = 4
+|set2                = Bone Collection's Serene Demesne
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Evernight
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = To Evernight's Stars
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8 
+|memosprite_skill_lv  = 5
+|memosprite_talent_lv = 5
+
+|hp                  = 2483
+|+hp                 = 3415
+|atk                 = 1072
+|+atk                = 630
+|def                 = 1045
+|+def                = 338
+|spd                 = 99
+|+spd                = 37
+
+|crit_rate           = 49.1
+|crit_dmg            = 173.5
+|break_effect        = 25.9
+|energy_regeneration = 100.0
+|effect_hit_rate     = 13.0
+|effect_res          = 17.3
+
+|ice_dmg             = 38.8
+
+|relic_level         = 15
+|set1                = World-Remaking Deliverer
+|set1_piece_bonus    = 4 
+|set2                = Arcadia of Woven Dreams
+|set2_piece_bonus    = 2 
+}}
+{{Trial Character/Event
+|character           = Hyacine
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Long May Rainbows Adorn the Sky
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+|memosprite_skill_lv  = 5
+|memosprite_talent_lv = 5
+
+|hp                  = 2250
+|+hp                 = 3168
+|atk                 = 864
+|+atk                = 465
+|def                 = 1159
+|+def                = 250
+|spd                 = 110
+|+spd                = 106
+
+|crit_rate           = 18.0
+|crit_dmg            = 75.9
+|break_effect        = 25.9
+|energy_regeneration = 119.4
+|effect_hit_rate     = 17.3
+|effect_res          = 27.3
+
+|relic_level         = 15
+|set1                = Warrior Goddess of Sun and Thunder
+|set1_piece_bonus    = 4
+|set2                = Giant Tree of Rapt Brooding
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event/Footer}}
+
+===Phainon===
+{{Trial Character/Event/Header}}
+{{Trial Character/Event
+|character           = Phainon
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Thus Burns the Dawn
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2388
+|+hp                 = 911
+|atk                 = 1270
+|+atk                = 1230
+|def                 = 1100
+|+def                = 118
+|spd                 = 106
+|+spd                = 50
+
+|crit_rate           = 73.3
+|crit_dmg            = 189.8
+|break_effect        = 13.0
+|energy_regeneration = 100.0
+|effect_hit_rate     = 8.6
+|effect_res          = 8.6
+
+|physical_dmg        = 38.8
+
+|relic_level         = 15
+|set1                = Wavestrider Captain
+|set1_piece_bonus    = 4
+|set2                = Arcadia of Woven Dreams
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Sunday
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = A Grounded Ascent
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2406
+|+hp                 = 2264
+|atk                 = 1116
+|+atk                = 545
+|def                 = 1062
+|+def                = 419
+|spd                 = 96
+|+spd                = 46
+
+|crit_rate           = 21.2
+|crit_dmg            = 173.8
+|break_effect        = 32.4
+|energy_regeneration = 124.4
+|effect_hit_rate     = 21.6
+|effect_res          = 31.6
+
+|relic_level         = 15
+|set1                = Sacerdos' Relived Ordeal
+|set1_piece_bonus    = 4
+|set2                = Lushaka, the Sunken Seas
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Cerydra
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Epoch Etched in Golden Blood
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2310
+|+hp                 = 1435
+|atk                 = 1255
+|+atk                = 3560
+|def                 = 948
+|+def                = 256
+|spd                 = 99
+|+spd                = 81
+
+|crit_rate           = 5.0
+|crit_dmg            = 127.8
+|break_effect        = 13.0
+|energy_regeneration = 105.0
+|effect_hit_rate     = 8.6
+|effect_res          = 8.6
+
+|wind_dmg            = 38.8
+
+|relic_level         = 15
+|set1                = Sacerdos' Relived Ordeal
+|set1_piece_bonus    = 4
+|set2                = Sprightly Vonwacq
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Dan Heng • Permansor Terrae
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Though Worlds Apart
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8 
+
+|hp                  = 2106
+|+hp                 = 1160
+|atk                 = 1164
+|+atk                = 2588
+|def                 = 1239
+|+def                = 489
+|spd                 = 97
+|+spd                = 42
+
+|crit_rate           = 21.2
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 124.4
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|relic_level         = 15
+|set1                = Self-Enshrouded Recluse
+|set1_piece_bonus    = 4 
+|set2                = Lushaka, the Sunken Seas
+|set2_piece_bonus    = 2 
+}}
+{{Trial Character/Event/Footer}}
+
+===March 7th (Preservation)===
+{{Trial Character/Event/Header}}
+{{Trial Character/Event
+|character           = March 7th (Preservation)
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Day One of My New Life
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2010
+|+hp                 = 1139
+|atk                 = 882
+|+atk                = 543
+|def                 = 1036
+|+def                = 2005
+|spd                 = 101
+|+spd                = 37
+
+|crit_rate           = 21.2
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 119.4
+|effect_hit_rate     = 21.6
+|effect_res          = 31.6
+
+|ice_dmg             = 16.0
+
+|relic_level         = 15
+|set1                = Knight of Purity Palace
+|set1_piece_bonus    = 4
+|set2                = Belobog of the Architects
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Dan Heng
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Only Silence Remains
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 1834
+|+hp                 = 1101
+|atk                 = 1023
+|+atk                = 1281
+|def                 = 727
+|+def                = 287
+|spd                 = 110
+|+spd                = 37
+
+|crit_rate           = 61.6
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 100.0
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|wind_dmg            = 64.8
+
+|relic_level         = 15
+|set1                = Eagle of Twilight Line
+|set1_piece_bonus    = 4
+|set2                = Inert Salsotto
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Trailblazer (Destruction)
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = The Moles Welcome You
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2261
+|+hp                 = 1420
+|atk                 = 1097
+|+atk                = 1414
+|def                 = 725
+|+def                = 286
+|spd                 = 100
+|+spd                = 37
+
+|crit_rate           = 53.6
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 100.0
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|physical_dmg        = 48.8
+
+|relic_level         = 15
+|set1                = Champion of Streetwise Boxing
+|set1_piece_bonus    = 4
+|set2                = Space Sealing Station
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event/Footer}}
+
+===Arlan===
+{{Trial Character/Event/Header}}
+{{Trial Character/Event
+|character           = Arlan
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = A Secret Vow
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2257
+|+hp                 = 1419
+|atk                 = 1076
+|+atk                = 1730
+|def                 = 595
+|+def                = 160
+|spd                 = 102
+|+spd                = 12
+
+|crit_rate           = 53.6
+|crit_dmg            = 98.4
+|break_effect        = 32.4
+|energy_regeneration = 100.0
+|effect_hit_rate     = 21.6
+|effect_res          = 31.6
+
+|physical_dmg        = 20.0
+|fire_dmg            = 20.0
+|ice_dmg             = 20.0
+|lightning_dmg       = 68.8
+|wind_dmg            = 20.0
+|quantum_dmg         = 20.0
+|imaginary_dmg       = 20.0
+
+|relic_level         = 15
+|set1                = Band of Sizzling Thunder
+|set1_piece_bonus    = 4
+|set2                = Celestial Differentiator
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = March 7th (Preservation)
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Day One of My New Life
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2010
+|+hp                 = 1139
+|atk                 = 882
+|+atk                = 543
+|def                 = 1036
+|+def                = 2564
+|spd                 = 101
+|+spd                = 12
+
+|crit_rate           = 21.2
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 119.4
+|effect_hit_rate     = 21.6
+|effect_res          = 31.6
+
+|ice_dmg             = 16.0
+
+|relic_level         = 15
+|set1                = Knight of Purity Palace
+|set1_piece_bonus    = 4
+|set2                = Belobog of the Architects
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Tingyun
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Planetary Rendezvous
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 1905
+|+hp                 = 2763
+|atk                 = 952
+|+atk                = 1274
+|def                 = 727
+|+def                = 287
+|spd                 = 112
+|+spd                = 19
+
+|crit_rate           = 21.2
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 119.4
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|lightning_dmg       = 8.0
+
+|relic_level         = 15
+|set1                = Messenger Traversing Hackerspace
+|set1_piece_bonus    = 4
+|set2                = Space Sealing Station
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event/Footer}}
+
+===Yukong===
+{{Trial Character/Event/Header}}
+{{Trial Character/Event
+|character           = Yukong
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Dance! Dance! Dance!
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 1869
+|+hp                 = 1520
+|atk                 = 1023
+|+atk                = 1240
+|def                 = 771
+|+def                = 208
+|spd                 = 107
+|+spd                = 44
+
+|crit_rate           = 53.6
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 100.0
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|imaginary_dmg       = 54.8
+
+|relic_level         = 15
+|set1                = Musketeer of Wild Wheat
+|set1_piece_bonus    = 4
+|set2                = Fleet of the Ageless
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Trailblazer (Destruction)
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = The Moles Welcome You
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 2261
+|+hp                 = 1420
+|atk                 = 1097
+|+atk                = 1283
+|def                 = 725
+|+def                = 286
+|spd                 = 100
+|+spd                = 37
+
+|crit_rate           = 53.6
+|crit_dmg            = 98.4
+|break_effect        = 32.4
+|energy_regeneration = 100.0
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|physical_dmg        = 48.8
+
+|relic_level         = 15
+|set1                = Champion of Streetwise Boxing
+|set1_piece_bonus    = 4
+|set2                = Celestial Differentiator
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event
+|character           = Dan Heng
+|character_lv        = 80
+|eidolon             = 0
+|light_cone          = Only Silence Remains
+|light_cone_lv       = 80
+|superimposition     = 1
+
+|basic_atk_lv        = 5
+|skill_lv            = 8
+|ultimate_lv         = 8
+|talent_lv           = 8
+
+|hp                  = 1834
+|+hp                 = 1101
+|atk                 = 1023
+|+atk                = 1404
+|def                 = 727
+|+def                = 287
+|spd                 = 110
+|+spd                = 37
+
+|crit_rate           = 53.6
+|crit_dmg            = 82.4
+|break_effect        = 32.4
+|energy_regeneration = 100.0
+|effect_hit_rate     = 21.6
+|effect_res          = 21.6
+
+|wind_dmg            = 64.8
+
+|relic_level         = 15
+|set1                = Eagle of Twilight Line
+|set1_piece_bonus    = 4
+|set2                = Space Sealing Station
+|set2_piece_bonus    = 2
+}}
+{{Trial Character/Event/Footer}}
+
+==Change History==
+{{Change History|4.3}}

@@ -1,0 +1,72 @@
+{{Collab|Fate/stay night: Unlimited Blade Works (TV series)}}
+{{Stub|Info}}
+{{Event
+|name              = 
+|image             = Event Fate Contract Renewal.png
+|type              = In-Game
+|type2             = Collaboration
+|time_known        = yes
+|time_start        = 2026-07-24 12:00:00
+<!--|time_start_offset = -->
+|time_end          = 2026-11-18 06:00:00<!--Extrapolated; STC-->
+|time_end_offset   = GMT+8
+|link              = https://www.hoyolab.com/article/45712127
+|link2             = 
+|link2name         = 
+}}
+'''Fate Contract: Renewal''' is an [[Event]] in [[Version 4.4]].
+
+==Event Details==
+===Duration===
+* 2026/07/24 12:00:00 (server time) - [[Version 4.6]] ends
+
+===Requirements===
+* [[Trailblaze Level]] ≥ 3
+
+==Summary==
+* During the event, Trailblazers can log in to the game to claim the limited 5-star collaboration character {{Character Intro|Gilgamesh}} or {{Character Intro|Archer}} and materials to build them to Lv. 60.
+
+==Total Rewards==
+;If Archer is chosen
+{{Event Rewards
+|Archer             = 1<!--
+|Guardian's Lament  = 2
+|Tears of Dreams    = 250
+|Tears of Souls     = 300
+|Traveler's Guide   = 90
+|Darkveil Moonlight = 10
+|Credit             = 600,000-->
+|sort               = Archer<!--; Guardian's Lament; Tears of Dreams; Tears of Souls; Traveler's Guide; Darkveil Moonlight; Credit-->
+}}
+
+;If Gilgamesh is chosen
+{{Event Rewards
+|Gilgamesh          = 1<!--
+|Guardian's Lament  = 2
+|Tears of Dreams    = 250
+|Tears of Souls     = 300
+|Traveler's Guide   = 90
+|Thunder Strum      = 10
+|Credit             = 600,000-->
+|sort               = Gilgamesh<!--; Guardian's Lament; Tears of Dreams; Tears of Souls; Traveler's Guide; Thunder Strum; Credit-->
+}}
+
+==Other Languages==
+{{Other Languages
+|en   = Fate Contract: Renewal
+|zhs  = 
+|zht  = 
+|ja   = 
+|ko   = 
+|es   = 
+|fr   = 
+|ru   = 
+|th   = 
+|vi   = 
+|de   = 
+|id   = 
+|pt   = 
+}}
+
+==Change History==
+{{Change History|4.4}}
