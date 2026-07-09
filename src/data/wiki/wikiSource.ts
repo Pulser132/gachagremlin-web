@@ -6,6 +6,7 @@
 import type { EventSource } from '../source.ts';
 import type { EventInfo, GameEvents, GameKey } from '../../types.ts';
 import { listEvents, showEvent } from './fetch.ts';
+import { normalizeGlobalRegionUnix } from './times.ts';
 
 const CONCURRENCY = 4;
 
@@ -31,7 +32,12 @@ export class WikiSource implements EventSource {
     // listing (same failure posture as the bot's poller).
     const fetchDetail = async (title: string): Promise<EventInfo | null> => {
       try {
-        return await showEvent(game, title);
+        const ev = await showEvent(game, title);
+        if (ev.globalTime) {
+          ev.startUnix = normalizeGlobalRegionUnix(ev.startUnix);
+          ev.endUnix = normalizeGlobalRegionUnix(ev.endUnix);
+        }
+        return ev;
       } catch (e) {
         console.warn(`gachagremlin-web: failed to fetch ${game} event ${JSON.stringify(title)}:`, e);
         return null;

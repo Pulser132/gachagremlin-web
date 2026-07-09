@@ -6,6 +6,7 @@ import { normalizeNewlines, parseInfobox, sectionBullets } from '../src/data/wik
 import {
   findWalltimes,
   isGlobalTime,
+  normalizeGlobalRegionUnix,
   perServer,
   statusOf,
   toUnix,
@@ -90,6 +91,22 @@ describe('isGlobalTime', () => {
     const wt = load('zzz_Return_to_Ridu__Together_in_a_New_Chapter.wikitext');
     const fields = parseInfobox(wt);
     expect(isGlobalTime(fields.type ?? '')).toBe(true);
+  });
+});
+
+describe('normalizeGlobalRegionUnix', () => {
+  it('collapses per-region values onto the Asia instant', () => {
+    const result = normalizeGlobalRegionUnix({ America: 100, Europe: 200, Asia: 300 });
+    expect(result).toEqual({ America: 300, Europe: 300, Asia: 300 });
+  });
+
+  it('falls back to any value when Asia is absent', () => {
+    const result = normalizeGlobalRegionUnix({ America: 100, Europe: 200 });
+    expect(new Set(Object.values(result!))).toEqual(new Set([100]));
+  });
+
+  it('passes through null', () => {
+    expect(normalizeGlobalRegionUnix(null)).toBeNull();
   });
 });
 

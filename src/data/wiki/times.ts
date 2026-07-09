@@ -94,6 +94,26 @@ export function isGlobalTime(eventType: string): boolean {
   return GLOBAL_TYPE_HINTS.some((hint) => t.includes(hint));
 }
 
+/**
+ * Global-time events run on ONE instant everywhere, but `perServer` still
+ * applied each region's offset arithmetic to the walltime (a faithful port
+ * of the bot's `times.py`, which has the same raw per-region numbers). The
+ * bot corrects this at its DB-write layer (`db/store.py::_region_columns`),
+ * writing the Asia/UTC+8 value — the convention HoYo campaigns quote — into
+ * every region column. This site has no DB, so `wikiSource.ts` calls this
+ * as the equivalent ingestion-time correction.
+ */
+export function normalizeGlobalRegionUnix(unix: RegionUnix | null): RegionUnix | null {
+  if (!unix) return unix;
+  const canonical = unix.Asia ?? Object.values(unix)[0];
+  if (canonical === undefined) return unix;
+  const out: RegionUnix = {};
+  for (const region of Object.keys(unix) as Region[]) {
+    out[region] = canonical;
+  }
+  return out;
+}
+
 /** 'ended' once the LAST server finishes; 'upcoming' until the FIRST starts. */
 export function statusOf(
   startUnix: RegionUnix | null,

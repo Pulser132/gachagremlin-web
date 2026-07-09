@@ -1,0 +1,255 @@
+:root {
+  --bg: #f7f7fa;
+  --surface: #ffffff;
+  --text: #1a1a1e;
+  --text-muted: #5b5b66;
+  --border: #dcdce3;
+  --accent: #4a90d9;
+  --danger-bg: #fdecea;
+  --danger-text: #8a1f11;
+  --genshin: #4a90d9;
+  --hsr: #d4af37;
+  --zzz: #7ab816; /* darkened from the brand #b4f04b for AA contrast on white */
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16161a;
+    --surface: #1f1f24;
+    --text: #f0f0f2;
+    --text-muted: #a7a7b3;
+    --border: #34343c;
+    --danger-bg: #3a1a17;
+    --danger-text: #ffb4a8;
+    --zzz: #b4f04b; /* full brightness reads fine on dark */
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+#app {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+a {
+  color: var(--accent);
+}
+
+button,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.app-header h1 {
+  font-size: 1.4rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.game-tabs {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.game-tab {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+}
+
+.game-tab[aria-selected='true'] {
+  color: #fff;
+  border-color: transparent;
+}
+
+.game-tab-genshin[aria-selected='true'] {
+  background: var(--genshin);
+}
+.game-tab-hsr[aria-selected='true'] {
+  background: var(--hsr);
+}
+.game-tab-zzz[aria-selected='true'] {
+  background: var(--zzz);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.controls select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+}
+
+.refresh-button,
+.toggle-ended {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.toggle-ended {
+  margin-bottom: 1rem;
+}
+
+.status-banner {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.loading,
+.empty {
+  color: var(--text-muted);
+}
+
+.event-section {
+  margin-bottom: 2rem;
+}
+
+.event-section h2 {
+  font-size: 1.1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+}
+
+.event-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.event-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  border-radius: 10px;
+  padding: 1rem;
+}
+
+.event-card.game-genshin {
+  border-left-color: var(--genshin);
+}
+.event-card.game-hsr {
+  border-left-color: var(--hsr);
+}
+.event-card.game-zzz {
+  border-left-color: var(--zzz);
+}
+
+.event-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.event-name {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+
+.event-status-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.event-summary {
+  color: var(--text-muted);
+  font-size: 0.92rem;
+}
+
+.event-reward {
+  font-size: 0.92rem;
+}
+
+.event-times {
+  margin: 0.6rem 0;
+  font-size: 0.92rem;
+}
+
+.event-time-row {
+  margin: 0.2rem 0;
+}
+
+.countdown {
+  font-weight: 600;
+}
+
+.countdown.ended {
+  color: var(--text-muted);
+  font-weight: normal;
+}
+
+.event-time-absolute {
+  color: var(--text-muted);
+}
+
+.event-time-note,
+.event-times-missing {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.event-eligibility {
+  font-size: 0.88rem;
+  margin-top: 0.5rem;
+}
+
+.event-eligibility ul {
+  margin: 0.4rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.event-link {
+  font-size: 0.88rem;
+  margin-top: 0.6rem;
+}
+
+@media (max-width: 480px) {
+  #app {
+    padding: 0.75rem;
+  }
+  .event-grid {
+    grid-template-columns: 1fr;
+  }
+}
