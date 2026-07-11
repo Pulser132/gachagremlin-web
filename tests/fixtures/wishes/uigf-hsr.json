@@ -1,0 +1,39 @@
+{
+  "info": {
+    "export_timestamp": 1783700100,
+    "export_app": "StarRailStation",
+    "export_app_version": "1.5.0",
+    "version": "v4.0"
+  },
+  "hkrpg": [
+    {
+      "uid": "600000088",
+      "timezone": -5,
+      "lang": "en-us",
+      "list": [
+        {
+          "id": "1710000000000000201",
+          "gacha_id": "1001",
+          "gacha_type": "11",
+          "item_id": "1309",
+          "count": "1",
+          "time": "2026-02-02 09:00:00",
+          "name": "Robin",
+          "item_type": "Character",
+          "rank_type": "5"
+        },
+        {
+          "id": "1710000000000000202",
+          "gacha_id": "1001",
+          "gacha_type": "11",
+          "item_id": "23021",
+          "count": "1",
+          "time": "2026-02-02 09:05:00",
+          "name": "Adversarial",
+          "item_type": "Light Cone",
+          "rank_type": "3"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parsePayload } from '../src/data/wishes/payload.ts';
+import { parseAnyImport, parsePayload } from '../src/data/wishes/payload.ts';
 
 const FIXTURES = join(import.meta.dirname, 'fixtures', 'wishes');
 
@@ -66,6 +66,36 @@ describe('parsePayload', () => {
 
   it('rejects a top-level array', () => {
     const result = parsePayload('[]', 'genshin');
+    expect(result.ok).toBe(false);
+  });
+});
+
+describe('parseAnyImport', () => {
+  it('routes a native script payload through parsePayload, wrapped in a one-element array', () => {
+    const result = parseAnyImport(load('genshin.json'), 'genshin');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payloads).toHaveLength(1);
+    expect(result.payloads[0].uid).toBe('800000001');
+  });
+
+  it('routes a UIGF export (detected via the "info" key) through the UIGF converter', () => {
+    const result = parseAnyImport(load('uigf-genshin.json'), 'genshin');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payloads).toHaveLength(1);
+    expect(result.payloads[0].uid).toBe('800000099');
+  });
+
+  it('surfaces the native parser’s error for non-UIGF, non-native JSON', () => {
+    const result = parseAnyImport(JSON.stringify({ foo: 'bar' }), 'genshin');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/game/i);
+  });
+
+  it('rejects malformed JSON before attempting either format', () => {
+    const result = parseAnyImport('{not json', 'genshin');
     expect(result.ok).toBe(false);
   });
 });

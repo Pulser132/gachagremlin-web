@@ -2,6 +2,7 @@
  * Validates a pasted import payload before it touches storage. Errors are
  * plain strings meant to be shown verbatim in the import dialog.
  */
+import { parseUigfPayload, type ParseManyResult } from './uigf.ts';
 import type { GameKey, WishItem, WishPayload } from '../../types.ts';
 
 export type ParseResult = { ok: true; payload: WishPayload } | { ok: false; error: string };
@@ -79,4 +80,32 @@ export function parsePayload(text: string, expectedGame: GameKey): ParseResult {
       items: v.items as WishItem[],
     },
   };
+}
+
+/**
+ * Accepts either GachaGremlin's own clipboard payload (from
+ * public/import/*.ps1) or a UIGF v4 export file from another tracker
+ * (paimon.moe, Star Rail Station, stardb.gg, ...), detected by the
+ * presence of a top-level "info" object that only UIGF files have. A UIGF
+ * file can hold multiple accounts of the same game, so this always
+ * returns an array — length 1 for the native format.
+ */
+export function parseAnyImport(text: string, expectedGame: GameKey): ParseManyResult {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return {
+      ok: false,
+      error: 'That doesn’t look like valid JSON. Make sure you pasted or uploaded the entire file.',
+    };
+  }
+
+  if (typeof raw === 'object' && raw !== null && !Array.isArray(raw) && 'info' in raw) {
+    return parseUigfPayload(text, expectedGame);
+  }
+
+  const result = parsePayload(text, expectedGame);
+  if (!result.ok) return result;
+  return { ok: true, payloads: [result.payload] };
 }

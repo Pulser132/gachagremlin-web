@@ -1,0 +1,42 @@
+{
+  "info": {
+    "export_timestamp": 1783700300,
+    "export_app": "paimon.moe",
+    "export_app_version": "2.0.0",
+    "version": "v4.0"
+  },
+  "hk4e": [
+    {
+      "uid": "800000001",
+      "timezone": -5,
+      "lang": "en-us",
+      "list": [
+        {
+          "id": "1700000000000000401",
+          "gacha_type": "301",
+          "item_id": "10000042",
+          "time": "2026-01-01 00:00:00",
+          "name": "Klee",
+          "item_type": "Character",
+          "rank_type": "5"
+        }
+      ]
+    },
+    {
+      "uid": "800000002",
+      "timezone": -5,
+      "lang": "en-us",
+      "list": [
+        {
+          "id": "1700000000000000402",
+          "gacha_type": "301",
+          "item_id": "10000030",
+          "time": "2026-01-02 00:00:00",
+          "name": "Diluc",
+          "item_type": "Character",
+          "rank_type": "5"
+        }
+      ]
+    }
+  ]
+}

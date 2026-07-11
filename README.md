@@ -46,6 +46,14 @@ than route your data through a third-party CORS proxy, the hosted scripts do the
 themselves and hand back plain JSON — no game credentials, no third parties, nothing leaves
 your machine except requests to HoYoverse's own API.
 
+**Already have history exported from paimon.moe, Star Rail Station, or stardb.gg?** The same
+paste box (and a file-upload option next to it) also accepts a
+[UIGF v4](https://uigf.org/en/standards/uigf.html) export — the community interchange format
+those sites and most other trackers support. GachaGremlin detects which shape you gave it
+automatically, so there's no format picker: paste or upload either kind of file and it just
+works. See `src/data/wishes/uigf.ts` for the exact field mapping, including the ZZZ rarity
+remap (its API reports rank as B/A/S rather than the 3/4/5-star scale Genshin/HSR use).
+
 See [`Todos/Todo_wish_tracker/goal.md`](Todos/Todo_wish_tracker/goal.md) for the full design
 rationale, including exactly how the reference sites' scripts work under the hood.
 
@@ -79,11 +87,15 @@ doesn't depend on Fandom's or HoYoverse's uptime:
   fallback, force-refresh.
 - `tests/eventCard.test.ts`, `tests/format.test.ts` — region-time resolution and countdown
   formatting.
-- `tests/wishPayload.test.ts` — import payload validation (accept/reject cases).
+- `tests/wishPayload.test.ts` — import payload validation (accept/reject cases) and the
+  native-vs-UIGF format dispatcher.
+- `tests/uigfPayload.test.ts` — UIGF v4 export conversion: field mapping per game, multi-account
+  files, the ZZZ rank remap, and rejecting pre-v4/malformed/incomplete files.
 - `tests/wishStore.test.ts` — localStorage merge/dedupe by id, per-uid and per-game isolation.
 - `tests/pity.test.ts` — pity counts and 50/50 guarantee state, including banner-group merging
   (Genshin 301+400, HSR 21+22 collab).
-- `tests/wishesView.test.ts` — the Wishes view and import dialog against seeded fixtures.
+- `tests/wishesView.test.ts` — the Wishes view and import dialog (paste and file-upload paths)
+  against seeded fixtures.
 
 The three PowerShell import scripts (`public/import/*.ps1`) aren't exercised by `npm test` —
 there's no game installed in CI to generate real cache data. They're syntax-checked via
@@ -114,7 +126,8 @@ src/
       wikiSource.ts             EventSource impl: the only one in v1
     wishes/
       banners.ts            per-game banner groups, hard pity, standard-pool 5-star lists
-      payload.ts             parsePayload: validates a pasted import payload
+      payload.ts             parseAnyImport: detects native vs UIGF, parsePayload validates ours
+      uigf.ts                 parseUigfPayload: converts a UIGF v4 export to our WishPayload shape
       store.ts                localStorage merge/dedupe by id, active-uid pointer
       pity.ts                  pure pity/guarantee math over a sorted item list
   ui/

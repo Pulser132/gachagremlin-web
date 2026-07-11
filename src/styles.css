@@ -741,12 +741,31 @@ select {
   resize: vertical;
 }
 
+.import-alt {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.import-alt-label {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0 0 0.5rem;
+}
+
+.import-file {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  width: 100%;
+}
+
 .import-error {
   color: var(--danger-text);
   background: var(--danger-bg);
   border-radius: 8px;
   padding: 0.5rem 0.7rem;
   font-size: 0.88rem;
+  margin-top: 0.75rem;
 }
 
 .import-actions {

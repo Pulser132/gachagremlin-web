@@ -104,3 +104,13 @@ export function importPayload(payload: WishPayload, now: () => number = Date.now
   writeActiveUid(payload.game, payload.uid);
   return merged;
 }
+
+/**
+ * Imports every payload (e.g. all accounts found in one multi-uid UIGF
+ * file) and returns the merged accounts in the same order. The last
+ * payload's uid ends up active, matching importPayload's single-payload
+ * behavior.
+ */
+export function importPayloads(payloads: WishPayload[], now: () => number = Date.now): WishAccount[] {
+  return payloads.map((payload) => importPayload(payload, now));
+}

@@ -1,0 +1,47 @@
+{
+  "info": {
+    "export_timestamp": 1783700200,
+    "export_app": "stardb.gg",
+    "export_app_version": "3.0.0",
+    "version": "v4.1"
+  },
+  "nap": [
+    {
+      "uid": "10000099",
+      "timezone": -5,
+      "lang": "en-us",
+      "list": [
+        {
+          "id": "1720000000000000301",
+          "gacha_type": "2",
+          "item_id": "1191",
+          "count": "1",
+          "time": "2026-03-03 08:00:00",
+          "name": "Evelyn",
+          "item_type": "Agent",
+          "rank_type": "4"
+        },
+        {
+          "id": "1720000000000000302",
+          "gacha_type": "2",
+          "item_id": "14113",
+          "count": "1",
+          "time": "2026-03-03 08:05:00",
+          "name": "Steel Cushion",
+          "item_type": "W-Engine",
+          "rank_type": "3"
+        },
+        {
+          "id": "1720000000000000303",
+          "gacha_type": "2",
+          "item_id": "13001",
+          "count": "1",
+          "time": "2026-03-03 08:10:00",
+          "name": "Type III",
+          "item_type": "W-Engine",
+          "rank_type": "2"
+        }
+      ]
+    }
+  ]
+}

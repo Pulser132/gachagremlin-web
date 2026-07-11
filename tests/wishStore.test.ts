@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { compareIds, getActiveAccount, importPayload, loadAccount, mergeItems, setActiveUid } from '../src/data/wishes/store.ts';
+import {
+  compareIds,
+  getActiveAccount,
+  importPayload,
+  importPayloads,
+  loadAccount,
+  mergeItems,
+  setActiveUid,
+} from '../src/data/wishes/store.ts';
 import type { WishItem, WishPayload } from '../src/types.ts';
 
 // Same in-memory Storage stand-in used by tests/cache.test.ts — Vitest's
@@ -105,6 +113,24 @@ describe('importPayload', () => {
     importPayload(payload, () => 1000);
     const second = importPayload(payload, () => 2000);
     expect(second.items).toHaveLength(2);
+  });
+});
+
+describe('importPayloads', () => {
+  it('imports every payload (e.g. every account in a multi-uid UIGF file) and stores each separately', () => {
+    const results = importPayloads(
+      [makePayload({ uid: 'uidA', items: [item('1')] }), makePayload({ uid: 'uidB', items: [item('9')] })],
+      () => 5000,
+    );
+
+    expect(results.map((a) => a.uid)).toEqual(['uidA', 'uidB']);
+    expect(loadAccount('genshin', 'uidA')?.items.map((i) => i.id)).toEqual(['1']);
+    expect(loadAccount('genshin', 'uidB')?.items.map((i) => i.id)).toEqual(['9']);
+  });
+
+  it('leaves the last payload’s uid active, matching importPayload’s single-payload behavior', () => {
+    importPayloads([makePayload({ uid: 'uidA' }), makePayload({ uid: 'uidB', items: [item('9')] })]);
+    expect(getActiveAccount('genshin')?.uid).toBe('uidB');
   });
 });
 

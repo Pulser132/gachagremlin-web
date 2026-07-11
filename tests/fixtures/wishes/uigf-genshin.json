@@ -1,0 +1,50 @@
+{
+  "info": {
+    "export_timestamp": 1783700000,
+    "export_app": "paimon.moe",
+    "export_app_version": "2.0.0",
+    "version": "v4.0"
+  },
+  "hk4e": [
+    {
+      "uid": "800000099",
+      "timezone": -5,
+      "lang": "en-us",
+      "list": [
+        {
+          "id": "1700000000000000101",
+          "uigf_gacha_type": "301",
+          "gacha_type": "301",
+          "item_id": "10000042",
+          "count": "1",
+          "time": "2026-01-05 10:00:00",
+          "name": "Klee",
+          "item_type": "Character",
+          "rank_type": "5"
+        },
+        {
+          "id": "1700000000000000102",
+          "uigf_gacha_type": "301",
+          "gacha_type": "400",
+          "item_id": "10000064",
+          "count": "1",
+          "time": "2026-01-05 10:05:00",
+          "name": "Yaoyao",
+          "item_type": "Character",
+          "rank_type": "4"
+        },
+        {
+          "id": "1700000000000000103",
+          "uigf_gacha_type": "200",
+          "gacha_type": "200",
+          "item_id": "11301",
+          "count": "1",
+          "time": "2026-01-05 10:10:00",
+          "name": "Favonius Sword",
+          "item_type": "Weapon",
+          "rank_type": "3"
+        }
+      ]
+    }
+  ]
+}

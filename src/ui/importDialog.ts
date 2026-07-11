@@ -1,6 +1,6 @@
 import { GAME_BANNER_CONFIGS } from '../data/wishes/banners.ts';
-import { parsePayload } from '../data/wishes/payload.ts';
-import { importPayload } from '../data/wishes/store.ts';
+import { parseAnyImport } from '../data/wishes/payload.ts';
+import { importPayloads } from '../data/wishes/store.ts';
 import { GAME_CONFIGS } from '../data/wiki/games.ts';
 import type { GameKey } from '../types.ts';
 
@@ -85,6 +85,27 @@ export function openImportDialog(game: GameKey, onImported: () => void): void {
   textarea.placeholder = 'Paste the copied history here…';
   dialog.appendChild(textarea);
 
+  const altImport = el('div', { className: 'import-alt' });
+  altImport.appendChild(
+    el('p', {
+      className: 'import-alt-label',
+      text: `Already have a history file from paimon.moe, Star Rail Station, or stardb.gg? Upload its UIGF export below instead.`,
+    }),
+  );
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.className = 'import-file';
+  fileInput.setAttribute('aria-label', 'Upload a UIGF export file');
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    textarea.value = await file.text();
+    errorBox.hidden = true;
+  });
+  altImport.appendChild(fileInput);
+  dialog.appendChild(altImport);
+
   const errorBox = el('p', { className: 'import-error' });
   errorBox.hidden = true;
   errorBox.setAttribute('role', 'alert');
@@ -104,13 +125,13 @@ export function openImportDialog(game: GameKey, onImported: () => void): void {
   importBtn.className = 'import-confirm';
   importBtn.textContent = 'Import';
   importBtn.addEventListener('click', () => {
-    const result = parsePayload(textarea.value.trim(), game);
+    const result = parseAnyImport(textarea.value.trim(), game);
     if (!result.ok) {
       errorBox.textContent = result.error;
       errorBox.hidden = false;
       return;
     }
-    importPayload(result.payload);
+    importPayloads(result.payloads);
     dialog.close();
     onImported();
   });

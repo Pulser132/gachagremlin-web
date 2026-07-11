@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { importPayload } from '../src/data/wishes/store.ts';
+import { getActiveAccount, importPayload } from '../src/data/wishes/store.ts';
 import { openImportDialog } from '../src/ui/importDialog.ts';
 import { renderWishesView } from '../src/ui/wishesView.ts';
 import type { WishPayload } from '../src/types.ts';
@@ -35,6 +35,10 @@ const FIXTURES = join(import.meta.dirname, 'fixtures', 'wishes');
 
 function loadPayload(name: string): WishPayload {
   return JSON.parse(readFileSync(join(FIXTURES, name), 'utf-8')) as WishPayload;
+}
+
+function loadText(name: string): string {
+  return readFileSync(join(FIXTURES, name), 'utf-8');
 }
 
 beforeEach(() => {
@@ -112,6 +116,26 @@ describe('openImportDialog', () => {
 
     expect(onImported).toHaveBeenCalledTimes(1);
     expect(document.querySelector('.import-dialog')).toBeNull(); // removed on close
+  });
+
+  it('imports a UIGF export pasted from another tracker (e.g. paimon.moe/stardb.gg) via the same textarea', () => {
+    const onImported = vi.fn();
+    openImportDialog('genshin', onImported);
+
+    const textarea = document.querySelector<HTMLTextAreaElement>('.import-textarea')!;
+    textarea.value = loadText('uigf-genshin.json');
+    document.querySelector<HTMLButtonElement>('.import-confirm')!.click();
+
+    expect(onImported).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.import-dialog')).toBeNull();
+    expect(getActiveAccount('genshin')?.uid).toBe('800000099'); // the uid in uigf-genshin.json's hk4e account
+  });
+
+  it('has a file input for uploading a UIGF export as an alternative to pasting', () => {
+    openImportDialog('genshin', vi.fn());
+    const fileInput = document.querySelector<HTMLInputElement>('.import-file');
+    expect(fileInput).not.toBeNull();
+    expect(fileInput!.accept).toContain('json');
   });
 
   it('includes the game-specific one-liner in a copyable code block', () => {
