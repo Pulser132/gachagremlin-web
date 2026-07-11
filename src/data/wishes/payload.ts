@@ -2,7 +2,9 @@
  * Validates a pasted import payload before it touches storage. Errors are
  * plain strings meant to be shown verbatim in the import dialog.
  */
+import { looksLikePaimonMoeLocalData, parsePaimonMoeLocalData } from './paimonMoe.ts';
 import { parseUigfPayload, type ParseManyResult } from './uigf.ts';
+import { GAME_CONFIGS } from '../wiki/games.ts';
 import type { GameKey, WishItem, WishPayload } from '../../types.ts';
 
 export type ParseResult = { ok: true; payload: WishPayload } | { ok: false; error: string };
@@ -83,12 +85,15 @@ export function parsePayload(text: string, expectedGame: GameKey): ParseResult {
 }
 
 /**
- * Accepts either GachaGremlin's own clipboard payload (from
- * public/import/*.ps1) or a UIGF v4 export file from another tracker
- * (paimon.moe, Star Rail Station, stardb.gg, ...), detected by the
- * presence of a top-level "info" object that only UIGF files have. A UIGF
- * file can hold multiple accounts of the same game, so this always
+ * Accepts GachaGremlin's own clipboard payload (from public/import/*.ps1),
+ * a UIGF v4 export from another tracker, or a paimon.moe local-data
+ * backup — auto-detected, so there's no format picker in the dialog. A
+ * UIGF or paimon.moe file can hold multiple accounts, so this always
  * returns an array — length 1 for the native format.
+ *
+ * paimon.moe local-data backups only ever contain Genshin data, and
+ * GachaGremlin doesn't yet understand Star Rail Station's or stardb.gg's
+ * own (non-UIGF) backup formats — see src/data/wishes/paimonMoe.ts.
  */
 export function parseAnyImport(text: string, expectedGame: GameKey): ParseManyResult {
   let raw: unknown;
@@ -99,6 +104,16 @@ export function parseAnyImport(text: string, expectedGame: GameKey): ParseManyRe
       ok: false,
       error: 'That doesn’t look like valid JSON. Make sure you pasted or uploaded the entire file.',
     };
+  }
+
+  if (looksLikePaimonMoeLocalData(raw)) {
+    if (expectedGame !== 'genshin') {
+      return {
+        ok: false,
+        error: `This looks like a paimon.moe backup, which only contains Genshin data. Importing ${GAME_CONFIGS[expectedGame].label} history from another tracker's own backup format isn't supported yet — a UIGF export will still work if that tracker offers one.`,
+      };
+    }
+    return parsePaimonMoeLocalData(text);
   }
 
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw) && 'info' in raw) {

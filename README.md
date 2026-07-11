@@ -24,9 +24,7 @@ The **Wishes** tab (next to Events) tracks pity, 50/50 status, and full pull his
 Genshin Wishes, Star Rail Warps, and ZZZ Signal Searches — client-side, same as the events
 feature.
 
-**Player flow**, mirroring how [paimon.moe](https://paimon.moe/wish/import),
-[starrailstation.com](https://starrailstation.com/en/warp#import), and
-[stardb.gg](https://stardb.gg/en/zzz/signal-import) do it:
+**Player flow**, mirroring the same approach several existing wish/warp/signal trackers use:
 
 1. Open the Wish/Warp/Signal History screen in the game on your PC.
 2. Click "Import" on the site, copy the one-liner shown for your game (e.g.
@@ -46,13 +44,24 @@ than route your data through a third-party CORS proxy, the hosted scripts do the
 themselves and hand back plain JSON — no game credentials, no third parties, nothing leaves
 your machine except requests to HoYoverse's own API.
 
-**Already have history exported from paimon.moe, Star Rail Station, or stardb.gg?** The same
-paste box (and a file-upload option next to it) also accepts a
-[UIGF v4](https://uigf.org/en/standards/uigf.html) export — the community interchange format
-those sites and most other trackers support. GachaGremlin detects which shape you gave it
-automatically, so there's no format picker: paste or upload either kind of file and it just
-works. See `src/data/wishes/uigf.ts` for the exact field mapping, including the ZZZ rarity
-remap (its API reports rank as B/A/S rather than the 3/4/5-star scale Genshin/HSR use).
+**Already have history exported from another tracker?** The same paste box (and a file-upload
+option next to it) also accepts:
+
+- A [UIGF v4](https://uigf.org/en/standards/uigf.html) export — the community interchange
+  format most trackers support, covering all three games. See `src/data/wishes/uigf.ts` for the
+  exact field mapping, including the ZZZ rarity remap (its API reports rank as B/A/S rather
+  than the 3/4/5-star scale Genshin/HSR use).
+- A **Genshin tracker's local-data backup** (a "Local Data" export feature offered by one
+  popular community Genshin tracker) — **Genshin only**. This isn't UIGF, it's that tracker's
+  own save-data shape: pulls are stored by item slug with no name or rarity of their own, so the
+  converter (`src/data/wishes/`) resolves each slug through a bundled lookup table extracted
+  from that tracker's own open-source item database, and synthesizes a sortable id since the
+  format has no per-pull id either. **Other trackers have their own site-specific backup formats
+  too, but importing those (as opposed to a UIGF export) isn't implemented yet** — the import
+  dialog says so if you try on the Warps or Signal Searches tab.
+
+GachaGremlin detects which shape you gave it automatically, so there's no format picker: paste
+or upload the file and it just works (or tells you clearly why it can't).
 
 See [`Todos/Todo_wish_tracker/goal.md`](Todos/Todo_wish_tracker/goal.md) for the full design
 rationale, including exactly how the reference sites' scripts work under the hood.
@@ -88,9 +97,12 @@ doesn't depend on Fandom's or HoYoverse's uptime:
 - `tests/eventCard.test.ts`, `tests/format.test.ts` — region-time resolution and countdown
   formatting.
 - `tests/wishPayload.test.ts` — import payload validation (accept/reject cases) and the
-  native-vs-UIGF format dispatcher.
+  format-detection dispatcher (native script output vs UIGF vs a tracker's local-data backup).
 - `tests/uigfPayload.test.ts` — UIGF v4 export conversion: field mapping per game, multi-account
   files, the ZZZ rank remap, and rejecting pre-v4/malformed/incomplete files.
+- The Genshin tracker local-data backup converter has its own suite: slug -> name/rarity
+  resolution, synthesized id ordering, rejecting unrecognized items, and the "not supported yet"
+  message when this format is used on the HSR/ZZZ tabs.
 - `tests/wishStore.test.ts` — localStorage merge/dedupe by id, per-uid and per-game isolation.
 - `tests/pity.test.ts` — pity counts and 50/50 guarantee state, including banner-group merging
   (Genshin 301+400, HSR 21+22 collab).
@@ -126,8 +138,10 @@ src/
       wikiSource.ts             EventSource impl: the only one in v1
     wishes/
       banners.ts            per-game banner groups, hard pity, standard-pool 5-star lists
-      payload.ts             parseAnyImport: detects native vs UIGF, parsePayload validates ours
-      uigf.ts                 parseUigfPayload: converts a UIGF v4 export to our WishPayload shape
+      payload.ts             parseAnyImport: detects which import shape it was given, routes accordingly
+      uigf.ts                 converts a UIGF v4 export to our WishPayload shape
+      + a Genshin-only converter for one tracker's local-data backup format, with a
+        bundled item slug -> {name, rarity} lookup extracted from that tracker's own data
       store.ts                localStorage merge/dedupe by id, active-uid pointer
       pity.ts                  pure pity/guarantee math over a sorted item list
   ui/

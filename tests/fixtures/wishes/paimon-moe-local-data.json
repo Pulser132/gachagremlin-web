@@ -1,0 +1,46 @@
+{
+  "wish-uid": "630164299",
+  "server": "America",
+  "locale": "en",
+  "update-time": "2026-07-01T08:00:06.700Z",
+  "converted": "2022-04-07T06:12:49.765Z",
+  "wish-counter-setting": { "firstTime": false, "manualInput": false },
+  "wish-counter-beginners": {
+    "total": 1,
+    "legendary": 0,
+    "rare": 0,
+    "pulls": [{ "type": "weapon", "code": "100", "id": "thrilling_tales_of_dragon_slayers", "time": "2022-04-02 20:22:35", "pity": 1 }]
+  },
+  "wish-counter-standard": {
+    "total": 2,
+    "legendary": 0,
+    "rare": 1,
+    "pulls": [
+      { "type": "weapon", "code": "200", "id": "emerald_orb", "time": "2022-04-03 14:06:32", "pity": 1 },
+      { "type": "character", "code": "200", "id": "jean", "time": "2022-04-13 21:25:32", "pity": 5 }
+    ]
+  },
+  "wish-counter-character-event": {
+    "total": 3,
+    "legendary": 1,
+    "rare": 1,
+    "guaranteed": { "legendary": false, "rare": false },
+    "pulls": [
+      { "type": "weapon", "code": "301", "id": "raven_bow", "time": "2022-04-13 21:25:00", "pity": 1 },
+      { "type": "character", "code": "301", "id": "diona", "time": "2022-04-13 21:25:10", "pity": 2 },
+      { "type": "character", "code": "301", "id": "hu_tao", "time": "2022-04-13 21:25:32", "pity": 5 }
+    ]
+  },
+  "wish-counter-weapon-event": {
+    "total": 1,
+    "legendary": 0,
+    "rare": 0,
+    "pulls": [{ "type": "weapon", "code": "302", "id": "favonius_sword", "time": "2022-04-13 21:26:18", "pity": 10 }]
+  },
+  "wish-counter-chronicled": {
+    "total": 1,
+    "legendary": 0,
+    "rare": 0,
+    "pulls": [{ "type": "weapon", "code": "500", "id": "black_tassel", "time": "2022-04-14 09:00:00", "pity": 1 }]
+  }
+}

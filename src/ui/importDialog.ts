@@ -86,12 +86,11 @@ export function openImportDialog(game: GameKey, onImported: () => void): void {
   dialog.appendChild(textarea);
 
   const altImport = el('div', { className: 'import-alt' });
-  altImport.appendChild(
-    el('p', {
-      className: 'import-alt-label',
-      text: `Already have a history file from paimon.moe, Star Rail Station, or stardb.gg? Upload its UIGF export below instead.`,
-    }),
-  );
+  const altLabel =
+    game === 'genshin'
+      ? 'Already have a paimon.moe local-data backup or a UIGF export from another tracker? Upload it below instead.'
+      : `Already have a UIGF export from another tracker? Upload it below instead. (Importing ${GAME_CONFIGS[game].label} from a tracker's own backup format, like paimon.moe's for Genshin, isn't supported yet.)`;
+  altImport.appendChild(el('p', { className: 'import-alt-label', text: altLabel }));
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = '.json,application/json';

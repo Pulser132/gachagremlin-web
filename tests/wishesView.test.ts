@@ -138,6 +138,30 @@ describe('openImportDialog', () => {
     expect(fileInput!.accept).toContain('json');
   });
 
+  it('imports a real-shaped paimon.moe local-data backup pasted on the Genshin dialog', () => {
+    const onImported = vi.fn();
+    openImportDialog('genshin', onImported);
+
+    const textarea = document.querySelector<HTMLTextAreaElement>('.import-textarea')!;
+    textarea.value = loadText('paimon-moe-local-data.json');
+    document.querySelector<HTMLButtonElement>('.import-confirm')!.click();
+
+    expect(onImported).toHaveBeenCalledTimes(1);
+    expect(getActiveAccount('genshin')?.uid).toBe('630164299');
+  });
+
+  it('mentions paimon.moe backups on the Genshin dialog but not on HSR/ZZZ, where that format isn’t supported', () => {
+    openImportDialog('genshin', vi.fn());
+    expect(document.querySelector('.import-alt-label')?.textContent).toMatch(/paimon\.moe local-data backup/i);
+    document.querySelector<HTMLButtonElement>('.import-cancel')!.click();
+    expect(document.querySelector('.import-dialog')).toBeNull(); // removed on close
+
+    openImportDialog('hsr', vi.fn());
+    const hsrLabel = document.querySelector('.import-alt-label')?.textContent ?? '';
+    expect(hsrLabel).toMatch(/isn't supported yet/i);
+    expect(hsrLabel).not.toMatch(/paimon\.moe local-data backup\?/i);
+  });
+
   it('includes the game-specific one-liner in a copyable code block', () => {
     openImportDialog('hsr', vi.fn());
     const code = document.querySelector('.import-command code');

@@ -327,17 +327,18 @@ select {
   transition:
     border-radius 200ms ease,
     clip-path 200ms ease,
-    border-color 200ms ease;
+    border-color 200ms ease,
+    box-shadow 200ms ease;
 }
 
-/* ZZZ's signature flourish: a halftone dot overlay on hover, evoking the
-   show's retro-arcade "Hollow" print texture. Hover-only so it reads as a
-   moment of interaction rather than visual noise on every card at rest. */
+/* ZZZ's signature flourish: the accent border punches brighter on hover,
+   "Hollow"-poster bold-outline energy. Kept to the border only — an earlier
+   version put a halftone dot pattern behind the whole card, which sat right
+   under the text and made event details hard to read on hover. */
 [data-game='zzz'] .event-card:hover,
 [data-game='zzz'] .pity-card:hover {
-  background-image: radial-gradient(var(--accent) 1px, transparent 1.6px);
-  background-size: 10px 10px;
-  background-color: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .event-card {
