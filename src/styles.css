@@ -1,31 +1,132 @@
-:root {
-  --bg: #f7f7fa;
-  --surface: #ffffff;
-  --text: #1a1a1e;
-  --text-muted: #5b5b66;
-  --border: #dcdce3;
-  --accent: #4a90d9;
-  --danger-bg: #fdecea;
-  --danger-text: #8a1f11;
-  --genshin: #4a90d9;
-  --hsr: #d4af37;
-  --zzz: #b4f04b;
-  --rarity-5: #c8952a;
-  --rarity-4: #a256d0;
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: light dark;
+/* Self-hosted, Latin-subset only — no third-party font requests at runtime
+   (keeps the zero-external-request posture the README calls out). */
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/gachagremlin-web/fonts/chakra-petch-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/gachagremlin-web/fonts/chakra-petch-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Chakra Petch';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/gachagremlin-web/fonts/chakra-petch-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 400 700; /* variable font: one file covers the whole range */
+  font-display: swap;
+  src: url('/gachagremlin-web/fonts/manrope-variable.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/gachagremlin-web/fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/gachagremlin-web/fonts/ibm-plex-mono-700.woff2') format('woff2');
 }
 
-@media (prefers-color-scheme: dark) {
+:root {
+  /* Dark is the default look (matches the in-game HUD feel this audience
+     already knows); prefers-color-scheme: light below overrides it. */
+  --ink: #0d0d11;
+  --surface: #17171d;
+  --surface-raised: #202028;
+  --text: #f2f0ea;
+  --text-muted: #9b98a6;
+  --border: #2c2c36;
+  --danger-bg: #3a1a17;
+  --danger-text: #ffb4a8;
+
+  /* Fixed link color, deliberately NOT the reactive --accent below: accent
+     hues read fine as button fills with dark text (verified 5.7-10.2:1) but
+     fail AA as plain text on --surface in light mode (as low as 2.7:1). */
+  --link: #6fb2e8;
+
+  /* Per-game identity: two accents + a motif name each, pulled from each
+     game's own splash-art palette rather than one arbitrary brand swatch.
+     Re-pointed onto --accent/--accent-2 per active game below. */
+  --genshin-primary: #caa968; /* "Ink & Gold" */
+  --genshin-secondary: #1f4a4a;
+  --hsr-primary: #5ad1e0; /* "Astral Circuit" */
+  --hsr-secondary: #e0b34a;
+  --zzz-primary: #ff5a36; /* "Hollow Signal" */
+  --zzz-secondary: #141414;
+
+  --rarity-5: #c8952a;
+  --rarity-4: #a256d0;
+
+  /* Defaults to Genshin's identity until app.ts sets [data-game] on #app —
+     covers the brief window before JS runs and any markup rendered outside
+     the mounted app shell (e.g. isolated component tests). */
+  --accent: var(--genshin-primary);
+  --accent-2: var(--genshin-secondary);
+  --card-radius: 12px;
+  --card-clip: none;
+  --card-border-width: 1px;
+
+  --font-display: 'Chakra Petch', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Manrope', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  font-family: var(--font-body);
+  color-scheme: dark light;
+}
+
+@media (prefers-color-scheme: light) {
   :root {
-    --bg: #16161a;
-    --surface: #1f1f24;
-    --text: #f0f0f2;
-    --text-muted: #a7a7b3;
-    --border: #34343c;
-    --danger-bg: #3a1a17;
-    --danger-text: #ffb4a8;
+    --ink: #eef0f3;
+    --surface: #ffffff;
+    --surface-raised: #f7f8fa;
+    --text: #14141a;
+    --text-muted: #5b5b66;
+    --border: #d9dce2;
+    --danger-bg: #fdecea;
+    --danger-text: #8a1f11;
   }
+}
+
+/* Per-game reactive skin: switching game tabs re-points --accent/--accent-2
+   and the card geometry tokens, so every element already built on those
+   variables (buttons, focus rings, borders, the pity gauge) re-skins with
+   no per-component overrides needed. */
+[data-game='genshin'] {
+  --accent: var(--genshin-primary);
+  --accent-2: var(--genshin-secondary);
+  --card-radius: 12px;
+  --card-clip: none;
+  --card-border-width: 1px;
+}
+[data-game='hsr'] {
+  --accent: var(--hsr-primary);
+  --accent-2: var(--hsr-secondary);
+  --card-radius: 4px;
+  --card-clip: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
+  --card-border-width: 1px;
+}
+[data-game='zzz'] {
+  --accent: var(--zzz-primary);
+  --accent-2: var(--zzz-secondary);
+  --card-radius: 0px;
+  --card-clip: none;
+  --card-border-width: 2px;
 }
 
 * {
@@ -34,7 +135,7 @@
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--ink);
   color: var(--text);
   line-height: 1.5;
 }
@@ -46,7 +147,7 @@ body {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
 }
 
 button,
@@ -61,7 +162,10 @@ select {
 }
 
 .app-header h1 {
-  font-size: 1.4rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  font-size: 1.5rem;
   margin: 0.5rem 0 1rem;
 }
 
@@ -73,7 +177,9 @@ select {
 }
 
 .game-tab {
-  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  padding: 0.55rem 1.1rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
@@ -81,22 +187,22 @@ select {
 }
 
 .game-tab[aria-selected='true'] {
-  /* Dark text, not white: the brand accents (esp. HSR gold, ZZZ green) are
-     too light for white text to hit WCAG AA (4.5:1) against them. Verified
-     via computed contrast: dark text scores 5.49-13.55 across all three. */
+  /* Dark text, not the theme's light text: every brand accent (gold, cyan,
+     vermilion) is light enough that dark text is what clears WCAG AA here —
+     verified 5.7:1-10.2:1 across all three, computed against each hue. */
   color: #14141a;
   border-color: transparent;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .game-tab-genshin[aria-selected='true'] {
-  background: var(--genshin);
+  background: var(--genshin-primary);
 }
 .game-tab-hsr[aria-selected='true'] {
-  background: var(--hsr);
+  background: var(--hsr-primary);
 }
 .game-tab-zzz[aria-selected='true'] {
-  background: var(--zzz);
+  background: var(--zzz-primary);
 }
 
 .controls {
@@ -164,6 +270,11 @@ select {
     animation: none;
     background: var(--border);
   }
+  .event-card,
+  .pity-card,
+  .pity-bar-fill {
+    transition: none !important;
+  }
 }
 
 .event-section {
@@ -171,9 +282,34 @@ select {
 }
 
 .event-section h2 {
-  font-size: 1.1rem;
-  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  border-bottom: 2px solid var(--accent);
   padding-bottom: 0.4rem;
+}
+
+/* Genshin's signature flourish: a thin double-rule under section headings,
+   evoking a scroll/parchment divider. Only Genshin gets this — HSR and ZZZ
+   carry their identity through card geometry instead (see .event-card). */
+[data-game='genshin'] .event-section h2,
+[data-game='genshin'] .wishes-header h2,
+[data-game='genshin'] .wishes-history h3 {
+  border-bottom: 1px solid var(--accent);
+  padding-bottom: 0.55rem;
+  position: relative;
+}
+[data-game='genshin'] .event-section h2::after,
+[data-game='genshin'] .wishes-header h2::after,
+[data-game='genshin'] .wishes-history h3::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0.55;
 }
 
 .event-grid {
@@ -182,12 +318,38 @@ select {
   gap: 1rem;
 }
 
-.event-card {
+.event-card,
+.pity-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: var(--card-border-width) solid var(--border);
+  border-radius: var(--card-radius);
+  clip-path: var(--card-clip);
+  transition:
+    border-radius 200ms ease,
+    clip-path 200ms ease,
+    border-color 200ms ease;
+}
+
+/* ZZZ's signature flourish: a halftone dot overlay on hover, evoking the
+   show's retro-arcade "Hollow" print texture. Hover-only so it reads as a
+   moment of interaction rather than visual noise on every card at rest. */
+[data-game='zzz'] .event-card:hover,
+[data-game='zzz'] .pity-card:hover {
+  background-image: radial-gradient(var(--accent) 1px, transparent 1.6px);
+  background-size: 10px 10px;
+  background-color: var(--surface);
+}
+
+.event-card {
   border-left: 4px solid var(--accent);
-  border-radius: 10px;
   padding: 1rem;
+}
+
+/* HSR's signature flourish: a hairline accent bar inset from the clipped
+   corner, HUD-panel style — box-shadow rather than border-left so it
+   doesn't fight the card's own accent stripe above. */
+[data-game='hsr'] .event-card {
+  box-shadow: inset 2px 0 0 var(--accent-2);
 }
 
 .event-banner {
@@ -197,18 +359,8 @@ select {
   max-width: none;
   object-fit: cover;
   margin: -1rem -1rem 0.75rem;
-  border-radius: 8px 8px 0 0;
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
   background: var(--border); /* visible while the image loads */
-}
-
-.event-card.game-genshin {
-  border-left-color: var(--genshin);
-}
-.event-card.game-hsr {
-  border-left-color: var(--hsr);
-}
-.event-card.game-zzz {
-  border-left-color: var(--zzz);
 }
 
 .event-card-header {
@@ -219,6 +371,8 @@ select {
 }
 
 .event-name {
+  font-family: var(--font-display);
+  font-weight: 600;
   margin: 0 0 0.4rem;
   font-size: 1.05rem;
 }
@@ -250,6 +404,8 @@ select {
 }
 
 .countdown {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
@@ -291,19 +447,22 @@ select {
 }
 
 .view-tab {
-  padding: 0.4rem 0.9rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  padding: 0.45rem 1rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--surface);
   cursor: pointer;
   font-size: 0.9rem;
+  transition: background-color 200ms ease;
 }
 
 .view-tab[aria-selected='true'] {
   background: var(--accent);
   color: #14141a;
   border-color: transparent;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .wishes-header {
@@ -316,8 +475,10 @@ select {
 }
 
 .wishes-header h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
   margin: 0;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
 }
 
 .import-button {
@@ -326,8 +487,9 @@ select {
   border: none;
   border-radius: 6px;
   padding: 0.5rem 1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
+  transition: background-color 200ms ease;
 }
 
 .wishes-empty {
@@ -346,6 +508,8 @@ select {
   color: var(--text-muted);
   font-size: 0.9rem;
   margin-bottom: 1.25rem;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .pity-grid {
@@ -356,21 +520,37 @@ select {
 }
 
 .pity-card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 10px;
   padding: 0.9rem 1rem;
 }
 
 .pity-card-title {
+  font-family: var(--font-display);
+  font-weight: 500;
   margin: 0 0 0.4rem;
   font-size: 0.95rem;
 }
 
 .pity-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   margin: 0;
-  font-size: 1.3rem;
+  font-size: 1.35rem;
   font-weight: 700;
+}
+
+.pity-bar {
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--ink);
+  overflow: hidden;
+  margin: 0.5rem 0;
+}
+
+.pity-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 200ms ease;
 }
 
 .pity-sub {
@@ -394,7 +574,7 @@ select {
   /* Filled background + dark text rather than colored text on transparent —
      colored text on var(--surface) only hits ~2.7:1 in light mode, well
      under the 4.5:1 AA minimum for this text size. Filled matches
-     .game-tab[aria-selected]'s pattern, which measured 5.49-13.55:1. */
+     .game-tab[aria-selected]'s pattern, which measured 5.7-10.2:1. */
   background: var(--rarity-5);
   color: #14141a;
   border-color: transparent;
@@ -402,8 +582,10 @@ select {
 }
 
 .wishes-history h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
   font-size: 1.05rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 2px solid var(--accent);
   padding-bottom: 0.4rem;
 }
 
@@ -431,12 +613,33 @@ select {
   font-size: 0.9rem;
 }
 
+.history-table th {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--text-muted);
+}
+
 .history-table th,
 .history-table td {
   text-align: left;
   padding: 0.45rem 0.6rem;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
+}
+
+.history-table td:nth-child(3) {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.history-table td:last-child {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .history-table tr.rarity-5 td:first-child {
@@ -462,7 +665,7 @@ select {
 .import-dialog {
   max-width: 520px;
   width: calc(100% - 2rem);
-  background: var(--surface);
+  background: var(--surface-raised);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 12px;
@@ -470,12 +673,14 @@ select {
 }
 
 .import-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .import-dialog h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
   margin-top: 0;
-  font-size: 1.15rem;
+  font-size: 1.2rem;
 }
 
 .import-steps {
@@ -491,7 +696,7 @@ select {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--bg);
+  background: var(--ink);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
@@ -499,6 +704,7 @@ select {
 }
 
 .import-command code {
+  font-family: var(--font-mono);
   flex: 1;
   overflow-x: auto;
   white-space: nowrap;
@@ -518,15 +724,16 @@ select {
 .import-confirm {
   background: var(--accent);
   color: #14141a;
-  font-weight: 600;
+  font-weight: 700;
   border-color: transparent;
 }
 
 .import-textarea {
   width: 100%;
   font: inherit;
-  font-size: 0.85rem;
-  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: var(--ink);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;

@@ -75,6 +75,18 @@ function renderPityCards(game: GameKey, account: WishAccount): HTMLElement {
     const card = el('div', { className: 'pity-card' });
     card.appendChild(el('h3', { className: 'pity-card-title', text: group.label }));
     card.appendChild(el('p', { className: 'pity-count', text: `${counts.since5Star} / ${group.hardPity} pity` }));
+
+    const bar = el('div', { className: 'pity-bar' });
+    bar.setAttribute('role', 'progressbar');
+    bar.setAttribute('aria-label', `${group.label} pity`);
+    bar.setAttribute('aria-valuenow', String(counts.since5Star));
+    bar.setAttribute('aria-valuemin', '0');
+    bar.setAttribute('aria-valuemax', String(group.hardPity));
+    const fill = el('div', { className: 'pity-bar-fill' });
+    fill.style.width = `${Math.min(100, (counts.since5Star / group.hardPity) * 100)}%`;
+    bar.appendChild(fill);
+    card.appendChild(bar);
+
     card.appendChild(
       el('p', { className: 'pity-sub', text: `${counts.since4Star} since last 4★ · ${counts.total} total pulls` }),
     );

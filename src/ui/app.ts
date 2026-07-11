@@ -137,6 +137,11 @@ export function mountApp(root: HTMLElement): void {
   root.appendChild(main);
 
   async function render(forceRefresh = false): Promise<void> {
+    // Set on <html>, not #app: the per-game accent/geometry tokens it drives
+    // (src/styles.css) need to reach the import dialog too, which is
+    // appended to document.body (outside #app) so native <dialog> gets a
+    // real top-layer stacking context.
+    document.documentElement.dataset.game = game;
     tabButtons.forEach((btn, i) => btn.setAttribute('aria-selected', String(GAME_KEYS[i] === game)));
     viewButtons.forEach((btn, i) => btn.setAttribute('aria-selected', String(VIEWS[i].key === view)));
     Array.from(regionSelect.options).forEach((opt) => {
