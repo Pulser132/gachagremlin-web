@@ -3,6 +3,7 @@ import { guaranteeState, pityAtEach5Star, pityCounts } from '../data/wishes/pity
 import { getActiveAccount } from '../data/wishes/store.ts';
 import type { GameKey, WishAccount } from '../types.ts';
 import { openImportDialog } from './importDialog.ts';
+import { createItemIcon } from './itemIcons.ts';
 
 const RARITY_STARS: Record<string, string> = { '5': '★★★★★', '4': '★★★★', '3': '★★★' };
 
@@ -200,7 +201,9 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
       tr.className = `rarity-${item.rank}`;
 
       const nameCell = document.createElement('td');
-      nameCell.textContent = item.name;
+      nameCell.className = 'history-item-cell';
+      nameCell.appendChild(createItemIcon(item.itemType, game));
+      nameCell.appendChild(document.createTextNode(item.name));
       const starEl = document.createElement('span');
       starEl.className = 'rarity-star';
       starEl.setAttribute('aria-hidden', 'true');

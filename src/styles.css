@@ -78,6 +78,7 @@
      the mounted app shell (e.g. isolated component tests). */
   --accent: var(--genshin-primary);
   --accent-2: var(--genshin-secondary);
+  --accent-icon: var(--accent);
   --card-radius: 12px;
   --card-clip: none;
   --card-border-width: 1px;
@@ -110,6 +111,7 @@
 [data-game='genshin'] {
   --accent: var(--genshin-primary);
   --accent-2: var(--genshin-secondary);
+  --accent-icon: var(--accent);
   --card-radius: 12px;
   --card-clip: none;
   --card-border-width: 1px;
@@ -117,6 +119,7 @@
 [data-game='hsr'] {
   --accent: var(--hsr-primary);
   --accent-2: var(--hsr-secondary);
+  --accent-icon: var(--accent);
   --card-radius: 4px;
   --card-clip: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 0 100%);
   --card-border-width: 1px;
@@ -124,9 +127,29 @@
 [data-game='zzz'] {
   --accent: var(--zzz-primary);
   --accent-2: var(--zzz-secondary);
+  --accent-icon: var(--accent);
   --card-radius: 0px;
   --card-clip: none;
   --card-border-width: 2px;
+}
+
+/* Icons use a thin stroke, not a filled background, so they need their own
+   AA-safe color per theme rather than the raw --accent: --accent alone
+   scores as low as 2.7:1 against the light surface for the Genshin gold —
+   under the 3:1 WCAG minimum for graphical objects. Darker, still
+   on-hue variants restore >4.5:1 in light mode; dark mode keeps the vivid
+   --accent (already verified 5.7-10.2:1 there). Must come after the
+   [data-game] blocks above to win the cascade when this query matches. */
+@media (prefers-color-scheme: light) {
+  [data-game='genshin'] {
+    --accent-icon: #8f7228;
+  }
+  [data-game='hsr'] {
+    --accent-icon: #0e7c8a;
+  }
+  [data-game='zzz'] {
+    --accent-icon: #c73f1f;
+  }
 }
 
 * {
@@ -649,6 +672,34 @@ select {
 
 .history-table tr.rarity-4 td:first-child {
   border-left: 3px solid var(--rarity-4);
+}
+
+.history-item-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.item-icon {
+  flex: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--accent-icon);
+}
+
+/* Visually hidden but readable by screen readers — used where an icon
+   carries real information (the item's category) that has no visible text
+   equivalent elsewhere in the row. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .rarity-star {
