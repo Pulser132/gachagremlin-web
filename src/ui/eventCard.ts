@@ -63,8 +63,14 @@ export function renderEventCard(ev: EventInfo, region: Region): HTMLElement {
     banner.alt = '';
     // Purely decorative alongside the name heading right below it — an
     // empty alt keeps screen readers from reading redundant/opaque filenames.
-    // A cached URL can go stale (wiki renames/removes the file); drop the
-    // element rather than show a broken-image icon. Deliberately not
+    // Fandom's image CDN hotlink-blocks any request whose Referer isn't a
+    // fandom.com page: it returns 200 with a small placeholder graphic
+    // (NOT an error), so the browser loads "successfully" with the wrong
+    // picture. no-referrer strips the Referer entirely, which the CDN
+    // treats the same as a same-site request and serves the real image.
+    banner.referrerPolicy = 'no-referrer';
+    // A cached URL can still go stale (wiki renames/removes the file); drop
+    // the element rather than show a broken-image icon. Deliberately not
     // loading="lazy": tested and found it suppresses the error event for
     // network-level failures (DNS/unreachable host) in this browser, which
     // would silently defeat this exact fallback — event grids here are
