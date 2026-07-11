@@ -98,4 +98,23 @@ describe('parseAnyImport', () => {
     const result = parseAnyImport('{not json', 'genshin');
     expect(result.ok).toBe(false);
   });
+
+  it('strips a leading UTF-8 BOM before parsing (Windows PowerShell 5.1 always writes one)', () => {
+    const bom = String.fromCharCode(0xfeff);
+    const result = parseAnyImport(bom + load('genshin.json'), 'genshin');
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.payloads[0].uid).toBe('800000001');
+  });
+
+  it.each([
+    String.raw`C:\Users\player\AppData\Local\Temp\gachagremlin-genshin-wishes.json`,
+    String.raw`\\server\share\gachagremlin-hsr-warps.json`,
+  ])('gives a specific hint when the clipboard file path was pasted instead of the file contents: %s', (path) => {
+    const result = parseAnyImport(path, 'genshin');
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toMatch(/looks like a file path/i);
+    expect(result.error).toMatch(/choose file/i);
+  });
 });

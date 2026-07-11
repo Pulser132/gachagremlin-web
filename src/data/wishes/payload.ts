@@ -95,11 +95,27 @@ export function parsePayload(text: string, expectedGame: GameKey): ParseResult {
  * GachaGremlin doesn't yet understand Star Rail Station's or stardb.gg's
  * own (non-UIGF) backup formats — see src/data/wishes/paimonMoe.ts.
  */
-export function parseAnyImport(text: string, expectedGame: GameKey): ParseManyResult {
+export function parseAnyImport(rawText: string, expectedGame: GameKey): ParseManyResult {
+  // PowerShell's `Set-Content -Encoding UTF8` (the encoding the import
+  // scripts use to write their temp file) always writes a UTF-8 BOM on
+  // Windows PowerShell 5.1, which JSON.parse rejects outright. Strip it
+  // defensively here rather than relying on every source to omit it.
+  const text = rawText.charCodeAt(0) === 0xfeff ? rawText.slice(1) : rawText;
+
   let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
+    // The import scripts now copy a file *path* to the clipboard rather
+    // than the file contents — a very plausible paste target is this
+    // textarea instead of the "Choose File" picker. Give a specific hint
+    // rather than the generic "not valid JSON" message in that case.
+    if (/^(?:[A-Za-z]:\\|\\\\)\S+\.json$/.test(text.trim())) {
+      return {
+        ok: false,
+        error: 'That looks like a file path, not the file itself. Click "Choose File" below, paste the path into the file picker, and select it there instead.',
+      };
+    }
     return {
       ok: false,
       error: 'That doesn’t look like valid JSON. Make sure you pasted or uploaded the entire file.',

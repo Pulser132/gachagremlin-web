@@ -150,16 +150,16 @@ describe('openImportDialog', () => {
     expect(getActiveAccount('genshin')?.uid).toBe('630164299');
   });
 
-  it('mentions paimon.moe backups on the Genshin dialog but not on HSR/ZZZ, where that format isn’t supported', () => {
+  it('mentions the Genshin local-data backup format on the Genshin dialog but not on HSR/ZZZ, where it isn’t supported', () => {
     openImportDialog('genshin', vi.fn());
-    expect(document.querySelector('.import-alt-label')?.textContent).toMatch(/paimon\.moe local-data backup/i);
+    expect(document.querySelector('.import-alt-label')?.textContent).toMatch(/genshin tracker local-data backup/i);
     document.querySelector<HTMLButtonElement>('.import-cancel')!.click();
     expect(document.querySelector('.import-dialog')).toBeNull(); // removed on close
 
     openImportDialog('hsr', vi.fn());
     const hsrLabel = document.querySelector('.import-alt-label')?.textContent ?? '';
     expect(hsrLabel).toMatch(/isn't supported yet/i);
-    expect(hsrLabel).not.toMatch(/paimon\.moe local-data backup\?/i);
+    expect(hsrLabel).not.toMatch(/local-data backup\?/i);
   });
 
   it('includes the game-specific one-liner in a copyable code block', () => {

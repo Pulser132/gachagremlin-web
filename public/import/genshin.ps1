@@ -231,12 +231,26 @@ try {
     }
 
     $json = $payload | ConvertTo-Json -Compress -Depth 6
-    Set-Clipboard -Value $json
+
+    # A large history can be hundreds of KB of JSON - too much to reliably
+    # paste through the clipboard. Save it to a file instead and copy that
+    # file's path, which the GachaGremlin import box's "Choose File" picker
+    # can jump straight to.
+    $outputFile = Join-Path $env:TEMP 'gachagremlin-genshin-wishes.json'
+    # Set-Content -Encoding UTF8 always writes a byte-order mark on Windows
+    # PowerShell 5.1, which breaks JSON.parse in the browser - write via
+    # .NET directly with a BOM-less UTF8Encoding instead.
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($outputFile, $json, $utf8NoBom)
+    Set-Clipboard -Value $outputFile
 
     Write-Host ''
     Write-Host "Done! Imported $($items.Count) wishes for UID $uid." -ForegroundColor Green
-    Write-Host 'Your wish history has been copied to the clipboard.'
-    Write-Host 'Paste it into the GachaGremlin import box to finish.'
+    Write-Host "Saved to: $outputFile" -ForegroundColor Yellow
+    Write-Host 'That file path has been copied to your clipboard.'
+    Write-Host 'On the GachaGremlin import box, click "Choose File", paste the path into the'
+    Write-Host 'filename field, press Enter, then click Import.'
+    Write-Host '(That file has your wish history in plain text - feel free to delete it once imported.)'
 } catch {
     Write-Host ''
     Write-Host "Something went wrong: $($_.Exception.Message)" -ForegroundColor Red

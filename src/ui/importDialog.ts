@@ -40,7 +40,8 @@ export function openImportDialog(game: GameKey, onImported: () => void): void {
     `Open the ${historyLabel} screen in ${GAME_CONFIGS[game].label} on your PC (from any banner, tap History).`,
     'Open Windows PowerShell — search for "PowerShell" in the Start menu.',
     'Copy the command below, paste it into PowerShell, and press Enter.',
-    'When it finishes, it copies your history to the clipboard. Paste it below and click Import.',
+    'It saves your history to a file and copies that file’s path to your clipboard.',
+    'Click "Choose File" below, paste the path into the file picker’s filename box, press Enter, then click Import.',
   ];
   for (const text of stepTexts) {
     const li = document.createElement('li');
@@ -78,32 +79,35 @@ export function openImportDialog(game: GameKey, onImported: () => void): void {
   commandBlock.appendChild(copyBtn);
   dialog.appendChild(commandBlock);
 
-  const textarea = document.createElement('textarea');
-  textarea.className = 'import-textarea';
-  textarea.rows = 6;
-  textarea.setAttribute('aria-label', 'Pasted history JSON');
-  textarea.placeholder = 'Paste the copied history here…';
-  dialog.appendChild(textarea);
-
-  const altImport = el('div', { className: 'import-alt' });
-  const altLabel =
-    game === 'genshin'
-      ? 'Already have a paimon.moe local-data backup or a UIGF export from another tracker? Upload it below instead.'
-      : `Already have a UIGF export from another tracker? Upload it below instead. (Importing ${GAME_CONFIGS[game].label} from a tracker's own backup format, like paimon.moe's for Genshin, isn't supported yet.)`;
-  altImport.appendChild(el('p', { className: 'import-alt-label', text: altLabel }));
+  const fileImport = el('div', { className: 'import-file-block' });
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.accept = '.json,application/json';
   fileInput.className = 'import-file';
-  fileInput.setAttribute('aria-label', 'Upload a UIGF export file');
+  fileInput.setAttribute('aria-label', 'Choose the saved history file');
+  fileImport.appendChild(fileInput);
+  dialog.appendChild(fileImport);
+
+  const altImport = el('div', { className: 'import-alt' });
+  const altLabel =
+    game === 'genshin'
+      ? 'Also works for a Genshin tracker local-data backup or a UIGF export from another tracker — choose or paste it the same way.'
+      : `Also works for a UIGF export from another tracker. (Importing ${GAME_CONFIGS[game].label} from a tracker's own backup format isn't supported yet.)`;
+  altImport.appendChild(el('p', { className: 'import-alt-label', text: altLabel }));
+  const textarea = document.createElement('textarea');
+  textarea.className = 'import-textarea';
+  textarea.rows = 6;
+  textarea.setAttribute('aria-label', 'Or paste the history JSON directly');
+  textarea.placeholder = 'Or paste the file contents here…';
+  altImport.appendChild(textarea);
+  dialog.appendChild(altImport);
+
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
     if (!file) return;
     textarea.value = await file.text();
     errorBox.hidden = true;
   });
-  altImport.appendChild(fileInput);
-  dialog.appendChild(altImport);
 
   const errorBox = el('p', { className: 'import-error' });
   errorBox.hidden = true;
