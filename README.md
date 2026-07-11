@@ -18,6 +18,37 @@ see `src/data/wiki/client.ts`), parses the wikitext client-side, and caches the 
 Pick a game, pick your server region (America / Europe / Asia / TW-HK-MO "SAR", Genshin only),
 and every event shows a live countdown plus its absolute end time in *your* local timezone.
 
+## Wish tracker
+
+The **Wishes** tab (next to Events) tracks pity, 50/50 status, and full pull history for
+Genshin Wishes, Star Rail Warps, and ZZZ Signal Searches — client-side, same as the events
+feature.
+
+**Player flow**, mirroring how [paimon.moe](https://paimon.moe/wish/import),
+[starrailstation.com](https://starrailstation.com/en/warp#import), and
+[stardb.gg](https://stardb.gg/en/zzz/signal-import) do it:
+
+1. Open the Wish/Warp/Signal History screen in the game on your PC.
+2. Click "Import" on the site, copy the one-liner shown for your game (e.g.
+   `iwr -useb https://pulser132.github.io/gachagremlin-web/import/genshin.ps1 | iex`), paste it
+   into Windows PowerShell, and press Enter.
+3. The script (hosted under [`public/import/`](public/import/), served as a static file — read
+   it before you run it) finds the history link the game already cached locally, downloads your
+   full pull history from HoYoverse's own API, and copies the result to your clipboard.
+4. Paste the clipboard contents into the site's import box. It's validated, merged with any
+   previously imported pulls (so re-importing never loses history that's aged out of the API's
+   ~6-month window), and stored in `localStorage`.
+
+**Why a script instead of just pasting a link**, like the reference sites: those sites fetch
+your history server-side once you paste an authenticated link. This site has no server, and
+HoYoverse's API doesn't send CORS headers, so a browser can't fetch it directly either. Rather
+than route your data through a third-party CORS proxy, the hosted scripts do the fetching
+themselves and hand back plain JSON — no game credentials, no third parties, nothing leaves
+your machine except requests to HoYoverse's own API.
+
+See [`Todos/Todo_wish_tracker/goal.md`](Todos/Todo_wish_tracker/goal.md) for the full design
+rationale, including exactly how the reference sites' scripts work under the hood.
+
 ## Local development
 
 Requires Node 22+.
@@ -38,8 +69,9 @@ npx tsx scripts/smoke.ts        # live check: fetches one real event per game
 
 ## Testing
 
-`npm test` runs 47 tests, mostly against saved wiki fixtures (`tests/fixtures/`, copied from
-the bot repo) rather than live network calls, so CI doesn't depend on Fandom's uptime:
+`npm test` runs against saved wiki fixtures (`tests/fixtures/`, copied from the bot repo) and
+synthetic wish-history fixtures (`tests/fixtures/wishes/`) rather than live network calls, so CI
+doesn't depend on Fandom's or HoYoverse's uptime:
 
 - `tests/parser.test.ts`, `tests/times.test.ts` — wikitext parsing and per-region time math,
   ported line-for-line from the bot's own test suite (same expected Unix timestamps).
@@ -47,6 +79,16 @@ the bot repo) rather than live network calls, so CI doesn't depend on Fandom's u
   fallback, force-refresh.
 - `tests/eventCard.test.ts`, `tests/format.test.ts` — region-time resolution and countdown
   formatting.
+- `tests/wishPayload.test.ts` — import payload validation (accept/reject cases).
+- `tests/wishStore.test.ts` — localStorage merge/dedupe by id, per-uid and per-game isolation.
+- `tests/pity.test.ts` — pity counts and 50/50 guarantee state, including banner-group merging
+  (Genshin 301+400, HSR 21+22 collab).
+- `tests/wishesView.test.ts` — the Wishes view and import dialog against seeded fixtures.
+
+The three PowerShell import scripts (`public/import/*.ps1`) aren't exercised by `npm test` —
+there's no game installed in CI to generate real cache data. They're syntax-checked via
+PowerShell's own parser instead; verifying them end-to-end needs a Windows machine with at
+least one of the games installed and its history screen opened once.
 
 ## Deployment
 
@@ -58,7 +100,8 @@ Every push to `main` runs the test suite, builds, and deploys to GitHub Pages vi
 
 ```
 src/
-  types.ts             GameKey, Region, EventStatus, EventInfo, GameEvents
+  types.ts             GameKey, Region, EventStatus, EventInfo, GameEvents,
+                         WishItem, WishPayload, WishAccount
   data/
     source.ts           EventSource interface
     cache.ts             localStorage TTL cache, wraps any EventSource
@@ -69,12 +112,21 @@ src/
       times.ts               wall-clock -> per-region Unix, global-time handling
       fetch.ts                assembles one event's full details
       wikiSource.ts             EventSource impl: the only one in v1
+    wishes/
+      banners.ts            per-game banner groups, hard pity, standard-pool 5-star lists
+      payload.ts             parsePayload: validates a pasted import payload
+      store.ts                localStorage merge/dedupe by id, active-uid pointer
+      pity.ts                  pure pity/guarantee math over a sorted item list
   ui/
-    app.ts               page shell: tabs, region picker, sections, refresh
+    app.ts               page shell: tabs, view toggle, region picker, sections, refresh
     eventCard.ts           one event's card
+    wishesView.ts           the Wishes tab: pity cards, filterable history table
+    importDialog.ts          the import dialog: instructions, one-liner, paste box
     countdown.ts             shared 1s ticker for all countdowns
     format.ts                 countdown + absolute-time formatting
   styles.css            responsive, dark/light via prefers-color-scheme
+public/
+  import/               genshin.ps1, hsr.ps1, zzz.ps1 — served as static files, see below
 ```
 
 Most of `src/data/wiki/` is a straight TypeScript port of the bot's own wiki layer

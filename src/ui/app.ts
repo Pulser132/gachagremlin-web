@@ -4,10 +4,18 @@ import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameEvents, GameKey, Region } from '../types.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard } from './eventCard.ts';
+import { renderWishesView } from './wishesView.ts';
 
 const GAME_PREF_KEY = 'gachagremlin:selectedGame';
 const REGION_PREF_KEY = 'gachagremlin:selectedRegion';
+const VIEW_PREF_KEY = 'gachagremlin:selectedView';
 const REGIONS: Region[] = ['America', 'Europe', 'Asia', 'SAR'];
+
+type ViewMode = 'events' | 'wishes';
+const VIEWS: { key: ViewMode; label: string }[] = [
+  { key: 'events', label: 'Events' },
+  { key: 'wishes', label: 'Wishes' },
+];
 
 const source = cachedSource(new WikiSource());
 
@@ -31,6 +39,7 @@ function savePref(key: string, value: string): void {
 export function mountApp(root: HTMLElement): void {
   let game: GameKey = (loadPref(GAME_PREF_KEY) as GameKey) ?? 'genshin';
   let region: Region = (loadPref(REGION_PREF_KEY) as Region) ?? 'America';
+  let view: ViewMode = (loadPref(VIEW_PREF_KEY) as ViewMode) ?? 'events';
   let showEnded = false;
 
   root.innerHTML = '';
@@ -62,6 +71,26 @@ export function mountApp(root: HTMLElement): void {
     return btn;
   });
   header.appendChild(tabs);
+
+  const viewTabs = document.createElement('nav');
+  viewTabs.className = 'view-tabs';
+  viewTabs.setAttribute('role', 'tablist');
+  viewTabs.setAttribute('aria-label', 'View');
+  const viewButtons = VIEWS.map(({ key, label }) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = label;
+    btn.className = 'view-tab';
+    btn.setAttribute('role', 'tab');
+    btn.addEventListener('click', () => {
+      view = key;
+      savePref(VIEW_PREF_KEY, view);
+      render();
+    });
+    viewTabs.appendChild(btn);
+    return btn;
+  });
+  header.appendChild(viewTabs);
 
   const controls = document.createElement('div');
   controls.className = 'controls';
@@ -109,15 +138,28 @@ export function mountApp(root: HTMLElement): void {
 
   async function render(forceRefresh = false): Promise<void> {
     tabButtons.forEach((btn, i) => btn.setAttribute('aria-selected', String(GAME_KEYS[i] === game)));
+    viewButtons.forEach((btn, i) => btn.setAttribute('aria-selected', String(VIEWS[i].key === view)));
     Array.from(regionSelect.options).forEach((opt) => {
       opt.hidden = opt.value === 'SAR' && game !== 'genshin';
     });
     regionSelect.value = region;
 
+    const wishesMode = view === 'wishes';
+    regionLabel.hidden = wishesMode;
+    refreshBtn.hidden = wishesMode;
+    lastUpdated.hidden = wishesMode;
+    status.hidden = true;
+
+    if (wishesMode) {
+      main.innerHTML = '';
+      main.appendChild(renderWishesView(game, () => render()));
+      main.setAttribute('aria-busy', 'false');
+      return;
+    }
+
     main.setAttribute('aria-busy', 'true');
     main.innerHTML = '';
     main.appendChild(buildSkeleton());
-    status.hidden = true;
 
     let data: GameEvents;
     try {

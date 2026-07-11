@@ -1,0 +1,20 @@
+{
+  "game": "genshin",
+  "uid": "800000001",
+  "region": "os_usa",
+  "exportedAt": 1783700000,
+  "items": [
+    { "id": "1700000000000000001", "bannerType": "301", "name": "Favonius Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:00:00" },
+    { "id": "1700000000000000002", "bannerType": "301", "name": "Favonius Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:05:00" },
+    { "id": "1700000000000000003", "bannerType": "301", "name": "Xingqiu", "itemType": "Character", "rank": "4", "time": "2026-01-01 10:10:00" },
+    { "id": "1700000000000000004", "bannerType": "301", "name": "Favonius Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:15:00" },
+    { "id": "1700000000000000005", "bannerType": "301", "name": "Diluc", "itemType": "Character", "rank": "5", "time": "2026-01-01 10:20:00" },
+    { "id": "1700000000000000006", "bannerType": "400", "name": "Favonius Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:25:00" },
+    { "id": "1700000000000000007", "bannerType": "400", "name": "Bennett", "itemType": "Character", "rank": "4", "time": "2026-01-01 10:30:00" },
+    { "id": "1700000000000000008", "bannerType": "400", "name": "Furina", "itemType": "Character", "rank": "5", "time": "2026-01-01 10:35:00" },
+    { "id": "1700000000000000009", "bannerType": "302", "name": "Favonius Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:40:00" },
+    { "id": "1700000000000000010", "bannerType": "301", "name": "Sacrificial Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:45:00" },
+    { "id": "1700000000000000011", "bannerType": "301", "name": "Xingqiu", "itemType": "Character", "rank": "4", "time": "2026-01-01 10:50:00" },
+    { "id": "1700000000000000012", "bannerType": "301", "name": "Sacrificial Sword", "itemType": "Weapon", "rank": "3", "time": "2026-01-01 10:55:00" }
+  ]
+}

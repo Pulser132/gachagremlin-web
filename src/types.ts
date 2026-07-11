@@ -39,3 +39,41 @@ export interface GameEvents {
   /** true when this data is stale (served from cache after a failed refetch). */
   stale?: boolean;
 }
+
+/**
+ * A single pull, as returned by the HoYoverse gacha log API. Field names and
+ * types mirror the API response (all strings) so the import scripts can pass
+ * items through with no transformation.
+ */
+export interface WishItem {
+  /** Unique, monotonically increasing id. Too large for `Number` — compare
+   * by length then lexicographically. */
+  id: string;
+  /** The item's own `gacha_type` (ZZZ: the queried `real_gacha_type`). */
+  bannerType: string;
+  name: string;
+  itemType: string;
+  /** "3" | "4" | "5" */
+  rank: string;
+  /** "YYYY-MM-DD HH:MM:SS" server-local wall-clock. */
+  time: string;
+}
+
+/** The JSON payload the PowerShell import scripts copy to the clipboard. */
+export interface WishPayload {
+  game: GameKey;
+  uid: string;
+  region: string;
+  exportedAt: number;
+  /** Ascending by id. */
+  items: WishItem[];
+}
+
+/** A stored, merged pull history for one uid, keyed by game. */
+export interface WishAccount {
+  uid: string;
+  region: string;
+  /** Ascending by id. */
+  items: WishItem[];
+  updatedAt: number;
+}

@@ -1,0 +1,18 @@
+{
+  "game": "hsr",
+  "uid": "600000002",
+  "region": "prod_official_usa",
+  "exportedAt": 1783700100,
+  "items": [
+    { "id": "1710000000000000001", "bannerType": "11", "name": "Adversarial", "itemType": "Light Cone", "rank": "3", "time": "2026-02-01 10:00:00" },
+    { "id": "1710000000000000002", "bannerType": "11", "name": "Herta", "itemType": "Character", "rank": "4", "time": "2026-02-01 10:05:00" },
+    { "id": "1710000000000000003", "bannerType": "11", "name": "Seele", "itemType": "Character", "rank": "5", "time": "2026-02-01 10:10:00" },
+    { "id": "1710000000000000004", "bannerType": "21", "name": "Amber", "itemType": "Light Cone", "rank": "3", "time": "2026-02-01 10:15:00" },
+    { "id": "1710000000000000005", "bannerType": "21", "name": "Trailblazer", "itemType": "Character", "rank": "4", "time": "2026-02-01 10:20:00" },
+    { "id": "1710000000000000006", "bannerType": "22", "name": "SAM", "itemType": "Character", "rank": "5", "time": "2026-02-01 10:25:00" },
+    { "id": "1710000000000000007", "bannerType": "12", "name": "Data Bank", "itemType": "Light Cone", "rank": "3", "time": "2026-02-01 10:30:00" },
+    { "id": "1710000000000000008", "bannerType": "1", "name": "Data Bank", "itemType": "Light Cone", "rank": "3", "time": "2026-02-01 10:35:00" },
+    { "id": "1710000000000000009", "bannerType": "2", "name": "Data Bank", "itemType": "Light Cone", "rank": "3", "time": "2026-02-01 10:40:00" },
+    { "id": "1710000000000000010", "bannerType": "11", "name": "Adversarial", "itemType": "Light Cone", "rank": "3", "time": "2026-02-01 10:45:00" }
+  ]
+}

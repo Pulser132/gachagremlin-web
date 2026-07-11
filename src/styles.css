@@ -10,6 +10,8 @@
   --genshin: #4a90d9;
   --hsr: #d4af37;
   --zzz: #b4f04b;
+  --rarity-5: #c8952a;
+  --rarity-4: #a256d0;
   font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   color-scheme: light dark;
 }
@@ -282,11 +284,279 @@ select {
   margin-top: 0.6rem;
 }
 
+.view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.view-tab {
+  padding: 0.4rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.view-tab[aria-selected='true'] {
+  background: var(--accent);
+  color: #14141a;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.wishes-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.wishes-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.import-button {
+  background: var(--accent);
+  color: #14141a;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wishes-empty {
+  color: var(--text-muted);
+  padding: 2rem 0;
+}
+
+.wishes-empty-hint {
+  font-size: 0.9rem;
+}
+
+.wishes-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 1.25rem;
+}
+
+.pity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.pity-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.9rem 1rem;
+}
+
+.pity-card-title {
+  margin: 0 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.pity-count {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+
+.pity-sub {
+  margin: 0.2rem 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+.guarantee-badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.guarantee-badge.guaranteed {
+  /* Filled background + dark text rather than colored text on transparent —
+     colored text on var(--surface) only hits ~2.7:1 in light mode, well
+     under the 4.5:1 AA minimum for this text size. Filled matches
+     .game-tab[aria-selected]'s pattern, which measured 5.49-13.55:1. */
+  background: var(--rarity-5);
+  color: #14141a;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.wishes-history h3 {
+  font-size: 1.05rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.4rem;
+}
+
+.history-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+}
+
+.history-filters select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+}
+
+.history-table-wrap {
+  overflow-x: auto;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.history-table th,
+.history-table td {
+  text-align: left;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.history-table tr.rarity-5 td:first-child {
+  border-left: 3px solid var(--rarity-5);
+}
+
+.history-table tr.rarity-4 td:first-child {
+  border-left: 3px solid var(--rarity-4);
+}
+
+.rarity-star {
+  font-size: 0.75rem;
+}
+
+.rarity-5 .rarity-star {
+  color: var(--rarity-5);
+}
+
+.rarity-4 .rarity-star {
+  color: var(--rarity-4);
+}
+
+.import-dialog {
+  max-width: 520px;
+  width: calc(100% - 2rem);
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.import-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.import-dialog h2 {
+  margin-top: 0;
+  font-size: 1.15rem;
+}
+
+.import-steps {
+  font-size: 0.9rem;
+  padding-left: 1.2rem;
+}
+
+.import-steps li {
+  margin-bottom: 0.35rem;
+}
+
+.import-command {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.9rem;
+}
+
+.import-command code {
+  flex: 1;
+  overflow-x: auto;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.copy-button,
+.import-cancel,
+.import-confirm {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.import-confirm {
+  background: var(--accent);
+  color: #14141a;
+  font-weight: 600;
+  border-color: transparent;
+}
+
+.import-textarea {
+  width: 100%;
+  font: inherit;
+  font-size: 0.85rem;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.6rem;
+  resize: vertical;
+}
+
+.import-error {
+  color: var(--danger-text);
+  background: var(--danger-bg);
+  border-radius: 8px;
+  padding: 0.5rem 0.7rem;
+  font-size: 0.88rem;
+}
+
+.import-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.9rem;
+}
+
 @media (max-width: 480px) {
   #app {
     padding: 0.75rem;
   }
   .event-grid {
+    grid-template-columns: 1fr;
+  }
+  .pity-grid {
     grid-template-columns: 1fr;
   }
 }
