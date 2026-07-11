@@ -6,6 +6,7 @@
  * the uid the UI currently shows — v1 supports one visible account per game
  * (see plan decision 9); switching accounts is a stretch goal.
  */
+import { dedupeCrossSource } from './dedupe.ts';
 import type { GameKey, WishAccount, WishItem, WishPayload } from '../../types.ts';
 
 const STORAGE_PREFIX = 'gachagremlin:wishes:';
@@ -22,7 +23,19 @@ function readAccount(game: GameKey, uid: string): WishAccount | null {
   try {
     const raw = localStorage.getItem(accountKey(game, uid));
     if (!raw) return null;
-    return JSON.parse(raw) as WishAccount;
+    const account = JSON.parse(raw) as WishAccount;
+
+    // Repair-on-read: accounts stored before dedupe.ts existed can hold
+    // the same pull twice under two id schemes (backup import + script
+    // import). Collapse those and persist the repaired list, so existing
+    // users are fixed on next load without re-importing anything.
+    const repaired = dedupeCrossSource(account.items);
+    if (repaired.length !== account.items.length) {
+      const fixed = { ...account, items: repaired };
+      writeAccount(game, fixed);
+      return fixed;
+    }
+    return account;
   } catch {
     return null; // corrupt entry or storage unavailable — treat as no account
   }
@@ -64,13 +77,16 @@ export function compareIds(a: string, b: string): number {
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** Union by id, ascending. Never drops an id present in either list — an
- * incoming payload can only ever add pulls, not remove aged-out ones. */
+/** Union by id, ascending, then collapse cross-source duplicates (the same
+ * physical pull imported once via a backup file with a synthetic id and
+ * once via the PowerShell script with its real API id — see dedupe.ts).
+ * Never drops a genuinely distinct pull: an incoming payload can only ever
+ * add pulls, not remove aged-out ones. */
 export function mergeItems(existing: WishItem[], incoming: WishItem[]): WishItem[] {
   const byId = new Map<string, WishItem>();
   for (const item of existing) byId.set(item.id, item);
   for (const item of incoming) byId.set(item.id, item);
-  return [...byId.values()].sort((a, b) => compareIds(a.id, b.id));
+  return dedupeCrossSource([...byId.values()].sort((a, b) => compareIds(a.id, b.id)));
 }
 
 export function loadAccount(game: GameKey, uid: string): WishAccount | null {

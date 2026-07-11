@@ -67,6 +67,29 @@ describe('parsePaimonMoeLocalData', () => {
     expect([...charEventIds].sort()).toEqual(charEventIds);
   });
 
+  it('keeps a pull’s synthetic id stable when a later export adds pulls to another banner', () => {
+    // Regression guard: the original scheme used one file-wide counter, so
+    // new pulls in an earlier banner shifted every later banner's ids —
+    // re-importing an updated backup then duplicated all that history.
+    const first = parsePaimonMoeLocalData(load('paimon-moe-local-data.json'));
+
+    const updated = JSON.parse(load('paimon-moe-local-data.json'));
+    updated['wish-counter-standard'].pulls.push({ type: 'character', code: '200', id: 'jean', time: '2026-06-01 12:00:00', pity: 30 });
+    const second = parsePaimonMoeLocalData(JSON.stringify(updated));
+
+    expect(first.ok && second.ok).toBe(true);
+    if (!first.ok || !second.ok) return;
+
+    const idsFor = (items: { id: string; bannerType: string }[], banner: string) =>
+      items.filter((i) => i.bannerType === banner).map((i) => i.id);
+
+    // Every banner AFTER standard in file order must be unaffected by the
+    // extra standard pull.
+    for (const banner of ['301', '400', '302', '500']) {
+      expect(idsFor(second.payloads[0].items, banner)).toEqual(idsFor(first.payloads[0].items, banner));
+    }
+  });
+
   it('rejects a file referencing an item id not in the built-in database', () => {
     const payload = JSON.parse(load('paimon-moe-local-data.json'));
     payload['wish-counter-standard'].pulls.push({ type: 'character', code: '200', id: 'some_future_character', time: '2026-01-01 00:00:00', pity: 1 });

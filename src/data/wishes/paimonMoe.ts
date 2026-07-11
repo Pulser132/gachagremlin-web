@@ -42,11 +42,14 @@ export function looksLikePaimonMoeLocalData(raw: unknown): boolean {
   return BANNER_KEYS.some((key) => key in v);
 }
 
-function toEpochSeconds(time: string): number {
-  // paimon.moe pull times, like every other format GachaGremlin reads, are
-  // naive local timestamps with no timezone marker. Parsed here purely to
-  // get a monotonically sortable number for the synthesized id below —
-  // never shown to the user, and never compared against a real timezone.
+/**
+ * Naive local timestamp -> epoch seconds. paimon.moe pull times, like every
+ * other format GachaGremlin reads, carry no timezone marker; this is used
+ * purely to build sortable synthetic ids (below) and to recognize them
+ * again (dedupe.ts) — never shown to the user, never compared against a
+ * real timezone.
+ */
+export function toEpochSeconds(time: string): number {
   const ms = Date.parse(`${time.replace(' ', 'T')}Z`);
   return Number.isNaN(ms) ? 0 : Math.floor(ms / 1000);
 }
@@ -77,7 +80,7 @@ export function parsePaimonMoeLocalData(text: string): ParseManyResult {
 
   const items: WishItem[] = [];
   const unknownIds = new Set<string>();
-  let counter = 0;
+  const seqByBannerSecond = new Map<string, number>();
 
   for (const bannerKey of BANNER_KEYS) {
     const counterObj = v[bannerKey];
@@ -99,14 +102,24 @@ export function parsePaimonMoeLocalData(text: string): ParseManyResult {
         continue;
       }
 
-      // No real pull id exists in this format — synthesize one from the
-      // timestamp (primary) plus a running counter (tie-breaker for same-
-      // second pulls), zero-padded to 19 digits so it sorts correctly
+      // No real pull id exists in this format — synthesize one: 10-digit
+      // epoch second + 3-digit banner code + 6-digit sequence within that
+      // (banner, second) group. 19 digits total, so it sorts correctly
       // alongside real HoYoverse API ids (compareIds sorts by length
-      // first) if this account is ever also imported via the PS scripts.
-      const epoch = toEpochSeconds(time);
-      const syntheticId = `${String(epoch).padStart(10, '0')}${String(counter).padStart(9, '0')}`;
-      counter++;
+      // first). Critically, this is DETERMINISTIC per pull: banner history
+      // is append-only, so a pull's (banner, second, position-in-second)
+      // never changes across re-exports — re-importing an updated backup
+      // regenerates identical ids and dedupes cleanly. An earlier scheme
+      // used one file-wide running counter, which shifted every later
+      // banner's ids whenever an earlier banner gained pulls, duplicating
+      // history on re-import. dedupe.ts's classifier relies on this exact
+      // layout — keep the two in sync.
+      const epochPart = String(toEpochSeconds(time)).padStart(10, '0');
+      const codePart = String(code).padStart(3, '0').slice(-3);
+      const seqKey = `${codePart}|${epochPart}`;
+      const seq = seqByBannerSecond.get(seqKey) ?? 0;
+      seqByBannerSecond.set(seqKey, seq + 1);
+      const syntheticId = `${epochPart}${codePart}${String(seq).padStart(6, '0')}`;
 
       items.push({
         id: syntheticId,
