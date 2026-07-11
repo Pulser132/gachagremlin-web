@@ -5,7 +5,7 @@
  * repo).
  */
 import type { EventInfo, GameKey } from '../../types.ts';
-import { api, WikiError } from './client.ts';
+import { api, resolveImageUrl, WikiError } from './client.ts';
 import { getGame } from './games.ts';
 import {
   clean,
@@ -18,6 +18,10 @@ import {
   type IndexSections,
 } from './parser.ts';
 import { findWalltimes, isGlobalTime, perServer, statusOf } from './times.ts';
+
+// Wide enough for the event-grid's card width on a large monitor, without
+// pulling the wiki's full-size (often 1000px+) original for a small tile.
+const BANNER_WIDTH = 500;
 
 function formatWalltime(w: readonly [number, number, number, number, number] | null): string | null {
   if (!w) return null;
@@ -50,6 +54,9 @@ export async function showEvent(gameKey: GameKey, title: string, userAgent?: str
   const [startWt, endWt] = findWalltimes(fields, durationText);
   const startUnix = perServer(startWt, game.servers);
   const endUnix = perServer(endWt, game.servers);
+  const imageUrl = fields.image
+    ? await resolveImageUrl(game.host, fields.image.trim(), BANNER_WIDTH, userAgent)
+    : null;
 
   return {
     game: game.key,
@@ -71,6 +78,7 @@ export async function showEvent(gameKey: GameKey, title: string, userAgent?: str
       .filter((v): v is string => !!v && v.startsWith('http')),
     durationText,
     requirements,
+    imageUrl,
     startWalltime: formatWalltime(startWt),
     endWalltime: formatWalltime(endWt),
     startUnix,

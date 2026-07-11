@@ -188,6 +188,17 @@ select {
   padding: 1rem;
 }
 
+.event-banner {
+  display: block;
+  width: calc(100% + 2rem);
+  height: 140px;
+  max-width: none;
+  object-fit: cover;
+  margin: -1rem -1rem 0.75rem;
+  border-radius: 8px 8px 0 0;
+  background: var(--border); /* visible while the image loads */
+}
+
 .event-card.game-genshin {
   border-left-color: var(--genshin);
 }

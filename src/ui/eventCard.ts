@@ -58,6 +58,22 @@ function renderTimeRow(label: string, unixSeconds: number): HTMLElement {
 export function renderEventCard(ev: EventInfo, region: Region): HTMLElement {
   const card = el('article', { className: `event-card game-${ev.game} status-${ev.status}` });
 
+  if (ev.imageUrl) {
+    const banner = el('img', { className: 'event-banner' });
+    banner.alt = '';
+    // Purely decorative alongside the name heading right below it — an
+    // empty alt keeps screen readers from reading redundant/opaque filenames.
+    // A cached URL can go stale (wiki renames/removes the file); drop the
+    // element rather than show a broken-image icon. Deliberately not
+    // loading="lazy": tested and found it suppresses the error event for
+    // network-level failures (DNS/unreachable host) in this browser, which
+    // would silently defeat this exact fallback — event grids here are
+    // modest (a few dozen cards, 30-min cached), so eager loading is cheap.
+    banner.addEventListener('error', () => banner.remove());
+    banner.src = ev.imageUrl;
+    card.appendChild(banner);
+  }
+
   const header = el('div', { className: 'event-card-header' });
   header.appendChild(el('h3', { className: 'event-name', text: ev.name }));
   if (ev.status === 'ended' || ev.status === 'unknown') {

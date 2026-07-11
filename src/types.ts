@@ -23,6 +23,8 @@ export interface EventInfo {
   hoyolabLinks: string[];
   durationText: string[];
   requirements: string[];
+  /** Banner image URL from the wiki infobox, or null if it has none / it couldn't be resolved. */
+  imageUrl: string | null;
   /** "YYYY-MM-DD HH:MM" server-local wall-clock, or null if unknown/version-gated. */
   startWalltime: string | null;
   endWalltime: string | null;

@@ -45,3 +45,29 @@ export async function api(
   }
   throw new WikiError(`API request to ${host} failed: ${String(lastError)}`);
 }
+
+/**
+ * Resolve an infobox `image` field (a bare filename, e.g. "Foo Event.png")
+ * to an actual thumbnail URL via the MediaWiki imageinfo API. Returns null
+ * rather than throwing on any failure — a missing banner is a cosmetic gap,
+ * not a reason to fail the whole event.
+ */
+export async function resolveImageUrl(
+  host: string,
+  filename: string,
+  width: number,
+  userAgent?: string,
+): Promise<string | null> {
+  try {
+    const data = await api(
+      host,
+      { action: 'query', titles: `File:${filename}`, prop: 'imageinfo', iiprop: 'url', iiurlwidth: width },
+      userAgent,
+    );
+    const pages = data.query?.pages ?? [];
+    const info = pages[0]?.imageinfo?.[0];
+    return info?.thumburl ?? info?.url ?? null;
+  } catch {
+    return null;
+  }
+}
