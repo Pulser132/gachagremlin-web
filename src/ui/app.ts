@@ -1,10 +1,16 @@
+import { exportAll, importBackup } from '../data/backup.ts';
 import { cachedSource } from '../data/cache.ts';
+import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameEvents, GameKey, Region } from '../types.ts';
 import { startCountdownTicker } from './countdown.ts';
-import { renderEventCard } from './eventCard.ts';
+import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
 import { renderWishesView } from './wishesView.ts';
+
+/** How close (seconds) a belled event's start/end must be to surface in the
+ * "starting/ending soon" reminder banner. */
+const REMINDER_WINDOW_SECONDS = 72 * 60 * 60;
 
 const GAME_PREF_KEY = 'gachagremlin:selectedGame';
 const REGION_PREF_KEY = 'gachagremlin:selectedRegion';
@@ -133,8 +139,16 @@ export function mountApp(root: HTMLElement): void {
   status.hidden = true;
   root.appendChild(status);
 
+  const reminderBanner = document.createElement('div');
+  reminderBanner.className = 'reminder-banner';
+  reminderBanner.hidden = true;
+  reminderBanner.setAttribute('role', 'status');
+  root.appendChild(reminderBanner);
+
   const main = document.createElement('main');
   root.appendChild(main);
+
+  root.appendChild(buildDataFooter(() => render()));
 
   async function render(forceRefresh = false): Promise<void> {
     // Set on <html>, not #app: the per-game accent/geometry tokens it drives
@@ -154,6 +168,7 @@ export function mountApp(root: HTMLElement): void {
     refreshBtn.hidden = wishesMode;
     lastUpdated.hidden = wishesMode;
     status.hidden = true;
+    reminderBanner.hidden = true;
 
     if (wishesMode) {
       main.innerHTML = '';
@@ -199,14 +214,62 @@ export function mountApp(root: HTMLElement): void {
       main.appendChild(toggle);
     }
 
-    main.appendChild(buildSection('Current Events', visibleCurrent, region));
-    main.appendChild(buildSection('Upcoming Events', data.upcoming, region));
+    const onToggleReminder = () => render();
+    main.appendChild(buildSection('Current Events', visibleCurrent, region, onToggleReminder));
+    main.appendChild(buildSection('Upcoming Events', data.upcoming, region, onToggleReminder));
+
+    populateReminderBanner(reminderBanner, game, data, region);
 
     main.setAttribute('aria-busy', 'false');
     startCountdownTicker();
   }
 
   render();
+}
+
+/** Fills the "starting/ending soon" banner with belled events whose start
+ * (upcoming) or end (current) falls within REMINDER_WINDOW_SECONDS, each with
+ * a live countdown span driven by the shared ticker. Hidden when none qualify. */
+function populateReminderBanner(banner: HTMLElement, game: GameKey, data: GameEvents, region: Region): void {
+  const reminded = new Set(listReminders(game));
+  const nowSeconds = Date.now() / 1000;
+  banner.innerHTML = '';
+
+  const rows: { name: string; label: string; deadline: number }[] = [];
+  const consider = (ev: EventInfo, unix: number | null, label: string) => {
+    if (unix === null || !reminded.has(eventKey(ev))) return;
+    if (unix > nowSeconds && unix - nowSeconds <= REMINDER_WINDOW_SECONDS) {
+      rows.push({ name: ev.name, label, deadline: unix });
+    }
+  };
+  for (const ev of data.upcoming) consider(ev, resolveRegionUnix(ev.startUnix, region), 'starts in');
+  for (const ev of data.current) consider(ev, resolveRegionUnix(ev.endUnix, region), 'ends in');
+
+  if (rows.length === 0) {
+    banner.hidden = true;
+    return;
+  }
+  rows.sort((a, b) => a.deadline - b.deadline);
+
+  const heading = document.createElement('strong');
+  heading.className = 'reminder-banner-heading';
+  heading.textContent = rows.length === 1 ? '⏰ 1 tracked event soon' : `⏰ ${rows.length} tracked events soon`;
+  banner.appendChild(heading);
+
+  const list = document.createElement('ul');
+  list.className = 'reminder-list';
+  for (const row of rows) {
+    const li = document.createElement('li');
+    li.appendChild(document.createTextNode(`${row.name} — `));
+    const countdown = document.createElement('span');
+    countdown.className = 'countdown';
+    countdown.dataset.deadline = String(row.deadline);
+    countdown.dataset.countdownLabel = row.label;
+    li.appendChild(countdown);
+    list.appendChild(li);
+  }
+  banner.appendChild(list);
+  banner.hidden = false;
 }
 
 function buildSkeleton(): HTMLElement {
@@ -227,7 +290,72 @@ function buildTitle(): HTMLElement {
   return h1;
 }
 
-function buildSection(title: string, events: EventInfo[], region: Region): HTMLElement {
+/**
+ * Manual backup / restore of all local data to a single JSON file — the guard
+ * against a cleared cache, and the same payload a future Google Drive sync
+ * will move. Restore merges (never overwrites), so re-importing can't lose
+ * pulls. `onRestored` re-renders so switched accounts/reminders show up.
+ */
+function buildDataFooter(onRestored: () => void): HTMLElement {
+  const footer = document.createElement('footer');
+  footer.className = 'data-footer';
+
+  const label = document.createElement('span');
+  label.className = 'data-footer-label';
+  label.textContent = 'Your data lives in this browser.';
+  footer.appendChild(label);
+
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.className = 'data-footer-btn';
+  exportBtn.textContent = 'Export all data';
+  exportBtn.addEventListener('click', () => {
+    const json = JSON.stringify(exportAll(), null, 2);
+    const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'gachagremlin-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  footer.appendChild(exportBtn);
+
+  const importInput = document.createElement('input');
+  importInput.type = 'file';
+  importInput.accept = '.json,application/json';
+  importInput.className = 'data-footer-file';
+  importInput.hidden = true;
+
+  const importBtn = document.createElement('button');
+  importBtn.type = 'button';
+  importBtn.className = 'data-footer-btn';
+  importBtn.textContent = 'Import backup';
+  importBtn.addEventListener('click', () => importInput.click());
+
+  const message = document.createElement('span');
+  message.className = 'data-footer-message';
+
+  importInput.addEventListener('change', async () => {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    try {
+      const result = importBackup(JSON.parse(await file.text()));
+      message.classList.remove('error');
+      message.textContent = `Restored ${result.accounts} account(s) and ${result.reminders} reminder(s).`;
+      onRestored();
+    } catch (e) {
+      message.classList.add('error');
+      message.textContent = `Couldn't import backup: ${(e as Error).message}`;
+    } finally {
+      importInput.value = ''; // allow re-selecting the same file
+    }
+  });
+
+  footer.append(importBtn, importInput, message);
+  return footer;
+}
+
+function buildSection(title: string, events: EventInfo[], region: Region, onToggleReminder: () => void): HTMLElement {
   const section = document.createElement('section');
   section.className = 'event-section';
   const heading = document.createElement('h2');
@@ -245,7 +373,7 @@ function buildSection(title: string, events: EventInfo[], region: Region): HTMLE
   const grid = document.createElement('div');
   grid.className = 'event-grid';
   for (const ev of events) {
-    grid.appendChild(renderEventCard(ev, region));
+    grid.appendChild(renderEventCard(ev, region, onToggleReminder));
   }
   section.appendChild(grid);
   return section;

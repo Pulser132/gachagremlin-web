@@ -1,3 +1,4 @@
+import { eventKey, isReminded, toggleReminder } from '../data/reminders.ts';
 import type { EventInfo, Region, RegionUnix } from '../types.ts';
 import { formatAbsolute } from './format.ts';
 
@@ -55,7 +56,35 @@ function renderTimeRow(label: string, unixSeconds: number): HTMLElement {
   return row;
 }
 
-export function renderEventCard(ev: EventInfo, region: Region): HTMLElement {
+/** True for events a reminder can meaningfully fire for — ones that are
+ * running or announced with a future edge. Ended/unknown events get no bell. */
+function canRemind(ev: EventInfo): boolean {
+  return ev.status === 'upcoming' || ev.status === 'active';
+}
+
+function renderReminderBell(ev: EventInfo, onToggle: () => void): HTMLElement {
+  const key = eventKey(ev);
+  const btn = el('button', { className: 'event-reminder-bell' });
+  btn.type = 'button';
+  const sync = () => {
+    const on = isReminded(ev.game, key);
+    btn.textContent = on ? '🔔' : '🔕';
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', on ? `Stop reminding me about ${ev.name}` : `Remind me about ${ev.name}`);
+    btn.title = btn.getAttribute('aria-label') ?? '';
+  };
+  sync();
+  btn.addEventListener('click', () => {
+    toggleReminder(ev.game, key);
+    sync();
+    onToggle();
+  });
+  return btn;
+}
+
+/** `onToggleReminder`, when provided, is called after the bell is toggled so
+ * the caller can refresh the "starting/ending soon" banner. */
+export function renderEventCard(ev: EventInfo, region: Region, onToggleReminder?: () => void): HTMLElement {
   const card = el('article', { className: `event-card game-${ev.game} status-${ev.status}` });
 
   if (ev.imageUrl) {
@@ -84,6 +113,9 @@ export function renderEventCard(ev: EventInfo, region: Region): HTMLElement {
   header.appendChild(el('h3', { className: 'event-name', text: ev.name }));
   if (ev.status === 'ended' || ev.status === 'unknown') {
     header.appendChild(el('span', { className: `event-status-badge status-${ev.status}`, text: ev.status }));
+  }
+  if (canRemind(ev)) {
+    header.appendChild(renderReminderBell(ev, () => onToggleReminder?.()));
   }
   card.appendChild(header);
 

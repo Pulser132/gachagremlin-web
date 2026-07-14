@@ -1,11 +1,27 @@
-import { findBannerGroup, GAME_BANNER_CONFIGS } from '../data/wishes/banners.ts';
+import { findBannerGroup, GAME_BANNER_CONFIGS, type BannerGroup, type GameBannerConfig } from '../data/wishes/banners.ts';
 import { guaranteeState, pityAtEach5Star, pityCounts } from '../data/wishes/pity.ts';
 import { getActiveAccount } from '../data/wishes/store.ts';
 import type { GameKey, WishAccount } from '../types.ts';
-import { openImportDialog } from './importDialog.ts';
+import { openImportDialog, type ImportSummary } from './importDialog.ts';
 import { createItemIcon } from './itemIcons.ts';
+import { renderPullChart } from './pullChart.ts';
+import { renderUidSwitcher } from './uidSwitcher.ts';
 
 const RARITY_STARS: Record<string, string> = { '5': '★★★★★', '4': '★★★★', '3': '★★★' };
+
+/** Every HoYoverse game prices one pull at 160 of its premium currency —
+ * shown as the ✦ cost line under Lifetime Pulls. */
+const CURRENCY_PER_PULL = 160;
+const CURRENCY_NAME: Record<GameKey, string> = {
+  genshin: 'Primogems',
+  hsr: 'Stellar Jade',
+  zzz: 'Polychromes',
+};
+
+/** Set by the import flow so the next render of the matching game can show a
+ * one-time "saved to a different UID" notice. Module-scoped because a full
+ * app re-render rebuilds this view from scratch. */
+let pendingImportNotice: { game: GameKey; summary: ImportSummary } | null = null;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -25,13 +41,31 @@ export function renderWishesView(game: GameKey, onChange: () => void): HTMLEleme
 
   const wrap = el('div', { className: 'wishes-view' });
 
+  const notice = takeImportNotice(game);
+  if (notice) wrap.appendChild(notice);
+
   const header = el('div', { className: 'wishes-header' });
   header.appendChild(el('h2', { text: config.itemLabel }));
+  if (account) {
+    header.appendChild(
+      el('span', {
+        className: 'wishes-meta',
+        text: `${account.items.length.toLocaleString()} ${config.itemLabel.toLowerCase()} · imported ${new Date(account.updatedAt).toLocaleDateString()}`,
+      }),
+    );
+  }
+  const switcher = renderUidSwitcher(game, onChange);
+  if (switcher) header.appendChild(switcher);
   const importBtn = document.createElement('button');
   importBtn.type = 'button';
   importBtn.className = 'import-button';
   importBtn.textContent = account ? `Re-import ${config.itemLabel}` : `Import ${config.itemLabel}`;
-  importBtn.addEventListener('click', () => openImportDialog(game, onChange));
+  importBtn.addEventListener('click', () =>
+    openImportDialog(game, (summary) => {
+      pendingImportNotice = { game, summary };
+      onChange();
+    }),
+  );
   header.appendChild(importBtn);
   wrap.appendChild(header);
 
@@ -40,11 +74,36 @@ export function renderWishesView(game: GameKey, onChange: () => void): HTMLEleme
     return wrap;
   }
 
-  wrap.appendChild(renderSummary(account, config.itemLabel));
-  wrap.appendChild(renderPityCards(game, account));
+  wrap.appendChild(renderBannerCards(game, account, config));
   wrap.appendChild(renderHistoryTable(game, account));
 
   return wrap;
+}
+
+/** Consumes a one-time import notice for `game`. Returns a dismissible banner
+ * only when the import landed on a different UID than the one being viewed
+ * (the view has already auto-swapped to it); otherwise null. */
+function takeImportNotice(game: GameKey): HTMLElement | null {
+  const pending = pendingImportNotice;
+  if (!pending || pending.game !== game) return null;
+  pendingImportNotice = null;
+
+  const { previousUid, activeUid } = pending.summary;
+  if (!previousUid || previousUid === activeUid) return null;
+
+  const banner = el('div', { className: 'wishes-notice' });
+  banner.setAttribute('role', 'status');
+  banner.appendChild(
+    el('span', {
+      text: `These pulls belong to UID ${activeUid}, not the UID you were viewing (${previousUid}). They've been saved to UID ${activeUid} and the view has switched to it.`,
+    }),
+  );
+  const dismiss = el('button', { className: 'wishes-notice-dismiss', text: '×' });
+  dismiss.type = 'button';
+  dismiss.setAttribute('aria-label', 'Dismiss');
+  dismiss.addEventListener('click', () => banner.remove());
+  banner.appendChild(dismiss);
+  return banner;
 }
 
 function renderEmptyState(itemLabel: string): HTMLElement {
@@ -59,52 +118,92 @@ function renderEmptyState(itemLabel: string): HTMLElement {
   return box;
 }
 
-function renderSummary(account: WishAccount, itemLabel: string): HTMLElement {
-  const bar = el('div', { className: 'wishes-summary' });
-  bar.appendChild(el('span', { text: `UID ${account.uid}` }));
-  bar.appendChild(el('span', { text: `${account.items.length} ${itemLabel.toLowerCase()}` }));
-  bar.appendChild(el('span', { text: `Last imported ${new Date(account.updatedAt).toLocaleString()}` }));
-  return bar;
+/** One inset stat row: label + sub-caption on the left, a big display-face
+ * number on the right (paimon.moe-style Wish Counter row). */
+function statRow(label: string, sub: string, value: string, valueClass: string, subTitle?: string): HTMLElement {
+  const row = el('div', { className: 'stat-row' });
+  const text = el('div', { className: 'stat-text' });
+  text.appendChild(el('span', { className: 'stat-label', text: label }));
+  const subEl = el('span', { className: 'stat-sub', text: sub });
+  if (subTitle) subEl.title = subTitle;
+  text.appendChild(subEl);
+  row.appendChild(text);
+  row.appendChild(el('span', { className: `stat-value ${valueClass}`, text: value }));
+  return row;
 }
 
-function renderPityCards(game: GameKey, account: WishAccount): HTMLElement {
-  const config = GAME_BANNER_CONFIGS[game];
-  const grid = el('div', { className: 'pity-grid' });
+function renderBannerCard(game: GameKey, account: WishAccount, group: BannerGroup, config: GameBannerConfig): HTMLElement {
+  const counts = pityCounts(account.items, group);
+  const card = el('article', { className: 'banner-card' });
 
-  for (const group of config.groups) {
-    const counts = pityCounts(account.items, group);
-    const card = el('div', { className: 'pity-card' });
-    card.appendChild(el('h3', { className: 'pity-card-title', text: group.label }));
-    card.appendChild(el('p', { className: 'pity-count', text: `${counts.since5Star} / ${group.hardPity} pity` }));
-
-    const bar = el('div', { className: 'pity-bar' });
-    bar.setAttribute('role', 'progressbar');
-    bar.setAttribute('aria-label', `${group.label} pity`);
-    bar.setAttribute('aria-valuenow', String(counts.since5Star));
-    bar.setAttribute('aria-valuemin', '0');
-    bar.setAttribute('aria-valuemax', String(group.hardPity));
-    const fill = el('div', { className: 'pity-bar-fill' });
-    fill.style.width = `${Math.min(100, (counts.since5Star / group.hardPity) * 100)}%`;
-    bar.appendChild(fill);
-    card.appendChild(bar);
-
-    card.appendChild(
-      el('p', { className: 'pity-sub', text: `${counts.since4Star} since last 4★ · ${counts.total} total pulls` }),
+  const head = el('div', { className: 'banner-card-head' });
+  head.appendChild(el('h3', { className: 'banner-card-title', text: group.label }));
+  if (group.has5050) {
+    const state = guaranteeState(account.items, group, config.standardPool5Star);
+    head.appendChild(
+      el('span', {
+        className: `guarantee-badge ${state.guaranteed ? 'guaranteed' : 'fifty-fifty'}`,
+        text: state.guaranteed ? 'Guaranteed' : '50/50',
+      }),
     );
+  }
+  card.appendChild(head);
 
-    if (group.has5050) {
-      const state = guaranteeState(account.items, group, config.standardPool5Star);
-      card.appendChild(
-        el('span', {
-          className: `guarantee-badge ${state.guaranteed ? 'guaranteed' : 'fifty-fifty'}`,
-          text: state.guaranteed ? 'Guaranteed' : '50/50',
-        }),
-      );
+  card.appendChild(
+    statRow(
+      'Lifetime Pulls',
+      `✦ ${(counts.total * CURRENCY_PER_PULL).toLocaleString()}`,
+      counts.total.toLocaleString(),
+      'stat-total',
+      `${CURRENCY_NAME[game]}, at ${CURRENCY_PER_PULL} per pull`,
+    ),
+  );
+
+  const fiveRow = statRow('5★ Pity', `Guaranteed at ${group.hardPity}`, String(counts.since5Star), 'stat-5');
+  // The pity fuse: a thin progress line along the row's bottom edge, keeping
+  // the old pity bar's progressbar semantics.
+  const fuse = el('div', { className: 'stat-fuse' });
+  fuse.setAttribute('role', 'progressbar');
+  fuse.setAttribute('aria-label', `${group.label} pity`);
+  fuse.setAttribute('aria-valuenow', String(counts.since5Star));
+  fuse.setAttribute('aria-valuemin', '0');
+  fuse.setAttribute('aria-valuemax', String(group.hardPity));
+  const fill = el('div', { className: 'stat-fuse-fill' });
+  fill.style.width = `${Math.min(100, (counts.since5Star / group.hardPity) * 100)}%`;
+  fuse.appendChild(fill);
+  fiveRow.appendChild(fuse);
+  card.appendChild(fiveRow);
+
+  card.appendChild(statRow('4★ Pity', 'Guaranteed at 10', String(counts.since4Star), 'stat-4'));
+
+  // Expander (the reference's chevron): the last five 5★s and their pity.
+  const fives = account.items.filter((i) => i.rank === '5' && group.bannerTypes.includes(i.bannerType));
+  if (fives.length > 0) {
+    const pityById = pityAtEach5Star(account.items, group);
+    const details = el('details', { className: 'banner-recent' });
+    details.appendChild(el('summary', { text: 'Recent 5★' }));
+    const list = el('ul');
+    for (const item of fives.slice(-5).reverse()) {
+      const li = el('li');
+      li.appendChild(el('span', { text: item.name }));
+      li.appendChild(el('span', { className: 'recent-pity', text: `${pityById.get(item.id) ?? '—'} pity` }));
+      list.appendChild(li);
     }
-
-    grid.appendChild(card);
+    details.appendChild(list);
+    card.appendChild(details);
   }
 
+  return card;
+}
+
+/** The Wish Counter grid: one card per banner group, then the pulls-per-month
+ * chart filling the last cell. */
+function renderBannerCards(game: GameKey, account: WishAccount, config: GameBannerConfig): HTMLElement {
+  const grid = el('section', { className: 'banner-grid' });
+  for (const group of config.groups) {
+    grid.appendChild(renderBannerCard(game, account, group, config));
+  }
+  grid.appendChild(renderPullChart(account.items, config.itemLabel));
   return grid;
 }
 
@@ -145,6 +244,26 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
   }
   filters.appendChild(raritySelect);
 
+  const countSelect = document.createElement('select');
+  countSelect.setAttribute('aria-label', 'Show how many pulls');
+  const countOptions: [string, string][] = [
+    ['100', 'Last 100'],
+    ['50', 'Last 50'],
+    ['10', 'Last 10'],
+    ['all', 'All pulls'],
+  ];
+  for (const [value, label] of countOptions) {
+    const opt = document.createElement('option');
+    opt.value = value;
+    opt.textContent = label;
+    if (value === '100') opt.selected = true; // default: don't flood the table on load
+    countSelect.appendChild(opt);
+  }
+  filters.appendChild(countSelect);
+
+  const countCaption = el('span', { className: 'history-count' });
+  filters.appendChild(countCaption);
+
   section.appendChild(filters);
 
   const tableWrap = el('div', { className: 'history-table-wrap' });
@@ -164,7 +283,7 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
     const bannerFilter = bannerSelect.value;
     const rarityFilter = raritySelect.value;
 
-    const rows = account.items
+    const filtered = account.items
       .filter((item) => {
         if (rarityFilter !== 'all' && item.rank !== rarityFilter) return false;
         if (bannerFilter !== 'all') {
@@ -176,7 +295,21 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
       .slice()
       .reverse(); // account.items is ascending by id; show newest pulls first
 
-    if (rows.length === 0) {
+    // Only render the most recent `limit` matches so a large history doesn't
+    // flood the table; pity above is still computed across the full history.
+    const limit = countSelect.value;
+    const shown = limit === 'all' ? filtered : filtered.slice(0, Number(limit));
+
+    const itemLabel = config.itemLabel.toLowerCase();
+    if (filtered.length === 0) {
+      countCaption.textContent = '';
+    } else if (shown.length === filtered.length) {
+      countCaption.textContent = `Showing all ${filtered.length.toLocaleString()} ${itemLabel}`;
+    } else {
+      countCaption.textContent = `Showing latest ${shown.length.toLocaleString()} of ${filtered.length.toLocaleString()} ${itemLabel}`;
+    }
+
+    if (filtered.length === 0) {
       tableWrap.appendChild(el('p', { className: 'empty', text: 'No pulls match these filters.' }));
       return;
     }
@@ -196,7 +329,7 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
     table.appendChild(thead);
 
     const tbody = document.createElement('tbody');
-    for (const item of rows) {
+    for (const item of shown) {
       const tr = document.createElement('tr');
       tr.className = `rarity-${item.rank}`;
 
@@ -231,6 +364,7 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
 
   bannerSelect.addEventListener('change', renderRows);
   raritySelect.addEventListener('change', renderRows);
+  countSelect.addEventListener('change', renderRows);
   renderRows();
 
   return section;

@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   compareIds,
+  deleteAccount,
   getActiveAccount,
+  getActiveUid,
   importPayload,
   importPayloads,
+  listAccounts,
   loadAccount,
   mergeItems,
+  restoreAccount,
   setActiveUid,
+  setNickname,
 } from '../src/data/wishes/store.ts';
 import type { WishItem, WishPayload } from '../src/types.ts';
 
@@ -146,5 +151,97 @@ describe('getActiveAccount / setActiveUid', () => {
 
     setActiveUid('genshin', 'uidA');
     expect(getActiveAccount('genshin')?.uid).toBe('uidA');
+    expect(getActiveUid('genshin')).toBe('uidA');
+  });
+});
+
+describe('listAccounts', () => {
+  it('lists every stored uid for a game, ignoring the activeUid pointer and other games', () => {
+    importPayload(makePayload({ uid: 'uidB' }));
+    importPayload(makePayload({ uid: 'uidA' }));
+    importPayload(makePayload({ game: 'hsr', uid: 'other', items: [item('9')] }));
+
+    expect(listAccounts('genshin').map((a) => a.uid)).toEqual(['uidA', 'uidB']); // sorted by uid
+    expect(listAccounts('hsr').map((a) => a.uid)).toEqual(['other']);
+    expect(listAccounts('zzz')).toEqual([]);
+  });
+
+  it('includes the nickname when one is set', () => {
+    importPayload(makePayload({ uid: 'uidA' }));
+    setNickname('genshin', 'uidA', 'Main');
+    expect(listAccounts('genshin')).toEqual([{ uid: 'uidA', nickname: 'Main' }]);
+  });
+});
+
+describe('setNickname', () => {
+  it('sets and clears a nickname, preserving it across re-import', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    setNickname('genshin', 'uidA', '  Alt  ');
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBe('Alt'); // trimmed
+
+    // re-import must not wipe the label
+    importPayload(makePayload({ uid: 'uidA', items: [item('2')] }));
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBe('Alt');
+
+    setNickname('genshin', 'uidA', '');
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBeUndefined();
+  });
+
+  it('is a no-op for an unknown uid', () => {
+    setNickname('genshin', 'ghost', 'X');
+    expect(loadAccount('genshin', 'ghost')).toBeNull();
+  });
+});
+
+describe('deleteAccount', () => {
+  it('removes only the given account', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    importPayload(makePayload({ uid: 'uidB', items: [item('2')] }));
+
+    deleteAccount('genshin', 'uidA');
+    expect(loadAccount('genshin', 'uidA')).toBeNull();
+    expect(loadAccount('genshin', 'uidB')?.items.map((i) => i.id)).toEqual(['2']);
+  });
+
+  it('repoints the active pointer to a remaining account when the active one is deleted', () => {
+    importPayload(makePayload({ uid: 'uidA' }));
+    importPayload(makePayload({ uid: 'uidB', items: [item('9')] }));
+    expect(getActiveUid('genshin')).toBe('uidB'); // last import active
+
+    deleteAccount('genshin', 'uidB');
+    expect(getActiveUid('genshin')).toBe('uidA');
+  });
+
+  it('clears the active pointer when the last account is deleted', () => {
+    importPayload(makePayload({ uid: 'uidA' }));
+    deleteAccount('genshin', 'uidA');
+    expect(getActiveUid('genshin')).toBeNull();
+    expect(getActiveAccount('genshin')).toBeNull();
+  });
+});
+
+describe('restoreAccount', () => {
+  it('merges pulls into an existing account without moving the active pointer', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    importPayload(makePayload({ uid: 'uidB', items: [item('9')] }));
+    expect(getActiveUid('genshin')).toBe('uidB');
+
+    restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('2')], updatedAt: 5 });
+    expect(loadAccount('genshin', 'uidA')?.items.map((i) => i.id)).toEqual(['1', '2']);
+    expect(getActiveUid('genshin')).toBe('uidB'); // unchanged
+  });
+
+  it('creates a brand-new account and never duplicates pulls on re-restore', () => {
+    const account = { uid: 'uidC', region: 'os_usa', items: [item('1'), item('2')], updatedAt: 5 };
+    restoreAccount('genshin', account);
+    restoreAccount('genshin', account);
+    expect(loadAccount('genshin', 'uidC')?.items.map((i) => i.id)).toEqual(['1', '2']);
+  });
+
+  it('keeps a locally-set nickname over the backup copy', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    setNickname('genshin', 'uidA', 'Local');
+    restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('2')], updatedAt: 5, nickname: 'Backup' });
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBe('Local');
   });
 });

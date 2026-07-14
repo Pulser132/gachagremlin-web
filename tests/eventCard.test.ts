@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { eventKey, isReminded } from '../src/data/reminders.ts';
 import { renderEventCard, resolveRegionUnix } from '../src/ui/eventCard.ts';
 import type { EventInfo } from '../src/types.ts';
 
@@ -63,5 +64,29 @@ describe('renderEventCard banner', () => {
   it('renders no banner element when the event has no image', () => {
     const card = renderEventCard(makeEvent({ imageUrl: null }), 'America');
     expect(card.querySelector('.event-banner')).toBeNull();
+  });
+});
+
+describe('renderEventCard reminder bell', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('shows a bell on upcoming/active events and toggles the subscription', () => {
+    const onToggle = vi.fn();
+    const ev = makeEvent({ status: 'upcoming', name: 'Furina Banner', type: 'Character Event Wish' });
+    const card = renderEventCard(ev, 'America', onToggle);
+
+    const bell = card.querySelector<HTMLButtonElement>('.event-reminder-bell');
+    expect(bell).not.toBeNull();
+    expect(bell!.getAttribute('aria-pressed')).toBe('false');
+
+    bell!.click();
+    expect(isReminded('genshin', eventKey(ev))).toBe(true);
+    expect(bell!.getAttribute('aria-pressed')).toBe('true');
+    expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows no bell on ended or unknown events', () => {
+    expect(renderEventCard(makeEvent({ status: 'ended' }), 'America').querySelector('.event-reminder-bell')).toBeNull();
+    expect(renderEventCard(makeEvent({ status: 'unknown' }), 'America').querySelector('.event-reminder-bell')).toBeNull();
   });
 });
