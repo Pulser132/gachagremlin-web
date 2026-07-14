@@ -1,8 +1,18 @@
 import { GAME_BANNER_CONFIGS } from '../data/wishes/banners.ts';
 import { parseAnyImport } from '../data/wishes/payload.ts';
-import { importPayloads } from '../data/wishes/store.ts';
+import { getActiveUid, importPayloads } from '../data/wishes/store.ts';
 import { GAME_CONFIGS } from '../data/wiki/games.ts';
 import type { GameKey } from '../types.ts';
+
+/** What an import did, so the caller can warn when the pulls landed on a
+ * different UID than the one being viewed. `previousUid` is the account that
+ * was active before the import; `activeUid` is the one now shown (the last
+ * imported uid, matching importPayloads). */
+export interface ImportSummary {
+  previousUid: string | null;
+  activeUid: string;
+  importedUids: string[];
+}
 
 const SCRIPT_BASE_URL = 'https://pulser132.github.io/gachagremlin-web/import';
 const SCRIPT_NAMES: Record<GameKey, string> = { genshin: 'genshin.ps1', hsr: 'hsr.ps1', zzz: 'zzz.ps1' };
@@ -22,9 +32,9 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-/** Builds and shows the import dialog for `game`. Calls `onImported` once a
- * pasted payload has been validated and merged into storage. */
-export function openImportDialog(game: GameKey, onImported: () => void): void {
+/** Builds and shows the import dialog for `game`. Calls `onImported` with a
+ * summary once a pasted payload has been validated and merged into storage. */
+export function openImportDialog(game: GameKey, onImported: (summary: ImportSummary) => void): void {
   const itemLabel = GAME_BANNER_CONFIGS[game].itemLabel;
   const historyLabel = HISTORY_LABEL[game];
   const oneLiner = `iwr -useb ${SCRIPT_BASE_URL}/${SCRIPT_NAMES[game]} | iex`;
@@ -134,9 +144,13 @@ export function openImportDialog(game: GameKey, onImported: () => void): void {
       errorBox.hidden = false;
       return;
     }
+    const previousUid = getActiveUid(game);
     importPayloads(result.payloads);
+    const importedUids = [...new Set(result.payloads.map((p) => p.uid))];
+    // importPayloads leaves the last payload's uid active.
+    const activeUid = result.payloads[result.payloads.length - 1].uid;
     dialog.close();
-    onImported();
+    onImported({ previousUid, activeUid, importedUids });
   });
   actions.appendChild(importBtn);
   dialog.appendChild(actions);

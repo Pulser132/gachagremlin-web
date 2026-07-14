@@ -76,4 +76,7 @@ export interface WishAccount {
   /** Ascending by id. */
   items: WishItem[];
   updatedAt: number;
+  /** Optional user-set label ("Main", "Alt") shown alongside the uid in the
+   * account switcher. Preserved across re-imports. */
+  nickname?: string;
 }
