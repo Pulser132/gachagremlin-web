@@ -18,6 +18,16 @@ see `src/data/wiki/client.ts`), parses the wikitext client-side, and caches the 
 Pick a game, pick your server region (America / Europe / Asia / TW-HK-MO "SAR", Genshin only),
 and every event shows a live countdown plus its absolute end time in *your* local timezone.
 
+## Reminders
+
+Bell any upcoming or active event (the 🔔 on its card) to track it. When you open the site, a
+"starting/ending soon" banner lists your tracked events whose start or end falls within 72 hours,
+each with a live countdown. Because there's no backend, these reminders only surface **while the
+page is open** — for pings that reach you when the site is closed, the
+[Discord bot](https://github.com/Pulser132/GachaGremlin) does the same tracking off the same event
+data. Subscriptions live in `localStorage` (and travel in backups, below), keyed by a stable event
+identity the bot can share.
+
 ## Wish tracker
 
 The **Wishes** tab (next to Events) tracks pity, 50/50 status, and full pull history for
@@ -32,10 +42,15 @@ feature.
    into Windows PowerShell, and press Enter.
 3. The script (hosted under [`public/import/`](public/import/), served as a static file — read
    it before you run it) finds the history link the game already cached locally, downloads your
-   full pull history from HoYoverse's own API, and copies the result to your clipboard.
-4. Paste the clipboard contents into the site's import box. It's validated, merged with any
-   previously imported pulls (so re-importing never loses history that's aged out of the API's
-   ~6-month window), and stored in `localStorage`.
+   full pull history from HoYoverse's own API, saves it to a temp file (a multi-thousand-pull
+   history is too large to reliably round-trip through the clipboard as text), and copies that
+   file's *path* to your clipboard.
+4. On the site's import box, click "Choose File", paste the path into the file picker's filename
+   field, press Enter, then click Import (a paste-the-JSON-directly textarea is still there as a
+   fallback). It's validated, merged with any previously imported pulls — deduplicated even
+   across two different import sources for the same pulls, e.g. a backup import and the
+   PowerShell script overlapping (`src/data/wishes/dedupe.ts`) — so re-importing never loses or
+   duplicates history, and stored in `localStorage`.
 
 **Why a script instead of just pasting a link**, like the reference sites: those sites fetch
 your history server-side once you paste an authenticated link. This site has no server, and
@@ -44,8 +59,8 @@ than route your data through a third-party CORS proxy, the hosted scripts do the
 themselves and hand back plain JSON — no game credentials, no third parties, nothing leaves
 your machine except requests to HoYoverse's own API.
 
-**Already have history exported from another tracker?** The same paste box (and a file-upload
-option next to it) also accepts:
+**Already have history exported from another tracker?** The same file picker (and a paste box
+next to it) also accepts:
 
 - A [UIGF v4](https://uigf.org/en/standards/uigf.html) export — the community interchange
   format most trackers support, covering all three games. See `src/data/wishes/uigf.ts` for the
@@ -66,6 +81,38 @@ or upload the file and it just works (or tells you clearly why it can't).
 See [`Todos/Todo_wish_tracker/goal.md`](Todos/Todo_wish_tracker/goal.md) for the full design
 rationale, including exactly how the reference sites' scripts work under the hood.
 
+### The Wish Counter
+
+Once history is imported, each banner (Character Event, Weapon, Standard, …) gets a card showing
+lifetime pulls and their premium-currency cost (Primogems / Stellar Jade / Polychromes at 160 per
+pull), current 5★ and 4★ pity with a progress "fuse" toward hard pity, the 50/50 → guaranteed
+state, and an expandable list of your recent 5★s with the pity each one took. A pulls-per-month
+area chart (inline SVG, hover for the exact month) fills out the grid.
+
+Below the cards, the full pull history is a table you can filter by banner and rarity. Each row
+gets a hand-drawn category icon (person for Character/Agent, blade for Weapon, clipped-corner
+card for Light Cone, hex bolt for W-Engine, robot head for Bangboo — `src/ui/itemIcons.ts`) since
+there's no per-item art available to a static site with no asset pipeline. It opens showing your
+**latest 100 pulls**, with a 10 / 50 / 100 / All selector so a multi-thousand-pull history doesn't
+render all at once.
+
+### Multiple accounts
+
+Each game can hold several UIDs — a main and an alt, say. A dropdown in the Wishes header switches
+between them, and you can nickname each one or delete a stored UID (behind a confirmation, since it
+drops that account's pulls). Imports always save to the UID **in the imported data**: so if you
+import pulls for a different account than the one you're viewing, they land on the correct UID, the
+view swaps to it, and a notice explains what happened rather than silently overwriting the account
+you were looking at.
+
+### Backup & restore
+
+"Export all data" writes every account, nickname, reminder, and preference to a single
+`gachagremlin-backup.json` file. "Import backup" merges it back in — never overwriting: pulls are
+unioned and de-duplicated, so restoring an older backup can't lose newer history. This is the guard
+against a cleared browser cache, and deliberately the same payload shape a planned Google Drive
+sync will move.
+
 ## Local development
 
 Requires Node 22+.
@@ -73,7 +120,7 @@ Requires Node 22+.
 ```bash
 npm install
 npm run dev       # http://localhost:5173/gachagremlin-web/
-npm test           # Vitest: wiki parser + time-math + cache tests
+npm test           # Vitest: wiki, time-math, cache, wishes, reminders, backup
 npm run build       # type-check + production build to dist/
 npm run preview     # serve the production build locally
 ```
@@ -103,11 +150,27 @@ doesn't depend on Fandom's or HoYoverse's uptime:
 - The Genshin tracker local-data backup converter has its own suite: slug -> name/rarity
   resolution, synthesized id ordering, rejecting unrecognized items, and the "not supported yet"
   message when this format is used on the HSR/ZZZ tabs.
-- `tests/wishStore.test.ts` — localStorage merge/dedupe by id, per-uid and per-game isolation.
+- `tests/wishStore.test.ts` — localStorage merge/dedupe by id, per-uid and per-game isolation,
+  plus multi-account management (list/nickname/delete, active-uid repointing) and the
+  backup-restore merge.
+- `tests/wishDedupe.test.ts` — the cross-source dedupe in `src/data/wishes/dedupe.ts`: content
+  grouping, id-scheme partitioning (real HoYoverse ids vs. synthesized backup ids), keeping only
+  the most trustworthy scheme when they describe the same pull, and repair-on-read for accounts
+  polluted before the fix.
+- `tests/itemIcons.test.ts` — per-category icon selection (character/agent, weapon, light cone,
+  W-Engine, bangboo, unknown fallback) and the accessible label text.
 - `tests/pity.test.ts` — pity counts and 50/50 guarantee state, including banner-group merging
   (Genshin 301+400, HSR 21+22 collab).
-- `tests/wishesView.test.ts` — the Wishes view and import dialog (paste and file-upload paths)
-  against seeded fixtures.
+- `tests/reminders.test.ts` — the stable event key (stable across whitespace/case, distinct per
+  game/type/name) and toggling/listing subscriptions.
+- `tests/backup.test.ts` — whole-app export/import round-trip through a cleared cache, merge
+  de-duplication, reminder union, preference restore, and rejecting non-GachaGremlin or
+  wrong-version files.
+- `tests/wishesView.test.ts` — the Wishes view (Wish Counter cards, account switcher, the
+  import-mismatch notice, the history size selector) and import dialog (file-upload and paste
+  paths) against seeded fixtures.
+- `tests/eventCard.test.ts` also covers the reminder bell (shown for upcoming/active events,
+  toggles the subscription).
 
 The three PowerShell import scripts (`public/import/*.ps1`) aren't exercised by `npm test` —
 there's no game installed in CI to generate real cache data. They're syntax-checked via
@@ -129,6 +192,8 @@ src/
   data/
     source.ts           EventSource interface
     cache.ts             localStorage TTL cache, wraps any EventSource
+    reminders.ts         opt-in event-reminder subscriptions (localStorage), stable event key
+    backup.ts            whole-app export/restore to one JSON file (merge-based, versioned)
     wiki/
       games.ts            per-game host/index-page/server-offset config
       client.ts            MediaWiki API fetch (origin=*)
@@ -142,13 +207,22 @@ src/
       uigf.ts                 converts a UIGF v4 export to our WishPayload shape
       + a Genshin-only converter for one tracker's local-data backup format, with a
         bundled item slug -> {name, rarity} lookup extracted from that tracker's own data
-      store.ts                localStorage merge/dedupe by id, active-uid pointer
+      dedupe.ts                cross-source dedupe: same pull imported under two id schemes
+                                 (real API id vs. synthesized backup id) collapses to one
+      store.ts                localStorage merge/dedupe by id, per-uid accounts + nicknames,
+                                active-uid pointer, list/delete, backup-restore merge
       pity.ts                  pure pity/guarantee math over a sorted item list
   ui/
-    app.ts               page shell: tabs, view toggle, region picker, sections, refresh
-    eventCard.ts           one event's card
-    wishesView.ts           the Wishes tab: pity cards, filterable history table
-    importDialog.ts          the import dialog: instructions, one-liner, paste box
+    app.ts               page shell: tabs, view toggle, region picker, sections, refresh,
+                           reminder banner, backup/restore footer
+    eventCard.ts           one event's card, with a reminder bell
+    wishesView.ts           the Wishes tab: account switcher, "Wish Counter" banner cards,
+                             pulls-per-month chart, paginated + filterable history table
+    itemIcons.ts             per-category (Character/Weapon/Light Cone/W-Engine/Bangboo) inline
+                               SVG glyphs for the history table's Item column
+    uidSwitcher.ts           the account (UID) dropdown: switch, rename, guarded delete
+    pullChart.ts             inline-SVG pulls-per-month area chart with hover tooltip
+    importDialog.ts          the import dialog: instructions, one-liner, file picker + paste box
     countdown.ts             shared 1s ticker for all countdowns
     format.ts                 countdown + absolute-time formatting
   styles.css            responsive, dark/light via prefers-color-scheme
@@ -180,8 +254,12 @@ via `fetch` — that's intentionally Manifest V3-safe, so this codebase (particu
 `src/data/` and `src/ui/`) should port into an extension's popup with minimal changes when that
 becomes a priority.
 
-## Out of scope (v1)
+## Roadmap / out of scope
 
-No reminders, notifications, or accounts — that's the Discord bot's job. See
+In-app reminders (opt-in, page-open only) and multiple local accounts per game now exist — see
+above. Still out of scope for the site itself: **background** notifications and **cross-device**
+account sync, which remain the Discord bot's job. A **Google Drive sync** — to back the manual
+export/import above so data survives beyond one browser — is planned; the backup schema is already
+shaped for it. See
 [`Todos/Todo_website/goal.md`](https://github.com/Pulser132/GachaGremlin/blob/main/Todos/Todo_website/goal.md)
 in the bot repo for the full requirements this was built against.
