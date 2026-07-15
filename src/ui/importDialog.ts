@@ -50,8 +50,8 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
     `Open the ${historyLabel} screen in ${GAME_CONFIGS[game].label} on your PC (from any banner, tap History).`,
     'Open Windows PowerShell — search for "PowerShell" in the Start menu.',
     'Copy the command below, paste it into PowerShell, and press Enter.',
-    'It saves your history to a file and copies that file’s path to your clipboard.',
-    'Click "Choose File" below, paste the path into the file picker’s filename box, press Enter, then click Import.',
+    'It copies your full history to your clipboard.',
+    'Paste it (Ctrl+V) into the box below and click Import.',
   ];
   for (const text of stepTexts) {
     const li = document.createElement('li');
@@ -89,27 +89,25 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
   commandBlock.appendChild(copyBtn);
   dialog.appendChild(commandBlock);
 
-  const fileImport = el('div', { className: 'import-file-block' });
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json,application/json';
-  fileInput.className = 'import-file';
-  fileInput.setAttribute('aria-label', 'Choose the saved history file');
-  fileImport.appendChild(fileInput);
-  dialog.appendChild(fileImport);
+  const textarea = document.createElement('textarea');
+  textarea.className = 'import-textarea';
+  textarea.rows = 8;
+  textarea.setAttribute('aria-label', 'Pasted history JSON');
+  textarea.placeholder = 'Paste the copied history here…';
+  dialog.appendChild(textarea);
 
   const altImport = el('div', { className: 'import-alt' });
   const altLabel =
     game === 'genshin'
-      ? 'Also works for a Genshin tracker local-data backup or a UIGF export from another tracker — choose or paste it the same way.'
-      : `Also works for a UIGF export from another tracker. (Importing ${GAME_CONFIGS[game].label} from a tracker's own backup format isn't supported yet.)`;
+      ? 'Paste not working, or importing a Genshin tracker local-data backup or a UIGF export from another tracker? Choose a file instead — including the backup copy the script saves alongside the clipboard copy.'
+      : `Paste not working, or importing a UIGF export from another tracker? Choose a file instead — including the backup copy the script saves alongside the clipboard copy. (Importing ${GAME_CONFIGS[game].label} from a tracker's own backup format isn't supported yet.)`;
   altImport.appendChild(el('p', { className: 'import-alt-label', text: altLabel }));
-  const textarea = document.createElement('textarea');
-  textarea.className = 'import-textarea';
-  textarea.rows = 6;
-  textarea.setAttribute('aria-label', 'Or paste the history JSON directly');
-  textarea.placeholder = 'Or paste the file contents here…';
-  altImport.appendChild(textarea);
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json,application/json';
+  fileInput.className = 'import-file';
+  fileInput.setAttribute('aria-label', 'Choose a history file instead');
+  altImport.appendChild(fileInput);
   dialog.appendChild(altImport);
 
   fileInput.addEventListener('change', async () => {

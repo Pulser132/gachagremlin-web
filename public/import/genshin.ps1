@@ -22,10 +22,19 @@
   If the script can't find your install folder automatically, run it with
   an explicit path instead:
     iex "& { $(irm https://pulser132.github.io/gachagremlin-web/import/genshin.ps1) } 'D:\Games\Genshin Impact\Genshin Impact game\GenshinImpact_Data'"
+
+  If you've opened the Wish History screen for more than one account on this
+  PC, the game's cache can hold a still-valid link for each of them, and the
+  script picks the one opened most recently by default. To target a specific
+  account instead, pass its UID (leave the path blank to keep auto-detect):
+    iex "& { $(irm https://pulser132.github.io/gachagremlin-web/import/genshin.ps1) } '' '100000001'"
 #>
 param(
     [Parameter(Position = 0)]
-    [string]$GamePath
+    [string]$GamePath,
+
+    [Parameter(Position = 1)]
+    [string]$Uid
 )
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -140,24 +149,51 @@ try {
         return
     }
 
-    $authUrl = $null
+    # Every still-valid cached link is collected (not just the first one
+    # that probes OK) because the cache can hold a valid link for more than
+    # one account if you've opened Wish History for more than one on this
+    # PC - picking "first valid" alone previously caused a wrong account's
+    # history to be silently downloaded when that happened.
+    $validCandidates = New-Object System.Collections.Generic.List[object]
     foreach ($candidate in ($candidates | Sort-Object -Property Timestamp -Descending)) {
         try {
             $probe = Invoke-RestMethod -Uri $candidate.Url -UseBasicParsing -ContentType 'application/json'
-            if ($probe.retcode -eq 0) {
-                $authUrl = $candidate.Url
-                break
-            }
         } catch {
             continue
         }
+        if ($probe.retcode -ne 0) { continue }
+        $probeUid = if ($probe.data -and $probe.data.list -and $probe.data.list.Count -gt 0) { "$($probe.data.list[0].uid)" } else { $null }
+        $validCandidates.Add([PSCustomObject]@{ Url = $candidate.Url; Uid = $probeUid })
+        if ($Uid -and $probeUid -eq $Uid) { break }
     }
 
-    if (-not $authUrl) {
+    if ($validCandidates.Count -eq 0) {
         Write-Host 'Your Wish History link has expired.' -ForegroundColor Red
         Write-Host 'Reopen the Wish History screen in-game to refresh it, then run this script again.' -ForegroundColor Red
         return
     }
+
+    $chosen = $null
+    if ($Uid) {
+        $chosen = $validCandidates | Where-Object { $_.Uid -eq $Uid } | Select-Object -First 1
+        if (-not $chosen) {
+            $foundUids = ($validCandidates | ForEach-Object { $_.Uid } | Where-Object { $_ } | Select-Object -Unique) -join ', '
+            Write-Host "No cached Wish History link matches UID $Uid." -ForegroundColor Red
+            if ($foundUids) { Write-Host "Found links for: $foundUids instead." -ForegroundColor Red }
+            Write-Host 'Log into that account in-game, open the Wish History screen, then run this script again.' -ForegroundColor Red
+            return
+        }
+    } else {
+        $chosen = $validCandidates[0]
+        $distinctUids = $validCandidates | ForEach-Object { $_.Uid } | Where-Object { $_ } | Select-Object -Unique
+        if ($distinctUids.Count -gt 1) {
+            Write-Host "Found valid Wish History links for multiple accounts in the game's cache: $($distinctUids -join ', ')." -ForegroundColor Yellow
+            Write-Host "Using UID $($chosen.Uid) (its link was opened most recently)." -ForegroundColor Yellow
+            Write-Host 'If that is the wrong account, press Ctrl+C now and run again with its UID, e.g.:' -ForegroundColor Yellow
+            Write-Host "  iex `"& { `$(irm <script-url>) } '' 'UID_HERE'`"" -ForegroundColor Yellow
+        }
+    }
+    $authUrl = $chosen.Url
 
     Write-Host 'Found a valid Wish History link. Downloading your wish history...'
 
@@ -171,7 +207,7 @@ try {
     $region = if ($baseParams.ContainsKey('region')) { $baseParams['region'] } elseif ($baseParams.ContainsKey('game_biz')) { $baseParams['game_biz'] } else { '' }
 
     $items = New-Object System.Collections.Generic.List[object]
-    $uid = $null
+    $uid = $chosen.Uid
 
     foreach ($gachaType in $GachaTypes) {
         Write-Host "  Fetching banner type $gachaType..."
@@ -232,25 +268,21 @@ try {
 
     $json = $payload | ConvertTo-Json -Compress -Depth 6
 
-    # A large history can be hundreds of KB of JSON - too much to reliably
-    # paste through the clipboard. Save it to a file instead and copy that
-    # file's path, which the GachaGremlin import box's "Choose File" picker
-    # can jump straight to.
-    $outputFile = Join-Path $env:TEMP 'gachagremlin-genshin-wishes.json'
     # Set-Content -Encoding UTF8 always writes a byte-order mark on Windows
     # PowerShell 5.1, which breaks JSON.parse in the browser - write via
-    # .NET directly with a BOM-less UTF8Encoding instead.
+    # .NET directly with a BOM-less UTF8Encoding instead. Kept as a backup
+    # file in case clipboard paste doesn't work in your setup; the primary
+    # flow below copies the JSON itself, verified reliable through
+    # Set-Clipboard even for multi-megabyte histories.
     $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $outputFile = Join-Path $env:TEMP 'gachagremlin-genshin-wishes.json'
     [System.IO.File]::WriteAllText($outputFile, $json, $utf8NoBom)
-    Set-Clipboard -Value $outputFile
+    Set-Clipboard -Value $json
 
     Write-Host ''
     Write-Host "Done! Imported $($items.Count) wishes for UID $uid." -ForegroundColor Green
-    Write-Host "Saved to: $outputFile" -ForegroundColor Yellow
-    Write-Host 'That file path has been copied to your clipboard.'
-    Write-Host 'On the GachaGremlin import box, click "Choose File", paste the path into the'
-    Write-Host 'filename field, press Enter, then click Import.'
-    Write-Host '(That file has your wish history in plain text - feel free to delete it once imported.)'
+    Write-Host 'Copied to your clipboard - paste it (Ctrl+V) into the GachaGremlin import box and click Import.' -ForegroundColor Yellow
+    Write-Host "(A backup copy was also saved to $outputFile in case clipboard paste doesn't work - use the import box's `"Choose File`" button for that instead.)"
 } catch {
     Write-Host ''
     Write-Host "Something went wrong: $($_.Exception.Message)" -ForegroundColor Red

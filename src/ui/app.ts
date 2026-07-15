@@ -150,7 +150,15 @@ export function mountApp(root: HTMLElement): void {
 
   root.appendChild(buildDataFooter(() => render()));
 
+  // Bumped at the start of every render() call. A render that's still
+  // awaiting the events fetch when a newer render() starts (e.g. switching
+  // to the Wishes tab, or to another game, before a slow wiki fetch
+  // resolves) checks this after the await and bails instead of clobbering
+  // whatever the newer render already put in `main`.
+  let renderGen = 0;
+
   async function render(forceRefresh = false): Promise<void> {
+    const myGen = ++renderGen;
     // Set on <html>, not #app: the per-game accent/geometry tokens it drives
     // (src/styles.css) need to reach the import dialog too, which is
     // appended to document.body (outside #app) so native <dialog> gets a
@@ -185,12 +193,14 @@ export function mountApp(root: HTMLElement): void {
     try {
       data = forceRefresh ? await source.forceRefresh(game) : await source.fetchEvents(game);
     } catch (e) {
+      if (myGen !== renderGen) return; // a newer render (e.g. switching to Wishes) already won
       main.innerHTML = '';
       status.hidden = false;
       status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} events: ${(e as Error).message}. Try Refresh in a moment.`;
       main.setAttribute('aria-busy', 'false');
       return;
     }
+    if (myGen !== renderGen) return; // a newer render (e.g. switching to Wishes) already won
 
     status.hidden = !data.stale;
     if (data.stale) {

@@ -934,10 +934,6 @@ select {
   margin: 0 0 0.5rem;
 }
 
-.import-file-block {
-  margin-bottom: 0.5rem;
-}
-
 .import-file {
   font-size: 0.85rem;
   color: var(--text-muted);
