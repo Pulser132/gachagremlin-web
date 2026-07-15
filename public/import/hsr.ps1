@@ -220,13 +220,31 @@ try {
     $items = New-Object System.Collections.Generic.List[object]
     $uid = $chosen.Uid
 
+    # The list and params are passed in, and the uid comes back as a return
+    # value, rather than either crossing scopes through $script:. When this
+    # script is run as `iex "& { <text> } '' '<uid>'"` — the form that targets a
+    # specific account, and the one the import dialog now emits — the body runs
+    # inside a child scope, so $script: resolves to the *global* scope, where
+    # $items and $uid do not exist. $script:items.Add() then failed with "You
+    # cannot call a method on a null-valued expression". The plain
+    # `iwr ... | iex` form only worked by luck: it executes in the current
+    # scope, so $script:items happened to be the same variable.
+    #
+    # Unqualified reads ($PageSize, Build-Url) are fine either way — they walk
+    # up the scope chain. It is only $script: that is anchored elsewhere.
     function Get-Banners {
-        param([string]$ApiBase, [string[]]$GachaTypes)
+        param(
+            [string]$ApiBase,
+            [string[]]$GachaTypes,
+            [hashtable]$BaseParams,
+            [System.Collections.Generic.List[object]]$Items
+        )
+        $seenUid = $null
         foreach ($gachaType in $GachaTypes) {
             Write-Host "  Fetching banner type $gachaType..."
             $endId = '0'
             while ($true) {
-                $params = $baseParams.Clone()
+                $params = $BaseParams.Clone()
                 $params['gacha_type'] = $gachaType
                 $params['size'] = "$PageSize"
                 $params['end_id'] = $endId
@@ -243,8 +261,8 @@ try {
                 }
 
                 foreach ($entry in $resp.data.list) {
-                    if (-not $script:uid) { $script:uid = $entry.uid }
-                    $script:items.Add([PSCustomObject]@{
+                    if (-not $seenUid) { $seenUid = "$($entry.uid)" }
+                    $Items.Add([PSCustomObject]@{
                         id         = "$($entry.id)"
                         bannerType = "$($entry.gacha_type)"
                         name       = "$($entry.name)"
@@ -259,10 +277,15 @@ try {
                 Start-Sleep -Milliseconds $PageDelayMs
             }
         }
+        return $seenUid
     }
 
-    Get-Banners -ApiBase $stdApiBase -GachaTypes $StandardGachaTypes
-    Get-Banners -ApiBase $ldApiBase -GachaTypes $CollabGachaTypes
+    # $uid is normally already known from the probe; these only fill it in when
+    # the probe came back with an empty list (an account whose first banner has
+    # no warps), which is what the old $script:uid fallback was for.
+    $stdUid = Get-Banners -ApiBase $stdApiBase -GachaTypes $StandardGachaTypes -BaseParams $baseParams -Items $items
+    $ldUid = Get-Banners -ApiBase $ldApiBase -GachaTypes $CollabGachaTypes -BaseParams $baseParams -Items $items
+    if (-not $uid) { $uid = if ($stdUid) { $stdUid } else { $ldUid } }
 
     if ($items.Count -eq 0) {
         Write-Host 'No warps were found on any banner.' -ForegroundColor Red

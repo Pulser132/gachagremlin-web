@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getActiveAccount, getActiveUid, importPayload } from '../src/data/wishes/store.ts';
 import { openImportDialog } from '../src/ui/importDialog.ts';
 import { renderWishesView } from '../src/ui/wishesView.ts';
-import type { WishItem, WishPayload } from '../src/types.ts';
+import type { GameKey, WishItem, WishPayload } from '../src/types.ts';
 
 // Same in-memory Storage stand-in used by tests/cache.test.ts and
 // tests/wishStore.test.ts.
@@ -32,6 +32,13 @@ class MemoryStorage implements Storage {
 }
 
 const FIXTURES = join(import.meta.dirname, 'fixtures', 'wishes');
+
+/** Mirrors importDialog's own derivation: the scripts are served from whatever
+ * site the player is on, so this resolves to the test DOM's origin here and to
+ * Pages in production. */
+function scriptUrl(game: GameKey): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}import/${game}.ps1`;
+}
 
 function loadPayload(name: string): WishPayload {
   return JSON.parse(readFileSync(join(FIXTURES, name), 'utf-8')) as WishPayload;
@@ -233,6 +240,60 @@ describe('openImportDialog', () => {
     expect(onImported).toHaveBeenCalledTimes(1);
     expect(document.querySelector('.import-dialog')).toBeNull();
     expect(getActiveAccount('genshin')?.uid).toBe('800000099'); // the uid in uigf-genshin.json's hk4e account
+  });
+
+  it('targets the account being viewed, so the script cannot silently grab another UID cached by the game', () => {
+    importPayload(loadPayload('genshin.json'));
+    const uid = getActiveUid('genshin')!;
+    openImportDialog('genshin', vi.fn());
+
+    // Positional args: '' keeps path auto-detect, then the uid to select.
+    const command = document.querySelector('.import-command code')!.textContent!;
+    expect(command).toBe(`iex "& { $(irm ${scriptUrl('genshin')}) } '' '${uid}'"`);
+
+    // The copy button must hand over the same targeted command, not the plain one.
+    expect(document.querySelector('.import-command')!.textContent).toContain(uid);
+    // And the steps say which account to open in-game, since the link has to exist first.
+    expect(document.querySelector('.import-steps')!.textContent).toContain(uid);
+  });
+
+  it('follows the active account when it changes, rather than pinning the first import', () => {
+    importPayload(loadPayload('genshin.json'));
+    importPayload({ ...loadPayload('genshin.json'), uid: '800000042' });
+    expect(getActiveUid('genshin')).toBe('800000042');
+
+    openImportDialog('genshin', vi.fn());
+    expect(document.querySelector('.import-command code')!.textContent).toContain("'800000042'");
+  });
+
+  it('falls back to the plain one-liner before any account exists, since there is no uid to target', () => {
+    expect(getActiveUid('genshin')).toBeNull();
+    openImportDialog('genshin', vi.fn());
+
+    const command = document.querySelector('.import-command code')!.textContent!;
+    expect(command).toBe(`iwr -useb ${scriptUrl('genshin')} | iex`);
+  });
+
+  it('serves the script from the site the player is on, so a dev build tests the local script', () => {
+    importPayload(loadPayload('genshin.json'));
+    openImportDialog('genshin', vi.fn());
+
+    // Hardcoding the Pages URL meant localhost handed out production's script,
+    // making a script fix untestable without deploying it first.
+    const command = document.querySelector('.import-command code')!.textContent!;
+    expect(command).toContain(window.location.origin);
+    expect(command).toContain(scriptUrl('genshin'));
+    expect(command).not.toContain('pulser132.github.io');
+  });
+
+  it("targets the per-game active account, using that game's own script", () => {
+    importPayload(loadPayload('hsr.json'));
+    const hsrUid = getActiveUid('hsr')!;
+    openImportDialog('hsr', vi.fn());
+
+    const command = document.querySelector('.import-command code')!.textContent!;
+    expect(command).toContain('hsr.ps1');
+    expect(command).toContain(`'${hsrUid}'`);
   });
 
   it('has a file input for uploading a UIGF export as an alternative to pasting', () => {
