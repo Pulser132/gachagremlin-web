@@ -14,7 +14,25 @@ export interface ImportSummary {
   importedUids: string[];
 }
 
-const SCRIPT_BASE_URL = 'https://pulser132.github.io/gachagremlin-web/import';
+/**
+ * Where the importer scripts are served from, derived from the site the player
+ * is actually on rather than hardcoded to GitHub Pages.
+ *
+ * Vite serves `public/` under the configured base, so `vite dev` puts the
+ * scripts at http://localhost:5173/gachagremlin-web/import/*.ps1 — reachable
+ * from the player's own PowerShell, since it's the same machine. Hardcoding the
+ * Pages URL meant a dev build still handed out *production's* script, so a
+ * script change couldn't be tested without deploying it first.
+ *
+ * `import.meta.env.BASE_URL` (not `document.baseURI`, which would drift with the
+ * current route — there's no <base> tag) is Vite's configured base, and it
+ * applies in dev as well as in the build: '/gachagremlin-web/' either way, which
+ * is why the dev server does NOT serve public/ at the root. Always has a
+ * trailing slash.
+ */
+function scriptBaseUrl(): string {
+  return `${window.location.origin}${import.meta.env.BASE_URL}import`;
+}
 const SCRIPT_NAMES: Record<GameKey, string> = { genshin: 'genshin.ps1', hsr: 'hsr.ps1', zzz: 'zzz.ps1' };
 const HISTORY_LABEL: Record<GameKey, string> = {
   genshin: 'Wish History',
@@ -37,7 +55,22 @@ function el<K extends keyof HTMLElementTagNameMap>(
 export function openImportDialog(game: GameKey, onImported: (summary: ImportSummary) => void): void {
   const itemLabel = GAME_BANNER_CONFIGS[game].itemLabel;
   const historyLabel = HISTORY_LABEL[game];
-  const oneLiner = `iwr -useb ${SCRIPT_BASE_URL}/${SCRIPT_NAMES[game]} | iex`;
+  const scriptUrl = `${scriptBaseUrl()}/${SCRIPT_NAMES[game]}`;
+
+  // The game's cache can hold a still-valid history link for every account
+  // whose History screen was opened on this PC. Left to itself the script takes
+  // the most recently opened one, which silently downloads the wrong account
+  // when you're viewing a different one here. The scripts already accept a UID
+  // as their second argument (the first stays empty to keep path auto-detect),
+  // so pass the account being viewed and let them pick that link.
+  //
+  // This selects among links the game already wrote; it can't conjure one. An
+  // account whose History screen was never opened (or whose link has expired)
+  // has nothing to select, and the script says so by name.
+  const targetUid = getActiveUid(game);
+  const oneLiner = targetUid
+    ? `iex "& { $(irm ${scriptUrl}) } '' '${targetUid}'"`
+    : `iwr -useb ${scriptUrl} | iex`;
 
   const dialog = document.createElement('dialog');
   dialog.className = 'import-dialog';
@@ -47,10 +80,14 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
   const steps = document.createElement('ol');
   steps.className = 'import-steps';
   const stepTexts = [
-    `Open the ${historyLabel} screen in ${GAME_CONFIGS[game].label} on your PC (from any banner, tap History).`,
+    targetUid
+      ? `Open the ${historyLabel} screen in ${GAME_CONFIGS[game].label} on your PC while logged into UID ${targetUid} — the account you're viewing here (from any banner, tap History).`
+      : `Open the ${historyLabel} screen in ${GAME_CONFIGS[game].label} on your PC (from any banner, tap History).`,
     'Open Windows PowerShell — search for "PowerShell" in the Start menu.',
     'Copy the command below, paste it into PowerShell, and press Enter.',
-    'It copies your full history to your clipboard.',
+    targetUid
+      ? `It copies UID ${targetUid}'s full history to your clipboard.`
+      : 'It copies your full history to your clipboard.',
     'Paste it (Ctrl+V) into the box below and click Import.',
   ];
   for (const text of stepTexts) {
