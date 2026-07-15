@@ -79,4 +79,10 @@ export interface WishAccount {
   /** Optional user-set label ("Main", "Alt") shown alongside the uid in the
    * account switcher. Preserved across re-imports. */
   nickname?: string;
+  /** When `nickname` was last set, so a merge can resolve competing renames
+   * last-write-wins (see restoreAccount). Deliberately separate from
+   * `updatedAt`, which means "last imported pulls" and is shown to the user
+   * as such — renaming must not make the UI claim a re-import. Absent on
+   * accounts stored before this existed, and on accounts never renamed. */
+  nicknameUpdatedAt?: number;
 }

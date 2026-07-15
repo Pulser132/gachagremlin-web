@@ -191,6 +191,18 @@ describe('setNickname', () => {
     setNickname('genshin', 'ghost', 'X');
     expect(loadAccount('genshin', 'ghost')).toBeNull();
   });
+
+  it('stamps nicknameUpdatedAt but leaves updatedAt alone', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }), () => 1000);
+    expect(loadAccount('genshin', 'uidA')?.updatedAt).toBe(1000);
+
+    setNickname('genshin', 'uidA', 'Main', () => 5000);
+    const account = loadAccount('genshin', 'uidA');
+    expect(account?.nicknameUpdatedAt).toBe(5000);
+    // updatedAt means "last imported pulls" and is shown as "imported <date>":
+    // a rename must not make the UI claim an import that never happened.
+    expect(account?.updatedAt).toBe(1000);
+  });
 });
 
 describe('deleteAccount', () => {
@@ -238,10 +250,66 @@ describe('restoreAccount', () => {
     expect(loadAccount('genshin', 'uidC')?.items.map((i) => i.id)).toEqual(['1', '2']);
   });
 
-  it('keeps a locally-set nickname over the backup copy', () => {
+  it('keeps a locally-set nickname over an un-timestamped backup copy', () => {
     importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
     setNickname('genshin', 'uidA', 'Local');
     restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('2')], updatedAt: 5, nickname: 'Backup' });
     expect(loadAccount('genshin', 'uidA')?.nickname).toBe('Local');
+  });
+
+  // Under cloud sync this runs on every pull, so a rename made on another
+  // device has to be able to win — otherwise renames never propagate.
+  it('adopts a newer rename from the incoming copy', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    setNickname('genshin', 'uidA', 'Local', () => 100);
+
+    restoreAccount('genshin', {
+      uid: 'uidA',
+      region: 'os_usa',
+      items: [item('2')],
+      updatedAt: 5,
+      nickname: 'Renamed elsewhere',
+      nicknameUpdatedAt: 200,
+    });
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBe('Renamed elsewhere');
+    expect(loadAccount('genshin', 'uidA')?.nicknameUpdatedAt).toBe(200);
+  });
+
+  it('keeps the local rename when it is the newer one', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    setNickname('genshin', 'uidA', 'Local', () => 300);
+
+    restoreAccount('genshin', {
+      uid: 'uidA',
+      region: 'os_usa',
+      items: [item('2')],
+      updatedAt: 5,
+      nickname: 'Older',
+      nicknameUpdatedAt: 200,
+    });
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBe('Local');
+    expect(loadAccount('genshin', 'uidA')?.nicknameUpdatedAt).toBe(300);
+  });
+
+  it('propagates a rename that cleared the label', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    setNickname('genshin', 'uidA', 'Local', () => 100);
+
+    // Another device cleared the nickname; that is still a newer rename.
+    restoreAccount('genshin', {
+      uid: 'uidA',
+      region: 'os_usa',
+      items: [item('2')],
+      updatedAt: 5,
+      nickname: undefined,
+      nicknameUpdatedAt: 200,
+    });
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBeUndefined();
+  });
+
+  it('adopts the incoming nickname when the local account has none', () => {
+    importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
+    restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('2')], updatedAt: 5, nickname: 'FromCloud' });
+    expect(loadAccount('genshin', 'uidA')?.nickname).toBe('FromCloud');
   });
 });

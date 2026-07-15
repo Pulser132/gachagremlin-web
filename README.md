@@ -121,8 +121,33 @@ auto-detect): `iex "& { $(irm <script-url>) } '' '100000001'"`.
 "Export all data" writes every account, nickname, reminder, and preference to a single
 `gachagremlin-backup.json` file. "Import backup" merges it back in — never overwriting: pulls are
 unioned and de-duplicated, so restoring an older backup can't lose newer history. This is the guard
-against a cleared browser cache, and deliberately the same payload shape a planned Google Drive
-sync will move.
+against a cleared browser cache, and deliberately the same payload cloud save moves.
+
+### Cloud save
+
+"Connect Google Drive" automates that guard: the same `gachagremlin-backup.json` payload is kept in
+your **own** Google Drive, in the hidden per-app
+[`appDataFolder`](https://developers.google.com/workspace/drive/api/guides/appdata) — invisible in
+your Drive UI, readable only by this app, via a scope (`drive.appdata`) that can't touch anything
+else in your Drive. Still no backend: data moves between your browser and your Drive, nothing else.
+
+Sync runs on page load and (debounced) after any change, plus a manual "Sync now". It's
+**pull → merge → push**: cloud data is merged in locally first, then the union is pushed back. Since
+the merge unions and de-duplicates, two devices can't clobber each other's pulls — losing a write
+race just means the union lands on the next sync. Your UI preferences and which account you're
+viewing are *filled in only when absent*, so an unattended sync never reverts a setting you just
+picked on this device.
+
+The access token lives in memory only and is never persisted — a client-side flow gets no refresh
+token, so it's silently re-requested against your live Google session and you'll see "Reconnect" if
+that lapses. Google's script is loaded **lazily**, only once you engage cloud sync: if you never
+connect, the site makes zero requests to Google and works fully offline.
+
+Cloud sync is off unless a Google OAuth client ID is configured (`src/data/cloud/config.ts`). This
+repo ships with a real one, so the cloud row renders by default. Forking? Blank `GOOGLE_CLIENT_ID`
+and no cloud UI appears at all — or point it at your own Cloud project, registering both of your
+origins as *Authorized JavaScript origins* (the token client uses a popup, so the redirect-URI list
+stays empty) and enabling the Drive API on it.
 
 ## Local development
 
@@ -131,7 +156,7 @@ Requires Node 22+.
 ```bash
 npm install
 npm run dev       # http://localhost:5173/gachagremlin-web/
-npm test           # Vitest: wiki, time-math, cache, wishes, reminders, backup
+npm test           # Vitest: wiki, time-math, cache, wishes, reminders, backup, cloud sync
 npm run build       # type-check + production build to dist/
 npm run preview     # serve the production build locally
 ```
@@ -176,7 +201,20 @@ doesn't depend on Fandom's or HoYoverse's uptime:
   game/type/name) and toggling/listing subscriptions.
 - `tests/backup.test.ts` — whole-app export/import round-trip through a cleared cache, merge
   de-duplication, reminder union, preference restore, and rejecting non-GachaGremlin or
-  wrong-version files.
+  wrong-version files (including the typed `UnsupportedBackupVersionError` cloud sync branches on),
+  plus the `fill-if-absent` view-state mode sync uses.
+- `tests/cloudDrive.test.ts` — the Drive REST edge against a stubbed fetch: find→create vs
+  find→update, skipping the lookup when the file id is known, well-formed multipart bodies, and
+  every HTTP status → `CloudError` kind mapping.
+- `tests/cloudSync.test.ts` — the sync algorithm: cloud data lands locally *before* the upload
+  snapshot is taken, push-only skips the download, a newer-schema cloud file aborts without any
+  upload, 401 → silent re-auth → retry, debounce collapsing, and destructive-beats-merge when
+  requests queue.
+- `tests/cloudAuth.test.ts` — token caching/expiry, silent re-request, script-load failure
+  rejecting rather than hanging, and a storage dump proving the token is never persisted.
+- `tests/cloudFooter.test.ts`, `tests/cloudTriggers.test.ts` — the footer's cloud row across
+  configured/connected/error states, and the trigger→mode map per call site (bell off and delete
+  must schedule push-only, account switching must schedule nothing).
 - `tests/wishesView.test.ts` — the Wishes view (Wish Counter cards, account switcher, the
   import-mismatch notice, the history size selector) and import dialog (paste and file-upload
   paths) against seeded fixtures.
@@ -205,6 +243,12 @@ src/
     cache.ts             localStorage TTL cache, wraps any EventSource
     reminders.ts         opt-in event-reminder subscriptions (localStorage), stable event key
     backup.ts            whole-app export/restore to one JSON file (merge-based, versioned)
+    cloud/
+      config.ts           OAuth client id (placeholder = cloud sync off), scope, filename
+      gis.d.ts            hand-written ambient types for Google Identity Services
+      auth.ts              lazy GIS load; token in memory only, never persisted
+      drive.ts              appDataFolder REST: load/save the backup, typed CloudError
+      sync.ts                pull -> merge -> push; push-only after a delete; debounce
     wiki/
       games.ts            per-game host/index-page/server-offset config
       client.ts            MediaWiki API fetch (origin=*)
@@ -265,12 +309,21 @@ via `fetch` — that's intentionally Manifest V3-safe, so this codebase (particu
 `src/data/` and `src/ui/`) should port into an extension's popup with minimal changes when that
 becomes a priority.
 
+**One exception: cloud sync.** It loads Google's identity script from `accounts.google.com` at
+runtime, and MV3's CSP forbids remote code. An extension build would either omit
+`src/data/cloud/` (everything else is untouched — sync is additive and nothing depends on it) or
+swap `auth.ts` for `chrome.identity`, which is the native way to do OAuth in an extension anyway.
+The rest of the MV3 claim above still holds.
+
 ## Roadmap / out of scope
 
-In-app reminders (opt-in, page-open only) and multiple local accounts per game now exist — see
-above. Still out of scope for the site itself: **background** notifications and **cross-device**
-account sync, which remain the Discord bot's job. A **Google Drive sync** — to back the manual
-export/import above so data survives beyond one browser — is planned; the backup schema is already
-shaped for it. See
+In-app reminders (opt-in, page-open only), multiple local accounts per game, and cloud save now
+exist — see above. Still out of scope for the site itself: **background** notifications, which
+remain the Discord bot's job.
+
+Cloud save's known v1 limits, both fixable with deletion tombstones (a follow-up): a deleted
+account only stays deleted if no *other* device still holds it — one that does re-adds it on its
+next sync. And there's no Google-account identity check, so on a shared computer, connecting a
+second Google account merges both people's data locally. See
 [`Todos/Todo_website/goal.md`](https://github.com/Pulser132/GachaGremlin/blob/main/Todos/Todo_website/goal.md)
 in the bot repo for the full requirements this was built against.

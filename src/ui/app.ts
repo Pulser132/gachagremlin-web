@@ -1,5 +1,8 @@
 import { exportAll, importBackup } from '../data/backup.ts';
 import { cachedSource } from '../data/cache.ts';
+import { connect, disconnect, getToken, isConnected } from '../data/cloud/auth.ts';
+import { isCloudConfigured } from '../data/cloud/config.ts';
+import { configureSync, getSyncState, onSyncStateChange, scheduleSync, setOnMerged, syncNow } from '../data/cloud/sync.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
@@ -150,6 +153,13 @@ export function mountApp(root: HTMLElement): void {
 
   root.appendChild(buildDataFooter(() => render()));
 
+  // Hand cloud sync its auth implementation. Importing auth.ts is inert — the
+  // GIS script is only injected once a token is actually requested — so this
+  // costs nothing for users who never connect.
+  configureSync({ getToken: (opts) => getToken(opts), isConnected });
+  // A merge that pulled data in needs the view refreshed to show it.
+  setOnMerged(() => void render());
+
   // Bumped at the start of every render() call. A render that's still
   // awaiting the events fetch when a newer render() starts (e.g. switching
   // to the Wishes tab, or to another game, before a slow wiki fetch
@@ -235,6 +245,9 @@ export function mountApp(root: HTMLElement): void {
   }
 
   render();
+  // Background, non-blocking: local data renders immediately and cloud data
+  // merges in when it lands. No-ops unless configured and connected.
+  scheduleSync('merge');
 }
 
 /** Fills the "starting/ending soon" banner with belled events whose start
@@ -301,10 +314,94 @@ function buildTitle(): HTMLElement {
 }
 
 /**
+ * The cloud-sync controls: Connect, or once connected a status line plus Sync
+ * now / Disconnect.
+ *
+ * Renders nothing at all while `isCloudConfigured()` is false (no OAuth client
+ * ID provisioned) — a fork or fresh clone shouldn't show a button that could
+ * only fail. Updates itself through `onSyncStateChange` rather than the app's
+ * render loop, because the footer is built once at mount and never rebuilt.
+ */
+function buildCloudControls(): HTMLElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'cloud-controls';
+  if (!isCloudConfigured()) return wrap; // no client ID → no cloud UI
+
+  const status = document.createElement('span');
+  status.className = 'data-footer-message';
+
+  const connectBtn = document.createElement('button');
+  connectBtn.type = 'button';
+  connectBtn.className = 'data-footer-btn';
+
+  const syncBtn = document.createElement('button');
+  syncBtn.type = 'button';
+  syncBtn.className = 'data-footer-btn';
+  syncBtn.textContent = 'Sync now';
+  syncBtn.addEventListener('click', () => void syncNow('merge'));
+
+  const disconnectBtn = document.createElement('button');
+  disconnectBtn.type = 'button';
+  disconnectBtn.className = 'data-footer-btn';
+  disconnectBtn.textContent = 'Disconnect';
+  disconnectBtn.addEventListener('click', async () => {
+    await disconnect();
+    update();
+  });
+
+  connectBtn.addEventListener('click', async () => {
+    connectBtn.disabled = true;
+    try {
+      await connect();
+      update();
+      await syncNow('merge');
+    } catch (e) {
+      status.textContent = (e as Error).message;
+      status.classList.add('error');
+    } finally {
+      connectBtn.disabled = false;
+      update();
+    }
+  });
+
+  function update(): void {
+    const state = getSyncState();
+    const connected = isConnected();
+
+    // A lapsed Google session needs consent again, so it re-uses the Connect
+    // button rather than offering a Sync that can only fail.
+    const reconnecting = connected && state.needsReconnect;
+    connectBtn.hidden = connected && !reconnecting;
+    connectBtn.textContent = reconnecting ? 'Reconnect' : 'Connect Google Drive';
+    syncBtn.hidden = !connected || reconnecting;
+    disconnectBtn.hidden = !connected;
+
+    status.classList.toggle('error', state.status === 'error');
+    if (!connected) {
+      status.textContent = '';
+    } else if (state.status === 'syncing') {
+      status.textContent = 'Syncing…';
+    } else if (state.status === 'error') {
+      status.textContent = state.error ?? 'Cloud sync failed.';
+    } else if (state.lastSyncedAt) {
+      status.textContent = `Last synced ${new Date(state.lastSyncedAt).toLocaleTimeString()}`;
+    } else {
+      status.textContent = 'Connected';
+    }
+  }
+
+  onSyncStateChange(update);
+  update();
+
+  wrap.append(connectBtn, syncBtn, disconnectBtn, status);
+  return wrap;
+}
+
+/**
  * Manual backup / restore of all local data to a single JSON file — the guard
- * against a cleared cache, and the same payload a future Google Drive sync
- * will move. Restore merges (never overwrites), so re-importing can't lose
- * pulls. `onRestored` re-renders so switched accounts/reminders show up.
+ * against a cleared cache, and the same payload cloud sync moves. Restore
+ * merges (never overwrites), so re-importing can't lose pulls. `onRestored`
+ * re-renders so switched accounts/reminders show up.
  */
 function buildDataFooter(onRestored: () => void): HTMLElement {
   const footer = document.createElement('footer');
@@ -353,6 +450,7 @@ function buildDataFooter(onRestored: () => void): HTMLElement {
       message.classList.remove('error');
       message.textContent = `Restored ${result.accounts} account(s) and ${result.reminders} reminder(s).`;
       onRestored();
+      scheduleSync('merge'); // push the restored data up too
     } catch (e) {
       message.classList.add('error');
       message.textContent = `Couldn't import backup: ${(e as Error).message}`;
@@ -361,7 +459,7 @@ function buildDataFooter(onRestored: () => void): HTMLElement {
     }
   });
 
-  footer.append(importBtn, importInput, message);
+  footer.append(importBtn, importInput, message, buildCloudControls());
   return footer;
 }
 

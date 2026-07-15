@@ -1,3 +1,4 @@
+import { scheduleSync } from '../data/cloud/sync.ts';
 import { findBannerGroup, GAME_BANNER_CONFIGS, type BannerGroup, type GameBannerConfig } from '../data/wishes/banners.ts';
 import { guaranteeState, pityAtEach5Star, pityCounts } from '../data/wishes/pity.ts';
 import { getActiveAccount } from '../data/wishes/store.ts';
@@ -64,6 +65,7 @@ export function renderWishesView(game: GameKey, onChange: () => void): HTMLEleme
     openImportDialog(game, (summary) => {
       pendingImportNotice = { game, summary };
       onChange();
+      scheduleSync('merge'); // new pulls are additive
     }),
   );
   header.appendChild(importBtn);

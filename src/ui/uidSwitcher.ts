@@ -5,6 +5,7 @@
  * uid); this is the UI over `listAccounts` / `setActiveUid` / `setNickname` /
  * `deleteAccount` in src/data/wishes/store.ts.
  */
+import { scheduleSync } from '../data/cloud/sync.ts';
 import { GAME_BANNER_CONFIGS } from '../data/wishes/banners.ts';
 import { deleteAccount, getActiveUid, listAccounts, loadAccount, setActiveUid, setNickname } from '../data/wishes/store.ts';
 import type { GameKey } from '../types.ts';
@@ -64,6 +65,9 @@ function openRenameDialog(game: GameKey, uid: string, current: string | undefine
       setNickname(game, uid, input.value);
       dialog.close();
       onChange();
+      // A rename carries its own timestamp, so the merge resolves it
+      // last-write-wins against other devices.
+      scheduleSync('merge');
     });
     actions.append(cancel, save);
     dialog.appendChild(actions);
@@ -112,6 +116,10 @@ function openDeleteDialog(game: GameKey, uid: string, nickname: string | undefin
       deleteAccount(game, uid);
       dialog.close();
       onChange();
+      // Destructive: pulling first would merge the account straight back in
+      // from the cloud copy, so overwrite it instead. Bounded — another
+      // device still holding this account re-adds it on its next sync.
+      scheduleSync('push-only');
     });
     actions.append(cancel, del);
     dialog.appendChild(actions);
@@ -139,6 +147,9 @@ export function renderUidSwitcher(game: GameKey, onChange: () => void): HTMLElem
   select.addEventListener('change', () => {
     setActiveUid(game, select.value);
     onChange();
+    // Deliberately no scheduleSync: which account you're looking at is a
+    // device-local view concern, not data worth a round-trip. It rides along
+    // on the next sync, and cloud pulls won't yank it (fill-if-absent).
   });
   wrap.appendChild(select);
 
