@@ -84,16 +84,54 @@ export interface RestoreResult {
 }
 
 /**
+ * Thrown when a backup's `schemaVersion` isn't the one this build understands.
+ *
+ * Typed (rather than a bare Error) because cloud sync must branch on it: a file
+ * written by a NEWER build must abort the sync outright rather than let this
+ * build push its own older-shaped payload over it. String-matching an error
+ * message for a data-loss guard would be far too brittle.
+ */
+export class UnsupportedBackupVersionError extends Error {
+  readonly found: unknown;
+  readonly expected: number;
+  constructor(found: unknown, expected: number) {
+    super(`Unsupported backup version ${String(found)}; expected ${expected}.`);
+    this.name = 'UnsupportedBackupVersionError';
+    this.found = found;
+    this.expected = expected;
+  }
+}
+
+/**
+ * How a restore treats "view state" — the UI prefs and each game's activeUid.
+ *
+ * - `overwrite` (default): the file wins. What a manual "Import backup" has
+ *   always done, and what someone deliberately restoring a file expects.
+ * - `fill-if-absent`: only populate what isn't set locally. Used by cloud
+ *   sync, which runs unattended and repeatedly: overwriting there would let a
+ *   stale cloud copy silently revert the region/view you just picked on this
+ *   device. Filling absent values still matters — a browser whose cache was
+ *   cleared has no activeUid, and without one the Wishes tab renders empty
+ *   even though the accounts just came back.
+ */
+export type ViewStateMode = 'overwrite' | 'fill-if-absent';
+
+export interface ImportBackupOptions {
+  viewState?: ViewStateMode;
+}
+
+/**
  * Merges a backup file back into local storage. Throws on a shape it doesn't
  * recognize so the caller can surface a clear error. Returns how many accounts
  * and reminder subscriptions were brought in.
  */
-export function importBackup(data: unknown): RestoreResult {
+export function importBackup(data: unknown, options: ImportBackupOptions = {}): RestoreResult {
+  const viewState: ViewStateMode = options.viewState ?? 'overwrite';
   if (!data || typeof data !== 'object') throw new Error('Not a valid backup file.');
   const file = data as Partial<BackupFile>;
   if (file.app !== BACKUP_APP) throw new Error('This file is not a GachaGremlin backup.');
   if (file.schemaVersion !== BACKUP_SCHEMA_VERSION) {
-    throw new Error(`Unsupported backup version ${String(file.schemaVersion)}; expected ${BACKUP_SCHEMA_VERSION}.`);
+    throw new UnsupportedBackupVersionError(file.schemaVersion, BACKUP_SCHEMA_VERSION);
   }
   if (!file.games || typeof file.games !== 'object') throw new Error('Backup file has no game data.');
 
@@ -120,21 +158,25 @@ export function importBackup(data: unknown): RestoreResult {
       setReminders(game, merged);
     }
 
-    // Only adopt the backup's active pointer if that account now exists.
+    // Only adopt the backup's active pointer if that account now exists — and
+    // in fill-if-absent mode, only when this device isn't already pointed
+    // somewhere (don't yank the account the user is looking at).
     if (typeof gameBackup.activeUid === 'string' && loadAccount(game, gameBackup.activeUid)) {
-      setActiveUid(game, gameBackup.activeUid);
+      if (viewState === 'overwrite' || getActiveUid(game) === null) {
+        setActiveUid(game, gameBackup.activeUid);
+      }
     }
   }
 
   if (file.prefs && typeof file.prefs === 'object') {
     for (const [name, key] of Object.entries(PREF_KEYS)) {
       const value = (file.prefs as Record<string, unknown>)[name];
-      if (typeof value === 'string') {
-        try {
-          localStorage.setItem(key, value);
-        } catch {
-          // storage unavailable — prefs just won't persist
-        }
+      if (typeof value !== 'string') continue;
+      if (viewState === 'fill-if-absent' && readPref(key) !== undefined) continue;
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        // storage unavailable — prefs just won't persist
       }
     }
   }

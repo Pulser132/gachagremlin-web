@@ -1,3 +1,4 @@
+import { scheduleSync } from '../data/cloud/sync.ts';
 import { eventKey, isReminded, toggleReminder } from '../data/reminders.ts';
 import type { EventInfo, Region, RegionUnix } from '../types.ts';
 import { formatAbsolute } from './format.ts';
@@ -75,9 +76,12 @@ function renderReminderBell(ev: EventInfo, onToggle: () => void): HTMLElement {
   };
   sync();
   btn.addEventListener('click', () => {
-    toggleReminder(ev.game, key);
+    const belled = toggleReminder(ev.game, key);
     sync();
     onToggle();
+    // Un-belling is destructive: a merge would just union the subscription
+    // back in from the cloud copy, so push over it instead.
+    scheduleSync(belled ? 'merge' : 'push-only');
   });
   return btn;
 }

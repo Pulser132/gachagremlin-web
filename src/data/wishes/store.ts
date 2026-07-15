@@ -137,12 +137,21 @@ export function listAccounts(game: GameKey): { uid: string; nickname?: string }[
   return accounts.sort((a, b) => (a.uid < b.uid ? -1 : a.uid > b.uid ? 1 : 0));
 }
 
-/** Sets (or clears, when `nickname` is empty) the label for one account. */
-export function setNickname(game: GameKey, uid: string, nickname: string): void {
+/**
+ * Sets (or clears, when `nickname` is empty) the label for one account.
+ *
+ * Stamps `nicknameUpdatedAt` so a later merge can tell which side renamed most
+ * recently (see restoreAccount). Note it deliberately does NOT touch
+ * `updatedAt`: that field means "last imported pulls" and is rendered to the
+ * user as "imported <date>", so bumping it here would claim a re-import that
+ * never happened.
+ * @param now injectable for tests; defaults to the real wall clock.
+ */
+export function setNickname(game: GameKey, uid: string, nickname: string, now: () => number = Date.now): void {
   const account = readAccount(game, uid);
   if (!account) return;
   const trimmed = nickname.trim();
-  writeAccount(game, { ...account, nickname: trimmed || undefined });
+  writeAccount(game, { ...account, nickname: trimmed || undefined, nicknameUpdatedAt: now() });
 }
 
 /**
@@ -199,11 +208,39 @@ export function importPayloads(payloads: WishPayload[], now: () => number = Date
 }
 
 /**
+ * Picks the surviving nickname when merging two copies of one account.
+ *
+ * Renames need to propagate across devices under cloud sync, so when both
+ * sides carry a `nicknameUpdatedAt` the newer rename wins. Without that
+ * timestamp there's nothing to compare, so we keep the pre-existing
+ * local-wins behavior — which also means a rename made before this field
+ * existed is never clobbered by a stale backup.
+ */
+function resolveNickname(existing: WishAccount | null, incoming: WishAccount): Pick<WishAccount, 'nickname' | 'nicknameUpdatedAt'> {
+  if (!existing) return { nickname: incoming.nickname, nicknameUpdatedAt: incoming.nicknameUpdatedAt };
+
+  const existingAt = existing.nicknameUpdatedAt;
+  const incomingAt = incoming.nicknameUpdatedAt;
+  if (existingAt !== undefined && incomingAt !== undefined) {
+    const winner = incomingAt > existingAt ? incoming : existing;
+    return { nickname: winner.nickname, nicknameUpdatedAt: winner.nicknameUpdatedAt };
+  }
+
+  // Only one side (or neither) has been renamed since timestamps existed.
+  // Keep the local label if there is one, else adopt the incoming one — the
+  // original behavior, so a manual restore is unchanged.
+  if (existing.nickname !== undefined) {
+    return { nickname: existing.nickname, nicknameUpdatedAt: existingAt };
+  }
+  return { nickname: incoming.nickname, nicknameUpdatedAt: incomingAt };
+}
+
+/**
  * Merges a whole account from a backup file into local storage, unioning its
  * pulls with any already stored for that uid (same dedupe as import, so a
  * restore can never drop or duplicate pulls). Unlike importPayload it does
  * NOT move the active pointer — the backup's own activeUid is restored
- * separately. A stored nickname wins over the backup's, unless there is none.
+ * separately. Nickname resolution: see resolveNickname.
  */
 export function restoreAccount(game: GameKey, account: WishAccount): WishAccount {
   const existing = readAccount(game, account.uid);
@@ -212,7 +249,7 @@ export function restoreAccount(game: GameKey, account: WishAccount): WishAccount
     region: account.region || existing?.region || '',
     items: mergeItems(existing?.items ?? [], account.items ?? []),
     updatedAt: Math.max(existing?.updatedAt ?? 0, account.updatedAt ?? 0),
-    nickname: existing?.nickname ?? account.nickname,
+    ...resolveNickname(existing, account),
   };
   writeAccount(game, merged);
   return merged;
