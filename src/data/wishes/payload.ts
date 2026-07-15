@@ -106,14 +106,15 @@ export function parseAnyImport(rawText: string, expectedGame: GameKey): ParseMan
   try {
     raw = JSON.parse(text);
   } catch {
-    // The import scripts now copy a file *path* to the clipboard rather
-    // than the file contents — a very plausible paste target is this
-    // textarea instead of the "Choose File" picker. Give a specific hint
-    // rather than the generic "not valid JSON" message in that case.
+    // The import scripts also save a backup copy to a file for when
+    // clipboard paste doesn't work — a plausible mistake is pasting that
+    // file's *path* into this textarea instead of using "Choose File" to
+    // select it. Give a specific hint rather than the generic "not valid
+    // JSON" message in that case.
     if (/^(?:[A-Za-z]:\\|\\\\)\S+\.json$/.test(text.trim())) {
       return {
         ok: false,
-        error: 'That looks like a file path, not the file itself. Click "Choose File" below, paste the path into the file picker, and select it there instead.',
+        error: 'That looks like a file path, not the file itself. Click "Choose File" below and select it there instead, or re-run the script and paste its clipboard output directly.',
       };
     }
     return {

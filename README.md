@@ -42,15 +42,17 @@ feature.
    into Windows PowerShell, and press Enter.
 3. The script (hosted under [`public/import/`](public/import/), served as a static file — read
    it before you run it) finds the history link the game already cached locally, downloads your
-   full pull history from HoYoverse's own API, saves it to a temp file (a multi-thousand-pull
-   history is too large to reliably round-trip through the clipboard as text), and copies that
-   file's *path* to your clipboard.
-4. On the site's import box, click "Choose File", paste the path into the file picker's filename
-   field, press Enter, then click Import (a paste-the-JSON-directly textarea is still there as a
-   fallback). It's validated, merged with any previously imported pulls — deduplicated even
-   across two different import sources for the same pulls, e.g. a backup import and the
-   PowerShell script overlapping (`src/data/wishes/dedupe.ts`) — so re-importing never loses or
-   duplicates history, and stored in `localStorage`.
+   full pull history from HoYoverse's own API, and copies the result (plain JSON) to your
+   clipboard — verified reliable through `Set-Clipboard` even for multi-megabyte histories, so
+   there's no practical size where paste stops working. It also saves a backup copy to a temp
+   file, in case clipboard access itself is restricted in your setup.
+4. Paste the clipboard contents into the site's import box and click Import (a "Choose File"
+   picker is there too, for the backup file or a UIGF/backup export from another tracker — a
+   browser can't read a file from a typed path for security reasons, so it always needs an actual
+   file selection, not a pasted path). It's validated, merged with any previously imported pulls
+   — deduplicated even across two different import sources for the same pulls, e.g. a backup
+   import and the PowerShell script overlapping (`src/data/wishes/dedupe.ts`) — so re-importing
+   never loses or duplicates history, and stored in `localStorage`.
 
 **Why a script instead of just pasting a link**, like the reference sites: those sites fetch
 your history server-side once you paste an authenticated link. This site has no server, and
@@ -59,7 +61,7 @@ than route your data through a third-party CORS proxy, the hosted scripts do the
 themselves and hand back plain JSON — no game credentials, no third parties, nothing leaves
 your machine except requests to HoYoverse's own API.
 
-**Already have history exported from another tracker?** The same file picker (and a paste box
+**Already have history exported from another tracker?** The same paste box (and a file picker
 next to it) also accepts:
 
 - A [UIGF v4](https://uigf.org/en/standards/uigf.html) export — the community interchange
@@ -104,6 +106,15 @@ drops that account's pulls). Imports always save to the UID **in the imported da
 import pulls for a different account than the one you're viewing, they land on the correct UID, the
 view swaps to it, and a notice explains what happened rather than silently overwriting the account
 you were looking at.
+
+Multiple accounts also creates a script-side wrinkle: if you've opened the History screen for more
+than one account on the same PC, the game's cache can hold a still-valid link for each of them, and
+the earlier scripts silently picked whichever one happened to sort first — which could quietly hand
+you the wrong account's history with no indication anything was off. The import scripts now probe
+every still-valid cached link, and if more than one distinct account turns up, print all of them and
+say which one they picked (the most recently opened) before downloading anything. To target a
+specific account instead, pass its UID as a second argument (leave the path blank to keep
+auto-detect): `iex "& { $(irm <script-url>) } '' '100000001'"`.
 
 ### Backup & restore
 
@@ -167,7 +178,7 @@ doesn't depend on Fandom's or HoYoverse's uptime:
   de-duplication, reminder union, preference restore, and rejecting non-GachaGremlin or
   wrong-version files.
 - `tests/wishesView.test.ts` — the Wishes view (Wish Counter cards, account switcher, the
-  import-mismatch notice, the history size selector) and import dialog (file-upload and paste
+  import-mismatch notice, the history size selector) and import dialog (paste and file-upload
   paths) against seeded fixtures.
 - `tests/eventCard.test.ts` also covers the reminder bell (shown for upcoming/active events,
   toggles the subscription).
@@ -222,7 +233,7 @@ src/
                                SVG glyphs for the history table's Item column
     uidSwitcher.ts           the account (UID) dropdown: switch, rename, guarded delete
     pullChart.ts             inline-SVG pulls-per-month area chart with hover tooltip
-    importDialog.ts          the import dialog: instructions, one-liner, file picker + paste box
+    importDialog.ts          the import dialog: instructions, one-liner, paste box + file picker
     countdown.ts             shared 1s ticker for all countdowns
     format.ts                 countdown + absolute-time formatting
   styles.css            responsive, dark/light via prefers-color-scheme
