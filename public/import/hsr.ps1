@@ -44,8 +44,14 @@ Add-Type -AssemblyName System.Web
 
 $StandardGachaTypes = @('1', '2', '11', '12')
 $CollabGachaTypes = @('21', '22')
-$PageSize = 20
-$PageDelayMs = 350
+# The API honours large page sizes: measured against the live endpoint, size=500
+# returns a full 500 entries, and size=1000 returned every one of a 680-warp
+# banner (so the real cap, wherever it is, is above 680). At 500 a ~900-warp
+# account downloads in 7 requests instead of ~46.
+$PageSize = 500
+$PageDelayMs = 100
+$MaxAttempts = 4
+$RetryBackoffMs = @(500, 1000, 2000, 4000)
 
 function Get-VersionCompare {
     param([string]$A, [string]$B)
@@ -66,6 +72,39 @@ function Build-Url {
     $builder = New-Object System.UriBuilder($BaseUrl)
     $builder.Query = $qs.ToString()
     return $builder.Uri.AbsoluteUri
+}
+
+<#
+  Fetches one page of warp history, retrying failures that stand a chance of
+  clearing: a thrown request (a network blip) and retcode -110, HoYoverse's
+  "visit too frequently" throttle. Anything else comes straight back to the
+  caller - an expired authkey will never succeed on a retry.
+
+  Throws once the attempts are exhausted, rather than returning nothing. The
+  script this replaced shrugged a failed page off with "moving on to the next
+  banner", which silently dropped that banner's older warps and then copied a
+  payload that looked complete. A loud failure is always better than a quietly
+  incomplete history.
+#>
+function Invoke-GachaPage {
+    param([string]$Url)
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        $lastError = $null
+        try {
+            $resp = Invoke-RestMethod -Uri $Url -UseBasicParsing -ContentType 'application/json'
+            if ($resp.retcode -ne -110) { return $resp }
+            $lastError = 'HoYoverse is throttling this import (retcode -110)'
+        } catch {
+            $lastError = $_.Exception.Message
+        }
+
+        if ($attempt -eq $MaxAttempts) {
+            throw "Gave up after $MaxAttempts attempts. Last error: $lastError"
+        }
+        Write-Host "    $lastError - retrying..." -ForegroundColor Yellow
+        Start-Sleep -Milliseconds $RetryBackoffMs[$attempt - 1]
+    }
 }
 
 function Find-GamePathFromLog {
@@ -144,7 +183,10 @@ try {
                 $timestamp = 0
                 $tsMatch = [regex]::Match($url, 'timestamp=(\d+)')
                 if ($tsMatch.Success) { $timestamp = [int64]$tsMatch.Groups[1].Value }
-                $candidates.Add([PSCustomObject]@{ Url = $url; Timestamp = $timestamp })
+                $authKey = ''
+                $akMatch = [regex]::Match($url, '[?&]authkey=([^&]+)')
+                if ($akMatch.Success) { $authKey = $akMatch.Groups[1].Value }
+                $candidates.Add([PSCustomObject]@{ Url = $url; Timestamp = $timestamp; AuthKey = $authKey })
             }
         }
     }
@@ -160,8 +202,16 @@ try {
     # one account if you've opened Warp History for more than one on this
     # PC — picking "first valid" alone previously caused a wrong account's
     # history to be silently downloaded when that happened.
+    # The cache stores one entry per page the webview loaded, so the same authkey
+    # shows up many times over (48 candidates collapsed to 30 authkeys on the PC
+    # this was measured on). Probing a repeat costs ~0.27s to learn what the
+    # first probe already told us, so probe each authkey once.
+    $seenAuthKeys = New-Object 'System.Collections.Generic.HashSet[string]'
     $validCandidates = New-Object System.Collections.Generic.List[object]
     foreach ($candidate in ($candidates | Sort-Object -Property Timestamp -Descending)) {
+        # HashSet.Add is false when it was already there. A candidate whose
+        # authkey couldn't be parsed still gets probed rather than skipped.
+        if ($candidate.AuthKey -and -not $seenAuthKeys.Add($candidate.AuthKey)) { continue }
         # Always verify against the standard endpoint, even if the cached
         # candidate happened to be a getLdGachaLog (collab) URL — same
         # authkey works on both, and getGachaLog is guaranteed to exist.
@@ -171,6 +221,23 @@ try {
         } catch {
             continue
         }
+        # Every candidate has to be probed; there is no shortcut. Two tempting
+        # ones were measured and both are wrong:
+        #
+        #   * "stop at the first expired (-101) link, since candidates are
+        #     sorted newest-first" - Genshin's cache was observed holding ten
+        #     links that share ONE timestamp, of which the first three were
+        #     expired and the fourth was valid. Stopping early reports "your
+        #     link has expired" while a working link sits right behind it.
+        #   * "skip links whose timestamp is older than the ~24h expiry window
+        #     without probing" - that timestamp is the webview's load time baked
+        #     into the cached URL, not the authkey's issue time. A *valid*
+        #     Genshin link was observed carrying a 15-day-old timestamp, and
+        #     valid Star Rail links routinely read as 26h old.
+        #
+        # Authkey validity simply does not correlate with either the ordering or
+        # the timestamp, so probing is the only oracle. The dedupe above is the
+        # one sound saving: identical authkeys must answer identically.
         if ($probe.retcode -ne 0) { continue }
         $probeUid = if ($probe.data -and $probe.data.list -and $probe.data.list.Count -gt 0) { "$($probe.data.list[0].uid)" } else { $null }
         $validCandidates.Add([PSCustomObject]@{ Url = $probeUrl; Uid = $probeUid })
@@ -250,15 +317,17 @@ try {
                 $params['end_id'] = $endId
                 $url = Build-Url -BaseUrl $ApiBase -Params $params
 
-                try {
-                    $resp = Invoke-RestMethod -Uri $url -UseBasicParsing -ContentType 'application/json'
-                } catch {
-                    Write-Host '    Request failed, moving on to the next banner.' -ForegroundColor Yellow
-                    break
+                $resp = Invoke-GachaPage -Url $url
+
+                # A banner with no warps answers retcode 0 with an empty list -
+                # verified against the live API, which does the same even for a
+                # gacha_type that doesn't exist. So a non-zero retcode here is a
+                # real error, and letting it escape beats copying a payload that
+                # silently omits this banner.
+                if ($resp.retcode -ne 0) {
+                    throw "The warp history API returned retcode $($resp.retcode) ($($resp.message)). Your history link may have expired - reopen the Warp History screen in-game and run this script again."
                 }
-                if ($resp.retcode -ne 0 -or -not $resp.data -or -not $resp.data.list -or $resp.data.list.Count -eq 0) {
-                    break
-                }
+                if (-not $resp.data -or -not $resp.data.list -or $resp.data.list.Count -eq 0) { break }
 
                 foreach ($entry in $resp.data.list) {
                     if (-not $seenUid) { $seenUid = "$($entry.uid)" }
@@ -272,7 +341,19 @@ try {
                     })
                 }
 
-                if ($resp.data.list.Count -lt $PageSize) { break }
+                # Page on until the API answers with an empty list. The obvious
+                # "a short page means the last page" test is WRONG, because the
+                # page size the server actually uses is not necessarily the one
+                # we asked for: ZZZ ignores $PageSize entirely and always
+                # returns 5, and Genshin silently caps it at 20. Under that test
+                # the first page comes back short, the loop calls it a day, and
+                # the payload quietly holds one page per banner - which is
+                # exactly the bug zzz.ps1 shipped with (20 signals imported for
+                # an account whose Exclusive channel alone held 30+).
+                #
+                # Terminating on an empty list instead costs one extra request
+                # per banner and cannot truncate, whatever page size the server
+                # decides to use today or after the next patch.
                 $endId = $resp.data.list[$resp.data.list.Count - 1].id
                 Start-Sleep -Milliseconds $PageDelayMs
             }

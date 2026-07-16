@@ -43,8 +43,15 @@ $ProgressPreference = 'SilentlyContinue'
 Add-Type -AssemblyName System.Web
 
 $RealGachaTypes = @('1', '2', '3', '5')
+# This host IGNORES the size parameter: it answers with 5 entries whatever we
+# ask for (measured across size=1,2,3,5,6,10,20,50 - all returned exactly 5).
+# The value is sent anyway, since the game's own webview sends it, but nothing
+# is gained by tuning it. Star Rail's host does honour large sizes and hsr.ps1
+# uses 500; Genshin's caps at 20. All three differ - see Todos/Todo_import_speed/.
 $PageSize = 20
-$PageDelayMs = 350
+$PageDelayMs = 100
+$MaxAttempts = 4
+$RetryBackoffMs = @(500, 1000, 2000, 4000)
 
 function Get-VersionCompare {
     param([string]$A, [string]$B)
@@ -65,6 +72,39 @@ function Build-Url {
     $builder = New-Object System.UriBuilder($BaseUrl)
     $builder.Query = $qs.ToString()
     return $builder.Uri.AbsoluteUri
+}
+
+<#
+  Fetches one page of signal history, retrying failures that stand a chance of
+  clearing: a thrown request (a network blip) and retcode -110, HoYoverse's
+  "visit too frequently" throttle. Anything else comes straight back to the
+  caller - an expired authkey will never succeed on a retry.
+
+  Throws once the attempts are exhausted, rather than returning nothing. The
+  script this replaced shrugged a failed page off with "moving on to the next
+  channel", which silently dropped that channel's older signals and then copied
+  a payload that looked complete. A loud failure is always better than a quietly
+  incomplete history.
+#>
+function Invoke-GachaPage {
+    param([string]$Url)
+
+    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+        $lastError = $null
+        try {
+            $resp = Invoke-RestMethod -Uri $Url -UseBasicParsing -ContentType 'application/json'
+            if ($resp.retcode -ne -110) { return $resp }
+            $lastError = 'HoYoverse is throttling this import (retcode -110)'
+        } catch {
+            $lastError = $_.Exception.Message
+        }
+
+        if ($attempt -eq $MaxAttempts) {
+            throw "Gave up after $MaxAttempts attempts. Last error: $lastError"
+        }
+        Write-Host "    $lastError - retrying..." -ForegroundColor Yellow
+        Start-Sleep -Milliseconds $RetryBackoffMs[$attempt - 1]
+    }
 }
 
 function Find-GamePathFromLog {
@@ -143,7 +183,10 @@ try {
                 $timestamp = 0
                 $tsMatch = [regex]::Match($url, 'timestamp=(\d+)')
                 if ($tsMatch.Success) { $timestamp = [int64]$tsMatch.Groups[1].Value }
-                $candidates.Add([PSCustomObject]@{ Url = $url; Timestamp = $timestamp })
+                $authKey = ''
+                $akMatch = [regex]::Match($url, '[?&]authkey=([^&]+)')
+                if ($akMatch.Success) { $authKey = $akMatch.Groups[1].Value }
+                $candidates.Add([PSCustomObject]@{ Url = $url; Timestamp = $timestamp; AuthKey = $authKey })
             }
         }
     }
@@ -159,13 +202,38 @@ try {
     # one account if you've opened Signal Search History for more than one
     # on this PC — picking "first valid" alone previously caused a wrong
     # account's history to be silently downloaded when that happened.
+    # The cache stores one entry per page the webview loaded, so the same authkey
+    # shows up many times over (Star Rail's cache held 48 candidates covering
+    # only 30 authkeys). Probing a repeat costs ~0.27s to learn what the first
+    # probe already told us, so probe each authkey once.
+    $seenAuthKeys = New-Object 'System.Collections.Generic.HashSet[string]'
     $validCandidates = New-Object System.Collections.Generic.List[object]
     foreach ($candidate in ($candidates | Sort-Object -Property Timestamp -Descending)) {
+        # HashSet.Add is false when it was already there. A candidate whose
+        # authkey couldn't be parsed still gets probed rather than skipped.
+        if ($candidate.AuthKey -and -not $seenAuthKeys.Add($candidate.AuthKey)) { continue }
         try {
             $probe = Invoke-RestMethod -Uri $candidate.Url -UseBasicParsing -ContentType 'application/json'
         } catch {
             continue
         }
+        # Every candidate has to be probed; there is no shortcut. Two tempting
+        # ones were measured and both are wrong:
+        #
+        #   * "stop at the first expired (-101) link, since candidates are
+        #     sorted newest-first" - Genshin's cache was observed holding ten
+        #     links that share ONE timestamp, of which the first three were
+        #     expired and the fourth was valid. Stopping early reports "your
+        #     link has expired" while a working link sits right behind it.
+        #   * "skip links whose timestamp is older than the ~24h expiry window
+        #     without probing" - that timestamp is the webview's load time baked
+        #     into the cached URL, not the authkey's issue time. A *valid*
+        #     Genshin link was observed carrying a 15-day-old timestamp, and
+        #     valid Star Rail links routinely read as 26h old.
+        #
+        # Authkey validity simply does not correlate with either the ordering or
+        # the timestamp, so probing is the only oracle. The dedupe above is the
+        # one sound saving: identical authkeys must answer identically.
         if ($probe.retcode -ne 0) { continue }
         $probeUid = if ($probe.data -and $probe.data.list -and $probe.data.list.Count -gt 0) { "$($probe.data.list[0].uid)" } else { $null }
         $validCandidates.Add([PSCustomObject]@{ Url = $candidate.Url; Uid = $probeUid })
@@ -224,15 +292,17 @@ try {
             $params['end_id'] = $endId
             $url = Build-Url -BaseUrl $apiBase -Params $params
 
-            try {
-                $resp = Invoke-RestMethod -Uri $url -UseBasicParsing -ContentType 'application/json'
-            } catch {
-                Write-Host '    Request failed, moving on to the next channel.' -ForegroundColor Yellow
-                break
+            $resp = Invoke-GachaPage -Url $url
+
+            # A channel with no signals answers retcode 0 with an empty list -
+            # verified against the live API, which does the same even for a
+            # gacha type that doesn't exist. So a non-zero retcode here is a
+            # real error, and letting it escape beats copying a payload that
+            # silently omits this channel.
+            if ($resp.retcode -ne 0) {
+                throw "The signal history API returned retcode $($resp.retcode) ($($resp.message)). Your history link may have expired - reopen the Signal Search History screen in-game and run this script again."
             }
-            if ($resp.retcode -ne 0 -or -not $resp.data -or -not $resp.data.list -or $resp.data.list.Count -eq 0) {
-                break
-            }
+            if (-not $resp.data -or -not $resp.data.list -or $resp.data.list.Count -eq 0) { break }
 
             foreach ($entry in $resp.data.list) {
                 if (-not $uid) { $uid = $entry.uid }
@@ -257,7 +327,17 @@ try {
                 })
             }
 
-            if ($resp.data.list.Count -lt $PageSize) { break }
+            # Page on until the API answers with an empty list. The obvious
+            # "a short page means the last page" test is WRONG here, and this is
+            # the script it actually broke: this host ignores $PageSize outright
+            # and always returns 5 entries (measured - even size=1 returns 5).
+            # The old test asked for 20, got 5, concluded "last page" and
+            # stopped - importing 5 signals per channel, 20 in total, for an
+            # account whose Exclusive channel alone held 30+. Silent, and live.
+            #
+            # Terminating on an empty list instead costs one extra request per
+            # channel and cannot truncate, whatever page size the server decides
+            # to use today or after the next patch.
             $endId = $resp.data.list[$resp.data.list.Count - 1].id
             Start-Sleep -Milliseconds $PageDelayMs
         }
