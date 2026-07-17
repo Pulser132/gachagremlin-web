@@ -118,7 +118,7 @@ function describe(e: unknown): { message: string; reconnect: boolean } {
   if (e instanceof CloudError) {
     switch (e.kind) {
       case 'unauthorized':
-        return { message: 'Google sign-in expired. Reconnect to keep syncing.', reconnect: true };
+        return { message: 'Google Drive access expired. Reconnect to keep syncing.', reconnect: true };
       case 'rate-limited':
         return { message: 'Google Drive is rate-limiting requests. Try again in a few minutes.', reconnect: false };
       case 'network':
@@ -136,13 +136,17 @@ async function runSync(mode: SyncMode, d: SyncDeps): Promise<void> {
   const now = d.now ?? Date.now;
   let token = await d.getToken();
 
-  // A token can expire between issue and use; retry once on 401 with a fresh
-  // one before surfacing a reconnect prompt.
+  // A token can expire between issue and use; refresh at most ONCE per sync
+  // run, then let unauthorized surface a reconnect prompt. The cap matters:
+  // a run does several Drive ops, and a persistent 401 (revoked grant) must
+  // not turn into a refresh attempt per op.
+  let refreshedThisRun = false;
   const withRetry = async <T>(op: (t: string) => Promise<T>): Promise<T> => {
     try {
       return await op(token);
     } catch (e) {
-      if (e instanceof CloudError && e.kind === 'unauthorized') {
+      if (e instanceof CloudError && e.kind === 'unauthorized' && !refreshedThisRun) {
+        refreshedThisRun = true;
         token = await d.getToken({ forceRefresh: true });
         return await op(token);
       }

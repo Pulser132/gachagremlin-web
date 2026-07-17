@@ -9,10 +9,15 @@
  *
  * Provisioned: Cloud project "Gacha Gremlin", client "Gacha Gremlin Drive Login".
  * Both origins below are registered as *Authorized JavaScript origins* (not
- * redirect URIs — the GIS token client uses a popup, not a redirect; the
- * redirect list is deliberately empty):
+ * redirect URIs — the GIS popup code client exchanges against the reserved
+ * `postmessage` redirect, which needs no registration; the redirect list is
+ * deliberately empty):
  *   http://localhost:5173      (vite dev)
  *   https://pulser132.github.io (GitHub Pages)
+ *
+ * The matching *client secret* is never in this repo: it lives only in the
+ * Cloudflare Worker (workers/oauth/) that performs the code exchange and
+ * token refresh.
  *
  * Origin matching is exact, so http://127.0.0.1:5173 is NOT the registered
  * http://localhost:5173 — use the localhost form Vite prints.
@@ -31,11 +36,22 @@ export const GOOGLE_CLIENT_ID =
 export const DRIVE_APPDATA_SCOPE =
   "https://www.googleapis.com/auth/drive.appdata";
 
+/**
+ * The Cloudflare Worker (workers/oauth/) that holds the OAuth client secret
+ * and performs the authorization-code exchange plus access-token refresh.
+ * The DEV branch targets `wrangler dev` so local testing never touches
+ * production. Fill in the production URL after `npx wrangler deploy`.
+ */
+export const OAUTH_WORKER_URL = import.meta.env.DEV
+  ? "http://localhost:8787"
+  : "https://gachagremlin-oauth.REPLACE-WITH-ACCOUNT.workers.dev";
+
 /** Filename inside appDataFolder. Same name as the manual export, because the
  * contents are the same `BackupFile` payload. */
 export const CLOUD_BACKUP_FILENAME = "gachagremlin-backup.json";
 
-/** False until a real client ID is set; callers must hide all cloud UI. */
+/** False until a real client ID and worker URL are set; callers must hide all
+ * cloud UI. */
 export function isCloudConfigured(): boolean {
-  return GOOGLE_CLIENT_ID.length > 0;
+  return GOOGLE_CLIENT_ID.length > 0 && OAUTH_WORKER_URL.length > 0;
 }

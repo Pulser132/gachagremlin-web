@@ -154,7 +154,8 @@ export function mountApp(root: HTMLElement): void {
   root.appendChild(buildDataFooter(() => render()));
 
   // Hand cloud sync its auth implementation. Importing auth.ts is inert — the
-  // GIS script is only injected once a token is actually requested — so this
+  // GIS script is only injected during an interactive Connect click, and
+  // background token refresh is a plain fetch to the OAuth worker — so this
   // costs nothing for users who never connect.
   configureSync({ getToken: (opts) => getToken(opts), isConnected });
   // A merge that pulled data in needs the view refreshed to show it.

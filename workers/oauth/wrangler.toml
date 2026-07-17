@@ -1,0 +1,12 @@
+name = "gachagremlin-oauth"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+# The client ID is public by design (it ships in the app bundle too).
+[vars]
+GOOGLE_CLIENT_ID = "279198206125-431h76al03m2724hi2an0vl62limbc1h.apps.googleusercontent.com"
+
+# GOOGLE_CLIENT_SECRET is NOT set here — it is a Worker secret:
+#   npx wrangler secret put GOOGLE_CLIENT_SECRET
+# For `wrangler dev`, put it in a git-ignored .dev.vars file in this directory:
+#   GOOGLE_CLIENT_SECRET=...

@@ -194,6 +194,35 @@ describe('auth failures', () => {
     expect(state.needsReconnect).toBe(true);
     expect(saveCloudBackup).not.toHaveBeenCalled();
   });
+
+  it('refreshes at most once per run even when a later op also 401s', async () => {
+    // Pull 401s once (refresh + retry succeeds), then the push 401s too. The
+    // cap must stop a second refresh — a dead grant otherwise turns every op
+    // into another token request.
+    loadCloudBackup
+      .mockRejectedValueOnce(new CloudError('unauthorized', 'expired', 401))
+      .mockResolvedValueOnce(null);
+    saveCloudBackup.mockRejectedValue(new CloudError('unauthorized', 'expired', 401));
+
+    await syncNow('merge');
+
+    expect(getToken).toHaveBeenCalledTimes(2); // initial + exactly ONE forced refresh
+    expect(getSyncState().needsReconnect).toBe(true);
+  });
+
+  it('surfaces reconnect without touching Drive when there is no grant (migration case)', async () => {
+    // A pre-refresh-token user: connected flag set, but getToken has nothing
+    // stored and rejects up front. No Drive call, no retry loop, no popup —
+    // just the Reconnect prompt.
+    getToken.mockRejectedValue(new CloudError('unauthorized', 'Reconnect Google Drive to keep syncing.'));
+
+    await syncNow('merge');
+
+    expect(loadCloudBackup).not.toHaveBeenCalled();
+    expect(saveCloudBackup).not.toHaveBeenCalled();
+    expect(getToken).toHaveBeenCalledTimes(1);
+    expect(getSyncState().needsReconnect).toBe(true);
+  });
 });
 
 describe('error states', () => {
