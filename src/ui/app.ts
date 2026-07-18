@@ -331,6 +331,12 @@ function buildCloudControls(): HTMLElement {
   const status = document.createElement('span');
   status.className = 'data-footer-message';
 
+  /** A failed connect()'s message. Shown in preference to the sync-state text,
+   * which at that moment is the STALE pre-click error (usually "access
+   * expired") — repainting from sync state alone would hide the real reason
+   * the connect failed. Cleared when a new connect starts or a sync begins. */
+  let connectError: string | null = null;
+
   const connectBtn = document.createElement('button');
   connectBtn.type = 'button';
   connectBtn.className = 'data-footer-btn';
@@ -352,13 +358,13 @@ function buildCloudControls(): HTMLElement {
 
   connectBtn.addEventListener('click', async () => {
     connectBtn.disabled = true;
+    connectError = null;
     try {
       await connect();
       update();
       await syncNow('merge');
     } catch (e) {
-      status.textContent = (e as Error).message;
-      status.classList.add('error');
+      connectError = (e as Error).message;
     } finally {
       connectBtn.disabled = false;
       update();
@@ -368,6 +374,7 @@ function buildCloudControls(): HTMLElement {
   function update(): void {
     const state = getSyncState();
     const connected = isConnected();
+    if (state.status === 'syncing') connectError = null;
 
     // A lapsed Google session needs consent again, so it re-uses the Connect
     // button rather than offering a Sync that can only fail.
@@ -377,8 +384,10 @@ function buildCloudControls(): HTMLElement {
     syncBtn.hidden = !connected || reconnecting;
     disconnectBtn.hidden = !connected;
 
-    status.classList.toggle('error', state.status === 'error');
-    if (!connected) {
+    status.classList.toggle('error', connectError !== null || state.status === 'error');
+    if (connectError) {
+      status.textContent = connectError;
+    } else if (!connected) {
       status.textContent = '';
     } else if (state.status === 'syncing') {
       status.textContent = 'Syncing…';

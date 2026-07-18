@@ -40,11 +40,11 @@ export const DRIVE_APPDATA_SCOPE =
  * The Cloudflare Worker (workers/oauth/) that holds the OAuth client secret
  * and performs the authorization-code exchange plus access-token refresh.
  * The DEV branch targets `wrangler dev` so local testing never touches
- * production. Fill in the production URL after `npx wrangler deploy`.
+ * production.
  */
 export const OAUTH_WORKER_URL = import.meta.env.DEV
   ? "http://localhost:8787"
-  : "https://gachagremlin-oauth.REPLACE-WITH-ACCOUNT.workers.dev";
+  : "https://gachagremlin-oauth.ipodnickolai.workers.dev";
 
 /** Filename inside appDataFolder. Same name as the manual export, because the
  * contents are the same `BackupFile` payload. */

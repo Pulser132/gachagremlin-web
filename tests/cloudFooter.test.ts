@@ -160,6 +160,33 @@ describe('cloud actions', () => {
     expect(syncNow).toHaveBeenCalledWith('merge');
   });
 
+  it('shows the connect failure itself, not the stale pre-click sync error', async () => {
+    // Regression: a failed Reconnect used to repaint from sync state, whose
+    // error was still the old "access expired" — hiding the real reason
+    // (e.g. the OAuth Worker being unreachable) behind a misleading message.
+    connected = true;
+    syncState = { status: 'error', lastSyncedAt: null, error: 'Google Drive access expired. Reconnect to keep syncing.', needsReconnect: true };
+    connect.mockRejectedValueOnce(new Error("Couldn't reach the sign-in service: DNS"));
+    mount();
+
+    cloudButtons()[0].click(); // the Reconnect button
+    await vi.waitFor(() => expect(connect).toHaveBeenCalledOnce());
+
+    const message = q('.cloud-controls .data-footer-message');
+    expect(message?.textContent).toBe("Couldn't reach the sign-in service: DNS");
+    expect(message?.classList.contains('error')).toBe(true);
+    expect(syncNow).not.toHaveBeenCalled();
+  });
+
+  it('shows a first-time Connect failure instead of clearing the status line', async () => {
+    connect.mockRejectedValueOnce(new Error('Google sign-in was dismissed.'));
+    mount();
+
+    cloudButtons()[0].click();
+    await vi.waitFor(() => expect(connect).toHaveBeenCalledOnce());
+    expect(q('.cloud-controls .data-footer-message')?.textContent).toBe('Google sign-in was dismissed.');
+  });
+
   it('Sync now triggers an immediate merge', () => {
     connected = true;
     mount();
