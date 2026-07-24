@@ -144,8 +144,8 @@ function renderBannerCard(game: GameKey, account: WishAccount, group: BannerGrou
     const state = guaranteeState(account.items, group, config.standardPool5Star);
     head.appendChild(
       el('span', {
-        className: `guarantee-badge ${state.guaranteed ? 'guaranteed' : 'fifty-fifty'}`,
-        text: state.guaranteed ? 'Guaranteed' : '50/50',
+        className: `guarantee-badge ${state.guaranteed ? 'guaranteed' : 'coinflip'}`,
+        text: state.guaranteed ? 'Guaranteed' : (group.oddsLabel ?? '50/50'),
       }),
     );
   }

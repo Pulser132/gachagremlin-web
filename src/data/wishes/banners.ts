@@ -29,6 +29,14 @@ export interface BannerGroup {
   hardPity: number;
   /** Whether this banner group has a 50/50-style standard/limited split. */
   has5050: boolean;
+  /**
+   * Displayed odds for the coin-flip badge when `has5050` is true. Most
+   * limited banners really are 50/50, but HSR's light cone banners (both
+   * regular and collab) run 75/25 in the featured item's favor — same
+   * lost-the-flip guarantee mechanic, different odds. Defaults to '50/50'
+   * when omitted.
+   */
+  oddsLabel?: string;
 }
 
 export interface GameBannerConfig {
@@ -76,9 +84,9 @@ export const GAME_BANNER_CONFIGS: Record<GameKey, GameBannerConfig> = {
       { key: 'standard', label: 'Stellar Warp', bannerTypes: ['1'], hardPity: 90, has5050: false },
       { key: 'departure', label: 'Departure Warp', bannerTypes: ['2'], hardPity: 50, has5050: false },
       { key: 'character', label: 'Character Event Warp', bannerTypes: ['11'], hardPity: 90, has5050: true },
-      { key: 'lightcone', label: 'Light Cone Event Warp', bannerTypes: ['12'], hardPity: 80, has5050: true },
+      { key: 'lightcone', label: 'Light Cone Event Warp', bannerTypes: ['12'], hardPity: 80, has5050: true, oddsLabel: '75/25' },
       { key: 'collab-character', label: 'Collaboration Character Warp', bannerTypes: ['21'], hardPity: 90, has5050: true },
-      { key: 'collab-lightcone', label: 'Collaboration Light Cone Warp', bannerTypes: ['22'], hardPity: 80, has5050: true },
+      { key: 'collab-lightcone', label: 'Collaboration Light Cone Warp', bannerTypes: ['22'], hardPity: 80, has5050: true, oddsLabel: '75/25' },
     ],
     standardPool5Star: [
       'Bronya',
