@@ -3,10 +3,12 @@
  *
  * `bannerTypes` lists every raw API `gacha_type` (ZZZ: `real_gacha_type`)
  * folded into one group. Genshin's second concurrent character banner (400)
- * is folded into the main character-event group (301), and HSR's collab
- * character/light-cone banners (21/22) are folded into one collab group —
- * both per the plan's decision log, since HoYoverse rarely runs the paired
- * banners with meaningfully different pity in practice.
+ * is folded into the main character-event group (301), per the plan's
+ * decision log, since HoYoverse rarely runs the paired banners with
+ * meaningfully different pity in practice. HSR's collaboration banners
+ * (21/22) are kept as two separate groups — Collaboration Character Warp
+ * and Collaboration Light Cone Warp — mirroring the regular character/light
+ * cone split (11/12), since they draw from distinct item pools.
  *
  * `standardPool5Star` names the permanent-pool 5-star items for that game.
  * Pulling one of these on a `has5050` banner means the 50/50 was lost (the
@@ -74,8 +76,9 @@ export const GAME_BANNER_CONFIGS: Record<GameKey, GameBannerConfig> = {
       { key: 'standard', label: 'Stellar Warp', bannerTypes: ['1'], hardPity: 90, has5050: false },
       { key: 'departure', label: 'Departure Warp', bannerTypes: ['2'], hardPity: 50, has5050: false },
       { key: 'character', label: 'Character Event Warp', bannerTypes: ['11'], hardPity: 90, has5050: true },
-      { key: 'lightcone', label: 'Light Cone Event Warp', bannerTypes: ['12'], hardPity: 80, has5050: false },
-      { key: 'collab', label: 'Collaboration Warp', bannerTypes: ['21', '22'], hardPity: 90, has5050: true },
+      { key: 'lightcone', label: 'Light Cone Event Warp', bannerTypes: ['12'], hardPity: 80, has5050: true },
+      { key: 'collab-character', label: 'Collaboration Character Warp', bannerTypes: ['21'], hardPity: 90, has5050: true },
+      { key: 'collab-lightcone', label: 'Collaboration Light Cone Warp', bannerTypes: ['22'], hardPity: 80, has5050: true },
     ],
     standardPool5Star: [
       'Bronya',

@@ -196,7 +196,7 @@ doesn't depend on Fandom's or HoYoverse's uptime:
 - `tests/itemIcons.test.ts` — per-category icon selection (character/agent, weapon, light cone,
   W-Engine, bangboo, unknown fallback) and the accessible label text.
 - `tests/pity.test.ts` — pity counts and 50/50 guarantee state, including banner-group merging
-  (Genshin 301+400, HSR 21+22 collab).
+  (Genshin 301+400).
 - `tests/reminders.test.ts` — the stable event key (stable across whitespace/case, distinct per
   game/type/name) and toggling/listing subscriptions.
 - `tests/backup.test.ts` — whole-app export/import round-trip through a cleared cache, merge
