@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { nameFromTitle, namesFromSweeps, planWrite, renderManifest } from '../scripts/portraits.ts';
+import { nameFromTitle, namesFromSweeps, parseArgs, planWrite, renderManifest, toGameSummary } from '../scripts/portraits.ts';
 
 describe('nameFromTitle', () => {
   it('recovers a name from an allimages underscored filename', () => {
@@ -133,5 +133,42 @@ describe('renderManifest', () => {
   it('sorts, even if the caller did not', () => {
     const source = renderManifest('hsr', ['Kafka', 'Acheron']);
     expect(source.indexOf("'Acheron'")).toBeLessThan(source.indexOf("'Kafka'"));
+  });
+});
+
+describe('parseArgs', () => {
+  it('defaults to no force and no summary file', () => {
+    expect(parseArgs([])).toEqual({ force: false, summaryFile: null });
+  });
+
+  it('recognises --force', () => {
+    expect(parseArgs(['--force'])).toEqual({ force: true, summaryFile: null });
+  });
+
+  it('recognises --summary-file and takes the following argument as its path', () => {
+    expect(parseArgs(['--summary-file', '/tmp/out.json'])).toEqual({
+      force: false,
+      summaryFile: '/tmp/out.json',
+    });
+  });
+
+  it('accepts both flags together, in either order', () => {
+    expect(parseArgs(['--summary-file', '/tmp/out.json', '--force'])).toEqual({
+      force: true,
+      summaryFile: '/tmp/out.json',
+    });
+  });
+});
+
+describe('toGameSummary', () => {
+  it('carries a plan into the per-game shape the CI workflow reads', () => {
+    const plan = { added: ['Kafka'], removed: [], write: true, refused: false };
+    expect(toGameSummary('hsr', plan)).toEqual({
+      game: 'hsr',
+      added: ['Kafka'],
+      removed: [],
+      refused: false,
+      wrote: true,
+    });
   });
 });
