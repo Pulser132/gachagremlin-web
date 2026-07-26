@@ -188,7 +188,7 @@ function renderBannerCard(game: GameKey, account: WishAccount, group: BannerGrou
     const list = el('ul');
     for (const item of fives.slice(-5).reverse()) {
       const li = el('li');
-      li.appendChild(el('span', { text: item.name }));
+      appendRecentItem(li, item, game);
       li.appendChild(el('span', { className: 'recent-pity', text: `${pityById.get(item.id) ?? '—'} pity` }));
       list.appendChild(li);
     }
@@ -208,6 +208,43 @@ function renderBannerCards(game: GameKey, account: WishAccount, config: GameBann
   }
   grid.appendChild(renderPullChart(account.items, config.itemLabel));
   return grid;
+}
+
+/** Appends this 5★'s name to `li` in the Recent 5★ list — wrapped with a
+ * 40px portrait for a matched character/Light Cone, or bare text for an
+ * unmatched one.
+ *
+ * This surface carries no category glyph today, so a miss (`portraitUrl`
+ * returns `null`) appends exactly the bare name span it always has — no
+ * wrapper, no slot. A matched item's portrait and name are wrapped together
+ * in `.recent-item` so the list's `space-between` layout still puts the pity
+ * figure hard right instead of stranding the name mid-row. */
+function appendRecentItem(li: HTMLElement, item: WishItem, game: GameKey): void {
+  const bareName = () => el('span', { text: item.name });
+
+  const url = portraitUrl(item, game);
+  if (!url) {
+    li.appendChild(bareName());
+    return;
+  }
+
+  const wrapper = el('span', { className: 'recent-item' });
+
+  const img = document.createElement('img');
+  img.className = 'recent-portrait';
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  // A stale manifest entry or a runtime CDN failure must leave the row
+  // looking like today's: drop the portrait wrapper and put the bare name
+  // span back in its place.
+  img.addEventListener('error', () => {
+    wrapper.replaceWith(bareName());
+  });
+  img.src = url;
+
+  wrapper.appendChild(img);
+  wrapper.appendChild(bareName());
+  li.appendChild(wrapper);
 }
 
 /** Appends this pull's icon to `cell` — a bare category glyph for the

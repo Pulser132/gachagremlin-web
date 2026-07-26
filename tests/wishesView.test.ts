@@ -211,6 +211,70 @@ describe('renderWishesView history table portraits', () => {
   });
 });
 
+/** Finds the Recent 5★ `<li>` for a given item name, from a game rendered via
+ * renderWishesView appended to document.body. */
+function findRecentItem(name: string): HTMLLIElement {
+  const li = [...document.querySelectorAll<HTMLLIElement>('.banner-recent li')].find((li) =>
+    li.textContent?.includes(name),
+  );
+  if (!li) throw new Error(`no Recent 5★ item for "${name}"`);
+  return li;
+}
+
+describe('renderWishesView Recent 5★ list portraits', () => {
+  beforeEach(() => {
+    // hsr.json: Seele (5★ Character, bannerType 11, in the portrait
+    // manifest) and SAM (5★ Character, bannerType 22, absent from the
+    // manifest — a miss), each the sole 5★ in its own banner group so each
+    // gets its own Recent 5★ expander.
+    importPayload(loadPayload('hsr.json'));
+    document.body.appendChild(renderWishesView('hsr', vi.fn()));
+  });
+
+  it('renders a 40px portrait for a matched 5★, wrapped with the name so pity stays hard right', () => {
+    const li = findRecentItem('Seele');
+
+    const wrapper = li.querySelector('.recent-item');
+    expect(wrapper).not.toBeNull();
+    expect(wrapper!.querySelector('img.recent-portrait')).not.toBeNull();
+    expect(wrapper!.textContent).toContain('Seele');
+    expect(li.querySelector('.recent-pity')).not.toBeNull();
+
+    // No category badge/label is introduced on this surface.
+    expect(li.querySelector('svg.item-icon')).toBeNull();
+    expect(li.querySelector('.sr-only')).toBeNull();
+  });
+
+  it('renders an unmatched 5★ exactly as before portraits existed — no wrapper, no icon', () => {
+    const li = findRecentItem('SAM');
+
+    expect(li.querySelector('.recent-item')).toBeNull();
+    expect(li.querySelector('img.recent-portrait')).toBeNull();
+    expect(li.textContent).toContain('SAM');
+    expect(li.querySelector('.recent-pity')).not.toBeNull();
+  });
+
+  it('sets a no-referrer policy on every recent-portrait image', () => {
+    const imgs = document.querySelectorAll<HTMLImageElement>('.banner-recent img.recent-portrait');
+    expect(imgs.length).toBeGreaterThan(0); // Seele matches
+    for (const img of imgs) {
+      expect(img.referrerPolicy).toBe('no-referrer');
+    }
+  });
+
+  it('replaces the portrait wrapper with the bare name when a matched image fails to load', () => {
+    const li = findRecentItem('Seele');
+    const img = li.querySelector<HTMLImageElement>('img.recent-portrait')!;
+
+    img.dispatchEvent(new Event('error'));
+
+    expect(li.querySelector('.recent-item')).toBeNull();
+    expect(li.querySelector('img.recent-portrait')).toBeNull();
+    expect(li.textContent).toContain('Seele');
+    expect(li.querySelector('.recent-pity')).not.toBeNull();
+  });
+});
+
 function makeItem(id: string): WishItem {
   return { id, bannerType: '301', name: 'Test', itemType: 'Character', rank: '4', time: '2026-01-01 00:00:00' };
 }

@@ -666,6 +666,25 @@ select {
   white-space: nowrap;
 }
 
+/* A matched 5★'s portrait and name, wrapped together so the list's
+   space-between layout still puts .recent-pity hard right. */
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.recent-portrait {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 6px;
+  clip-path: var(--card-clip, none);
+  border: 2px solid var(--accent-2);
+}
+
 /* --- Pulls-per-month chart card --- */
 .chart-card {
   display: flex;
