@@ -42,10 +42,19 @@ jobs:
 
       # A removal cancels the PR for the whole run (see scripts/portraitsDecision.ts) —
       # so any manifest a same-run addition wrote must not reach the working
-      # tree either. The tracking issue below is the only output.
+      # tree either. The tracking issue below is the only output. A first-ever
+      # manifest for a newly-configured game is untracked, so a plain
+      # `git checkout -- *.ts` glob would include it and fail outright
+      # (unknown path to git) instead of discarding anything — handle modified
+      # and newly-written files separately.
       - name: Discard manifest writes when a removal was detected
         if: steps.decide.outputs.has_removals == 'true'
-        run: git checkout -- src/data/wishes/portraits/*.ts
+        run: |
+          changed=$(git diff --name-only -- src/data/wishes/portraits/)
+          if [ -n "$changed" ]; then
+            git checkout -- $changed
+          fi
+          git clean -fd -- src/data/wishes/portraits/
 
       - name: Open or update the removal tracking issue
         if: steps.decide.outputs.has_removals == 'true'

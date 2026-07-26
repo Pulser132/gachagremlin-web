@@ -17,36 +17,43 @@ export interface Decision {
 
 export function decide(summary: PortraitsSummary): Decision {
   return {
-    hasRemovals: summary.games.some((g) => g.removed.length > 0),
+    // `refused` (not a bare `removed.length > 0` check) is the field that
+    // means "the generator would not write this without --force"; CI never
+    // passes --force, but a removal the generator *did* accept and write is
+    // not this run's problem to flag.
+    hasRemovals: summary.games.some((g) => g.refused),
     hasAdditions: summary.games.some((g) => g.wrote && g.added.length > 0),
   };
 }
 
+/** Renders one `### game` section per game with names, or `''` if none qualify. */
+function renderGameSections(games: GameSummary[], names: (g: GameSummary) => string[]): string[] {
+  const lines: string[] = [];
+  for (const g of games) {
+    const list = names(g);
+    if (list.length) lines.push(`### ${g.game}`, '', ...list.map((name) => `- ${name}`), '');
+  }
+  return lines;
+}
+
 export function renderIssueBody(games: GameSummary[]): string {
-  const removals = games.filter((g) => g.removed.length > 0);
-  const lines = [
+  return [
     'The weekly portrait-manifest sweep found names that no longer resolve to a wiki icon.',
     '',
     'No pull request was opened for this run — nothing distinguishes a real ' +
       'delisting from a wiki API call having a bad day except a human reading ' +
       'this list.',
     '',
-  ];
-  for (const g of removals) {
-    lines.push(`### ${g.game}`, '', ...g.removed.map((name) => `- ${name}`), '');
-  }
-  lines.push(
+    ...renderGameSections(games, (g) => g.removed),
     'Once confirmed, run `npm run gen:portraits -- --force` locally to accept ' +
       'the removal, then open the PR by hand.',
-  );
-  return lines.join('\n');
+  ].join('\n');
 }
 
 export function renderPrBody(games: GameSummary[]): string {
-  const additions = games.filter((g) => g.wrote && g.added.length > 0);
-  const lines = ['Weekly portrait-manifest sweep — pure additions, no names removed.', ''];
-  for (const g of additions) {
-    lines.push(`### ${g.game}`, '', ...g.added.map((name) => `- ${name}`), '');
-  }
-  return lines.join('\n');
+  return [
+    'Weekly portrait-manifest sweep — pure additions, no names removed.',
+    '',
+    ...renderGameSections(games, (g) => (g.wrote ? g.added : [])),
+  ].join('\n');
 }

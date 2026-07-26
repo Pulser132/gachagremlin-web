@@ -28,6 +28,15 @@ describe('decide', () => {
     const result = decide({ games: [] });
     expect(result).toEqual({ hasRemovals: false, hasAdditions: false });
   });
+
+  it('does not flag a removal that --force already accepted and wrote', () => {
+    // planWrite(--force): removed is still populated for the log, but refused
+    // is false and write is true. CI never passes --force, but the decision
+    // should key off "the generator would not write this", not merely
+    // "something disappeared from the sweep".
+    const result = decide({ games: [game({ removed: ['Acheron'], refused: false, wrote: true })] });
+    expect(result).toEqual({ hasRemovals: false, hasAdditions: false });
+  });
 });
 
 describe('renderIssueBody', () => {
