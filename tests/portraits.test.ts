@@ -61,9 +61,13 @@ describe('portraitUrl — matching', () => {
   });
 
   it('matches an NFD-composed name against its NFC manifest key', () => {
-    // 'e' + combining acute accent (U+0301), decomposed — the manifest key
+    // 'e' + combining acute accent (U+0301), decomposed — built via an escape
+    // rather than a literal precomposed character so the source file's own
+    // encoding can't quietly turn this back into NFC. The manifest key
     // 'Café Ohno' is the single-codepoint NFC form.
-    expect(portraitUrl(makeItem({ name: 'Café Ohno' }), hsr)).not.toBeNull();
+    const decomposed = 'Café Ohno';
+    expect(decomposed).not.toBe(decomposed.normalize('NFC'));
+    expect(portraitUrl(makeItem({ name: decomposed }), hsr)).not.toBeNull();
   });
 
   it('returns null for a name absent from the manifest', () => {
@@ -71,40 +75,17 @@ describe('portraitUrl — matching', () => {
   });
 });
 
+// The URL formula itself (colon/question-mark stripping, bullet hashing, the
+// houkai-star-rail host segment, bang encoding, …) is tested exhaustively
+// against `urlForName` directly in tests/portraitConfig.test.ts. The one
+// thing worth pinning here is that `portraitUrl` actually delegates to it
+// with the right name and kind rather than reimplementing or dropping it.
 describe('portraitUrl — URL construction', () => {
-  it('builds the full CDN URL for a matched character', () => {
+  it('delegates to the config URL formula for a matched character', () => {
     expect(portraitUrl(makeItem({ name: 'Kafka' }), hsr)).toBe(
       'https://static.wikia.nocookie.net/houkai-star-rail/images/8/8c/Character_Kafka_Icon.png' +
         '/revision/latest/scale-to-width-down/64',
     );
-  });
-
-  it('hashes a colon-bearing name to the colon-stripped directory', () => {
-    const url = portraitUrl(makeItem({ name: 'Ninja Record: Sound Hunt', itemType: 'Light Cone' }), hsr);
-    expect(url).toContain('/images/8/88/');
-    expect(url).not.toContain('/images/2/23/');
-  });
-
-  it('strips a question mark the same way', () => {
-    const url = portraitUrl(makeItem({ name: 'What Is Real?', itemType: 'Light Cone' }), hsr);
-    expect(url).toContain('/Light_Cone_What_Is_Real_Icon.png/');
-    expect(url).not.toContain('%3F');
-  });
-
-  it('hashes a bullet name to 2/2a, pinning MD5 UTF-8 handling', () => {
-    const url = portraitUrl(makeItem({ name: 'Dan Heng • Imbibitor Lunae' }), hsr);
-    expect(url).toContain('/images/2/2a/');
-  });
-
-  it('uses the houkai-star-rail CDN segment, never honkai-star-rail', () => {
-    const url = portraitUrl(makeItem({ name: 'Kafka' }), hsr)!;
-    expect(url).toContain('/houkai-star-rail/');
-    expect(url).not.toContain('honkai-star-rail');
-  });
-
-  it('percent-encodes a bang-bearing name to %21', () => {
-    const url = portraitUrl(makeItem({ name: 'Woof! Walk Time!', itemType: 'Light Cone' }), hsr);
-    expect(url).toContain('Woof%21_Walk_Time%21');
   });
 });
 
