@@ -1,20 +1,33 @@
 /**
  * Small inline SVG glyphs for the pull-history table's Item column.
  *
- * There's no real per-character/per-weapon art available to a static site
- * with no asset pipeline or CDN — 300+ items across three games, no
- * licensed source. So these are drawn per *category* instead (the only
- * granularity the data actually carries — see WishItem.itemType), one
- * consistent thin-stroke glyph family, each grounded in what that category
- * literally looks like in its own game's fiction rather than a generic
- * icon-pack stand-in: Light Cone gets a clipped-corner data-card (echoing
- * HSR's own clipped-corner identity from the reactive-skin redesign),
- * W-Engine a hex bolt (ZZZ's mechanical "Hollow" motif), Bangboo an actual
- * boxy-robot-with-antenna silhouette.
+ * Per-item art now exists — hotlinked straight off the wiki's own CDN
+ * against a committed name manifest — but only for 4★/5★ characters and
+ * Light Cones in HSR (src/data/wishes/portraits/). These glyphs are that
+ * portrait layer's substrate: every 3★, every weapon/W-Engine/Bangboo, every
+ * character or Light Cone in a game with no portrait manifest (only HSR
+ * ships one — see src/data/wishes/portraits/config.ts; the shipping state
+ * for Genshin and ZZZ is no entry at all), every name that manifest doesn't
+ * recognize, and any portrait `<img>` that fails to load at runtime all
+ * render one of these glyphs, via `appendItemIcon` in src/ui/wishesView.ts
+ * (the Recent 5★ list carries no glyph of its own — a miss there falls back
+ * to bare text instead). They're the fallback the portrait layer is built
+ * on, not a legacy path — and for a matched item, the same glyph survives
+ * as a corner badge layered over the portrait rather than disappearing.
+ *
+ * Drawn per *category* (the only granularity the data actually carries —
+ * see WishItem.itemType), one consistent thin-stroke glyph family, each
+ * grounded in what that category literally looks like in its own game's
+ * fiction rather than a generic icon-pack stand-in: Light Cone gets a
+ * clipped-corner data-card (echoing HSR's own clipped-corner identity from
+ * the reactive-skin redesign), W-Engine a hex bolt (ZZZ's mechanical
+ * "Hollow" motif), Bangboo an actual boxy-robot-with-antenna silhouette.
  *
  * Rendered with stroke="currentColor" so they inherit the row's color —
  * callers set that via CSS, letting the icon pick up the active game's
- * --accent for free, same as every other reactive-skin element.
+ * --accent for free, same as every other reactive-skin element, and it's
+ * exactly what lets the corner badge keep matching a portrait it now sits
+ * on top of.
  */
 import type { GameKey } from '../types.ts';
 

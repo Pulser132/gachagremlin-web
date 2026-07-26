@@ -97,10 +97,16 @@ export function renderEventCard(ev: EventInfo, region: Region, onToggleReminder?
     // Purely decorative alongside the name heading right below it — an
     // empty alt keeps screen readers from reading redundant/opaque filenames.
     // Fandom's image CDN hotlink-blocks any request whose Referer isn't a
-    // fandom.com page: it returns 200 with a small placeholder graphic
-    // (NOT an error), so the browser loads "successfully" with the wrong
-    // picture. no-referrer strips the Referer entirely, which the CDN
-    // treats the same as a same-site request and serves the real image.
+    // fandom.com page, and the failure is path-shape-dependent. `imageUrl`
+    // here can be either the bare `/images/…` original or a
+    // `/revision/latest/…` thumbnail (src/data/wiki/client.ts's
+    // `resolveImageUrl`, thumburl-or-url). Only the bare path returns 200
+    // with a small placeholder graphic (NOT an error), so the browser loads
+    // "successfully" with the wrong picture; the `/revision/latest/…` shape
+    // instead 404s with a JPEG decoy body, which the `error` handler below
+    // does catch. Either way, no-referrer strips the Referer entirely, which
+    // the CDN treats the same as a same-site request and serves the real
+    // image — so it is mandatory regardless of which shape `imageUrl` is.
     banner.referrerPolicy = 'no-referrer';
     // A cached URL can still go stale (wiki renames/removes the file); drop
     // the element rather than show a broken-image icon. Deliberately not
