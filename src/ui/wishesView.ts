@@ -1,8 +1,9 @@
 import { scheduleSync } from '../data/cloud/sync.ts';
 import { findBannerGroup, GAME_BANNER_CONFIGS, type BannerGroup, type GameBannerConfig } from '../data/wishes/banners.ts';
 import { guaranteeState, pityAtEach5Star, pityCounts } from '../data/wishes/pity.ts';
+import { portraitUrl } from '../data/wishes/portraits/resolve.ts';
 import { getActiveAccount } from '../data/wishes/store.ts';
-import type { GameKey, WishAccount } from '../types.ts';
+import type { GameKey, WishAccount, WishItem } from '../types.ts';
 import { openImportDialog, type ImportSummary } from './importDialog.ts';
 import { createItemIcon } from './itemIcons.ts';
 import { renderPullChart } from './pullChart.ts';
@@ -209,6 +210,46 @@ function renderBannerCards(game: GameKey, account: WishAccount, config: GameBann
   return grid;
 }
 
+/** Appends this pull's icon to `cell` — a bare category glyph for the
+ * overwhelming majority of rows, or a 32px portrait carrying that same glyph
+ * shrunk into a corner badge for a matched 4★/5★ character or Light Cone.
+ *
+ * An unmatched item (`portraitUrl` returns `null`) appends the exact fragment
+ * `createItemIcon` always has — the never-regress guarantee (spec §1.3): no
+ * slot, no skeleton, byte-identical to before portraits existed. */
+function appendItemIcon(cell: HTMLElement, item: WishItem, game: GameKey): void {
+  const url = portraitUrl(item, game);
+  if (!url) {
+    cell.appendChild(createItemIcon(item.itemType, game));
+    return;
+  }
+
+  const iconFragment = createItemIcon(item.itemType, game);
+  const svg = iconFragment.querySelector('svg.item-icon')!;
+  const label = iconFragment.querySelector('.sr-only')!;
+
+  const slot = document.createElement('span');
+  slot.className = 'icon-slot';
+  slot.appendChild(svg);
+
+  const img = document.createElement('img');
+  img.className = 'portrait-img';
+  img.alt = '';
+  img.referrerPolicy = 'no-referrer';
+  // A stale manifest entry or a runtime CDN failure must not leave a gap or a
+  // stranded badge: drop the label that's about to be appended alongside the
+  // slot and rebuild today's glyph fresh in the slot's place, in one motion.
+  img.addEventListener('error', () => {
+    label.remove();
+    slot.replaceWith(createItemIcon(item.itemType, game));
+  });
+  img.src = url;
+  slot.appendChild(img);
+
+  cell.appendChild(slot);
+  cell.appendChild(label);
+}
+
 function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
   const config = GAME_BANNER_CONFIGS[game];
   const section = el('section', { className: 'wishes-history' });
@@ -337,7 +378,7 @@ function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
 
       const nameCell = document.createElement('td');
       nameCell.className = 'history-item-cell';
-      nameCell.appendChild(createItemIcon(item.itemType, game));
+      appendItemIcon(nameCell, item, game);
       nameCell.appendChild(document.createTextNode(item.name));
       const starEl = document.createElement('span');
       starEl.className = 'rarity-star';

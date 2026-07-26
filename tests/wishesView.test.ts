@@ -131,6 +131,86 @@ describe('renderWishesView', () => {
   });
 });
 
+/** Finds the history-table row for a given item name, from a game rendered
+ * via renderWishesView appended to document.body. */
+function findRow(name: string): HTMLTableRowElement {
+  const row = [...document.querySelectorAll<HTMLTableRowElement>('.history-table tbody tr')].find((tr) =>
+    tr.textContent?.includes(name),
+  );
+  if (!row) throw new Error(`no history row for "${name}"`);
+  return row;
+}
+
+describe('renderWishesView history table portraits', () => {
+  beforeEach(() => {
+    // hsr.json: Herta (4★ Character, in the portrait manifest), Seele (5★
+    // Character, also in the manifest), Trailblazer (4★ Character, not in the
+    // manifest — a miss), SAM (5★ Character, also a miss), and three 3★ Light
+    // Cones (rarity-gated out regardless of manifest membership).
+    importPayload(loadPayload('hsr.json'));
+    document.body.appendChild(renderWishesView('hsr', vi.fn()));
+  });
+
+  it('renders a portrait slot for a matched row, with the category glyph still inside and its label still in the cell', () => {
+    const cell = findRow('Herta').querySelector('.history-item-cell')!;
+
+    const slot = cell.querySelector('.icon-slot');
+    expect(slot).not.toBeNull();
+    expect(slot!.querySelector('img.portrait-img')).not.toBeNull();
+    expect(slot!.querySelector('svg.item-icon')).not.toBeNull(); // the category badge, not gone
+
+    const label = cell.querySelector('.sr-only');
+    expect(label).not.toBeNull();
+    expect(label!.textContent).toMatch(/character/i);
+  });
+
+  it('renders an unmatched row exactly as before portraits existed — no slot, no skeleton', () => {
+    // Trailblazer is 4★ Character (both gates pass) but absent from the
+    // manifest — the ordinary miss case, not a rarity/category exclusion.
+    const cell = findRow('Trailblazer').querySelector('.history-item-cell')!;
+
+    expect(cell.querySelector('.icon-slot')).toBeNull();
+    expect(cell.querySelector('img.portrait-img')).toBeNull();
+    expect(cell.querySelector('svg.item-icon')).not.toBeNull();
+    expect(cell.querySelector('.sr-only')).not.toBeNull();
+  });
+
+  it('rarity-gates 3★ Light Cones out even though nothing in their name/category excludes them', () => {
+    const cell = findRow('Adversarial').querySelector('.history-item-cell')!;
+    expect(cell.querySelector('.icon-slot')).toBeNull();
+  });
+
+  it('sets a no-referrer policy on every portrait image', () => {
+    const imgs = document.querySelectorAll<HTMLImageElement>('.history-table img.portrait-img');
+    expect(imgs.length).toBeGreaterThan(0); // Herta and Seele both match
+    for (const img of imgs) {
+      expect(img.referrerPolicy).toBe('no-referrer');
+    }
+  });
+
+  it('never sets lazy loading on a portrait image', () => {
+    const imgs = document.querySelectorAll<HTMLImageElement>('.history-table img.portrait-img');
+    expect(imgs.length).toBeGreaterThan(0);
+    for (const img of imgs) {
+      expect(img.loading).not.toBe('lazy');
+    }
+  });
+
+  it('rebuilds the plain glyph in place when a matched portrait fails to load, leaving no gap and no stranded badge', () => {
+    const cell = findRow('Herta').querySelector('.history-item-cell')!;
+    const img = cell.querySelector<HTMLImageElement>('img.portrait-img')!;
+
+    img.dispatchEvent(new Event('error'));
+
+    expect(cell.querySelector('.icon-slot')).toBeNull();
+    expect(cell.querySelector('img.portrait-img')).toBeNull();
+    expect(cell.querySelector('svg.item-icon')).not.toBeNull();
+    const labels = cell.querySelectorAll('.sr-only');
+    expect(labels.length).toBe(1); // not doubled up with the pre-error label
+    expect(labels[0]!.textContent).toMatch(/character/i);
+  });
+});
+
 function makeItem(id: string): WishItem {
   return { id, bannerType: '301', name: 'Test', itemType: 'Character', rank: '4', time: '2026-01-01 00:00:00' };
 }
