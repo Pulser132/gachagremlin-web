@@ -1,0 +1,75 @@
+name: Portrait manifest refresh
+
+on:
+  schedule:
+    # Every Monday 06:00 UTC.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: portraits-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Never fails the step on a removal — that is a normal outcome this
+      # workflow handles below, not a broken run. A hard script crash (network
+      # down, a malformed committed manifest) still exits non-zero for a
+      # reason the summary file can't explain, so the workflow surfaces that
+      # by failing the "Decide outcome" step's JSON parse instead.
+      - name: Run portrait generator
+        run: npm run gen:portraits -- --summary-file "$RUNNER_TEMP/portraits-summary.json" || true
+
+      - name: Decide outcome
+        id: decide
+        run: npx tsx scripts/ci-portraits-decide.ts "$RUNNER_TEMP/portraits-summary.json"
+
+      # A removal cancels the PR for the whole run (see scripts/portraitsDecision.ts) —
+      # so any manifest a same-run addition wrote must not reach the working
+      # tree either. The tracking issue below is the only output.
+      - name: Discard manifest writes when a removal was detected
+        if: steps.decide.outputs.has_removals == 'true'
+        run: git checkout -- src/data/wishes/portraits/*.ts
+
+      - name: Open or update the removal tracking issue
+        if: steps.decide.outputs.has_removals == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BODY: ${{ steps.decide.outputs.issue_body }}
+        run: |
+          existing=$(gh issue list --state open --label portrait-manifest-removal \
+            --json number --jq '.[0].number')
+          if [ -n "$existing" ] && [ "$existing" != "null" ]; then
+            gh issue comment "$existing" --body "$BODY"
+          else
+            gh issue create \
+              --title "Portrait manifest: names disappeared" \
+              --label portrait-manifest-removal \
+              --body "$BODY"
+          fi
+
+      - name: Open a pull request for pure additions
+        if: steps.decide.outputs.has_additions == 'true' && steps.decide.outputs.has_removals != 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: 'Refresh portrait manifests'
+          branch: portraits/manifest-refresh
+          title: 'Refresh portrait manifests'
+          body: ${{ steps.decide.outputs.pr_body }}
+          labels: automated

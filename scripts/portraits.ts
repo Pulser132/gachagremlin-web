@@ -3,7 +3,9 @@
  * `src/data/wishes/portraits/` — the record of which item names Fandom
  * actually hosts an icon for.
  *
- * Run: `npm run gen:portraits` (add `-- --force` to accept removals).
+ * Run: `npm run gen:portraits` (add `-- --force` to accept removals, or
+ * `-- --summary-file <path>` to also write a machine-readable run summary —
+ * the weekly CI workflow's input).
  *
  * **Never** invoked by `npm run build`, or by anything else in the build. A
  * build must not touch the network; this is a by-hand (and weekly-CI) chore
@@ -42,6 +44,24 @@ export interface WritePlan {
   removed: string[];
   write: boolean;
   refused: boolean;
+}
+
+/** One game's outcome from a run — the unit the weekly CI workflow reasons about. */
+export interface GameSummary {
+  game: GameKey;
+  added: string[];
+  removed: string[];
+  refused: boolean;
+  wrote: boolean;
+}
+
+/** The whole run, one entry per game that has a portrait config. */
+export interface PortraitsSummary {
+  games: GameSummary[];
+}
+
+export function toGameSummary(game: GameKey, plan: WritePlan): GameSummary {
+  return { game, added: plan.added, removed: plan.removed, refused: plan.refused, wrote: plan.write };
 }
 
 /**
@@ -201,8 +221,21 @@ function report(plan: WritePlan): void {
   if (plan.removed.length) console.log(`  - ${plan.removed.join('\n  - ')}`);
 }
 
+/**
+ * `--force` accepts a detected removal; `--summary-file <path>` writes a
+ * machine-readable {@link PortraitsSummary} there once the run finishes, for
+ * the weekly CI workflow to decide a PR from an issue without scraping logs.
+ */
+export function parseArgs(argv: string[]): { force: boolean; summaryFile: string | null } {
+  const force = argv.includes('--force');
+  const flagIndex = argv.indexOf('--summary-file');
+  const summaryFile = flagIndex === -1 ? null : (argv[flagIndex + 1] ?? null);
+  return { force, summaryFile };
+}
+
 async function main(): Promise<void> {
-  const force = process.argv.includes('--force');
+  const { force, summaryFile } = parseArgs(process.argv.slice(2));
+  const summary: PortraitsSummary = { games: [] };
 
   for (const game of GAME_KEYS) {
     if (!PORTRAIT_CONFIGS[game]) {
@@ -214,6 +247,7 @@ async function main(): Promise<void> {
     const fresh = await sweepGame(game);
     const committed = await readCommitted(game);
     const plan = planWrite(committed, fresh, force);
+    summary.games.push(toGameSummary(game, plan));
     console.log(`  ${fresh.size} names (+${plan.added.length}, -${plan.removed.length})`);
     report(plan);
 
@@ -235,6 +269,8 @@ async function main(): Promise<void> {
     writeFileSync(path, renderManifest(game, [...fresh]), 'utf8');
     console.log(`${game}: wrote ${path}`);
   }
+
+  if (summaryFile) writeFileSync(summaryFile, JSON.stringify(summary, null, 2), 'utf8');
 }
 
 // Importable for tests; only sweeps the wikis when run as a script.
