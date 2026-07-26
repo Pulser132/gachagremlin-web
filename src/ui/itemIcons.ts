@@ -51,7 +51,10 @@ const LABELS: Record<IconKey, string> = {
   unknown: 'Item',
 };
 
-function normalize(itemType: string, game: GameKey): IconKey {
+/** The one `itemType` string parser in the codebase — the portrait resolver
+ *  (src/data/wishes/portraits/resolve.ts) reuses this rather than forking its
+ *  own copy. */
+export function classifyItem(itemType: string, game: GameKey): IconKey {
   const t = itemType.trim().toLowerCase();
   if (t === 'character' || t === 'agent') return 'character';
   if (t === 'weapon') return 'weapon';
@@ -69,7 +72,7 @@ function normalize(itemType: string, game: GameKey): IconKey {
  * is real content, not decoration — itemType isn't shown as text anywhere
  * else in the history table. */
 export function createItemIcon(itemType: string, game: GameKey): DocumentFragment {
-  const key = normalize(itemType, game);
+  const key = classifyItem(itemType, game);
   const fragment = document.createDocumentFragment();
 
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
