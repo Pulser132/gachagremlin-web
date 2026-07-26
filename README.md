@@ -165,7 +165,14 @@ Two extra scripts:
 
 ```bash
 npx tsx scripts/smoke.ts        # live check: fetches one real event per game
+npm run gen:portraits           # re-sweeps the wikis for the portrait-name manifest
 ```
+
+`gen:portraits` is a by-hand chore, never part of a build — a build must not touch the network.
+It rewrites `src/data/wishes/portraits/<game>.ts` and leaves the change as a reviewable diff.
+Additions land on their own; if a name would be **dropped** it prints the list, writes nothing and
+exits non-zero, because nothing tells "Fandom deleted this" apart from "that API call had a bad
+day" except a human reading the diff. Re-run with `npm run gen:portraits -- --force` to accept it.
 
 ## Testing
 
@@ -195,6 +202,16 @@ doesn't depend on Fandom's or HoYoverse's uptime:
   polluted before the fix.
 - `tests/itemIcons.test.ts` — per-category icon selection (character/agent, weapon, light cone,
   W-Engine, bangboo, unknown fallback) and the accessible label text.
+- `tests/portraitMd5.test.ts` — the vendored MD5 against RFC 1321's own vectors, the block-padding
+  boundaries, and multi-byte input (a name's bullet must hash as UTF-8 bytes).
+- `tests/portraitConfig.test.ts` — deriving an icon URL from a name with no API call: the
+  colon/question-mark stripping that decides the CDN directory, percent-encoding, and that a
+  category with no configured file prefix is refused rather than guessed.
+- `tests/portraitManifest.test.ts` — guards on the generated manifest (sorted, duplicate-free,
+  verbatim NFC names, the punctuated spellings present) and that no build script invokes the
+  generator.
+- `tests/portraitGenerator.test.ts` — the generator's pure seams: recovering a name from a file
+  title, keeping only redirects that resolve to a real upload, and the refuse-on-removal rule.
 - `tests/pity.test.ts` — pity counts and 50/50 guarantee state, including banner-group merging
   (Genshin 301+400).
 - `tests/reminders.test.ts` — the stable event key (stable across whitespace/case, distinct per
@@ -267,6 +284,11 @@ src/
       store.ts                localStorage merge/dedupe by id, per-uid accounts + nicknames,
                                 active-uid pointer, list/delete, backup-restore merge
       pity.ts                  pure pity/guarantee math over a sorted item list
+      portraits/
+        config.ts               per-game CDN host, file prefixes, and the name -> icon URL
+                                  derivation (MD5 of the stored filename, no API call)
+        md5.ts                  vendored MD5 over UTF-8 bytes — the CDN's addressing scheme
+        hsr.ts                  generated: every HSR name the wiki hosts an icon for
   ui/
     app.ts               page shell: tabs, view toggle, region picker, sections, refresh,
                            reminder banner, backup/restore footer

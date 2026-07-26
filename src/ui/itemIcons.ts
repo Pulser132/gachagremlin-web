@@ -18,7 +18,10 @@
  */
 import type { GameKey } from '../types.ts';
 
-type IconKey = 'character' | 'weapon' | 'lightcone' | 'wengine' | 'bangboo' | 'unknown';
+/** The categories this table can draw. Also the key the portrait layer's
+ *  per-game file prefixes are keyed by (src/data/wishes/portraits/config.ts),
+ *  so that module stays out of the business of parsing `itemType` itself. */
+export type IconKey = 'character' | 'weapon' | 'lightcone' | 'wengine' | 'bangboo' | 'unknown';
 
 const ICON_PATHS: Record<IconKey, string> = {
   // Head + shoulders — Character (Genshin/HSR) and Agent (ZZZ) share one
