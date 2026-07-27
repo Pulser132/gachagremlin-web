@@ -26,6 +26,7 @@ dist-ssr
 Dev examples
 /dev_images
 /Todos
+/.scratch
 
 # Cloudflare Worker local secrets and build cache
 workers/oauth/.dev.vars

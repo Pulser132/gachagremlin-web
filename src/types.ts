@@ -67,6 +67,15 @@ export interface WishPayload {
   exportedAt: number;
   /** Ascending by id. */
   items: WishItem[];
+  /** Wire detail set by the scripts: true when the download was watermarked
+   * (a `$Since` arg was supplied), in which case an EMPTY `items` is the
+   * normal "already up to date" outcome rather than an error. */
+  incremental?: boolean;
+  /** Parser verdict, never read off the wire: true only for a complete HoYo
+   * download (native payload without `incremental`). UIGF / paimon.moe
+   * parsers hardcode false — backup data can be synthetic-id'd and gappy, and
+   * must never arm incremental import (see WishAccount.fullImportedAt). */
+  fullImport?: boolean;
 }
 
 /** A stored, merged pull history for one uid, keyed by game. */
@@ -85,4 +94,11 @@ export interface WishAccount {
    * as such — renaming must not make the UI claim a re-import. Absent on
    * accounts stored before this existed, and on accounts never renamed. */
   nicknameUpdatedAt?: number;
+  /** When this account last completed a FULL HoYo download (a script run
+   * without watermarks). Incremental import only arms when this is set:
+   * watermarking off an unvetted baseline (a partial backup, or a history
+   * truncated by the old paging bug) would strand permanent gaps that no
+   * later incremental run pages back far enough to heal. Cleared on merge
+   * when the other side's provenance is unknown — see restoreAccount. */
+  fullImportedAt?: number;
 }

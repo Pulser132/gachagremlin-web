@@ -25,7 +25,7 @@ import type { WishItem } from '../../types.ts';
  * counter-based one (see paimonMoe.ts's id comment).
  */
 const SCHEME_PRIORITY = ['real', 'synthetic', 'synthetic-legacy'] as const;
-type IdScheme = (typeof SCHEME_PRIORITY)[number];
+export type IdScheme = (typeof SCHEME_PRIORITY)[number];
 
 /**
  * Synthetic ids (paimonMoe.ts) embed the pull's exact epoch second in
@@ -39,7 +39,7 @@ type IdScheme = (typeof SCHEME_PRIORITY)[number];
  * puts the 3-digit banner code there (first digit 1-5, never 0), the
  * legacy counter scheme zero-padded a small counter (first digit always 0).
  */
-function classifyIdScheme(item: WishItem): IdScheme {
+export function classifyIdScheme(item: WishItem): IdScheme {
   if (item.id.length !== 19) return 'real';
   if (item.id.slice(0, 10) !== String(toEpochSeconds(item.time)).padStart(10, '0')) return 'real';
   return item.id.charAt(10) === '0' ? 'synthetic-legacy' : 'synthetic';

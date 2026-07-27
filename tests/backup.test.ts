@@ -95,6 +95,28 @@ describe('importBackup', () => {
     expect(loadAccount('genshin', 'main')?.items.map((i) => i.id)).toEqual(['1', '5']);
   });
 
+  // fullImportedAt rides the v1 schema additively: exportAll serializes whole
+  // WishAccount objects, so no version bump — and both directions must hold.
+  it('round-trips fullImportedAt through export → clear → import', () => {
+    importPayload(makePayload({ uid: 'main', fullImport: true }), () => 777);
+    const backup = exportAll();
+    localStorage.clear();
+    importBackup(backup);
+    expect(loadAccount('genshin', 'main')?.fullImportedAt).toBe(777);
+  });
+
+  it('imports a v1 backup written before fullImportedAt existed (field absent everywhere)', () => {
+    importPayload(makePayload({ uid: 'main', fullImport: true }), () => 777);
+    const backup = exportAll();
+    // Strip the field, as a backup from an older build genuinely lacks it.
+    delete backup.games.genshin.accounts.main.fullImportedAt;
+    localStorage.clear();
+    const result = importBackup(backup);
+    expect(result.accounts).toBe(1);
+    // Absent correctly reads as "this account still needs a full import".
+    expect(loadAccount('genshin', 'main')?.fullImportedAt).toBeUndefined();
+  });
+
   it('unions reminders rather than replacing them', () => {
     toggleReminder('genshin', 'a');
     const backup = exportAll();

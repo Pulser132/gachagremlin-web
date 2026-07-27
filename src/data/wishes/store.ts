@@ -185,12 +185,27 @@ export function deleteAccount(game: GameKey, uid: string): void {
  */
 export function importPayload(payload: WishPayload, now: () => number = Date.now): WishAccount {
   const existing = readAccount(payload.game, payload.uid);
+
+  // An incremental run that found nothing new: skip the write entirely — no
+  // updatedAt bump (the UI would claim a re-import that changed nothing) and
+  // no storage touch for cloud sync to react to. Same principle as
+  // setNickname above. Only when the account genuinely exists, though: an
+  // empty incremental payload for an unknown uid still creates the account.
+  if (payload.incremental && payload.items.length === 0 && existing) {
+    writeActiveUid(payload.game, payload.uid);
+    return existing;
+  }
+
   const merged: WishAccount = {
     uid: payload.uid,
     region: payload.region,
     items: mergeItems(existing?.items ?? [], payload.items),
     updatedAt: now(),
     nickname: existing?.nickname, // re-import must not wipe a user-set label
+    nicknameUpdatedAt: existing?.nicknameUpdatedAt,
+    // A full HoYo download vets the whole history; an incremental or
+    // backup-format import inherits whatever vetting the account already had.
+    fullImportedAt: payload.fullImport ? now() : existing?.fullImportedAt,
   };
   writeAccount(payload.game, merged);
   writeActiveUid(payload.game, payload.uid);
@@ -242,6 +257,22 @@ function resolveNickname(existing: WishAccount | null, incoming: WishAccount): P
  * NOT move the active pointer — the backup's own activeUid is restored
  * separately. Nickname resolution: see resolveNickname.
  */
+/**
+ * `fullImportedAt` across a merge, conservatively: it survives only when BOTH
+ * sides carry it (then the newer wins), or when there's no existing account at
+ * all (the incoming copy simply is the account). One vetted side merging with
+ * one of unknown provenance (an old backup, an un-upgraded device) clears the
+ * marker — merged-in data may have holes, so the heal must re-arm and the next
+ * import runs full. Converges once every device has full-imported once.
+ */
+function resolveFullImportedAt(existing: WishAccount | null, incoming: WishAccount): number | undefined {
+  if (!existing) return incoming.fullImportedAt;
+  if (existing.fullImportedAt !== undefined && incoming.fullImportedAt !== undefined) {
+    return Math.max(existing.fullImportedAt, incoming.fullImportedAt);
+  }
+  return undefined;
+}
+
 export function restoreAccount(game: GameKey, account: WishAccount): WishAccount {
   const existing = readAccount(game, account.uid);
   const merged: WishAccount = {
@@ -250,6 +281,7 @@ export function restoreAccount(game: GameKey, account: WishAccount): WishAccount
     items: mergeItems(existing?.items ?? [], account.items ?? []),
     updatedAt: Math.max(existing?.updatedAt ?? 0, account.updatedAt ?? 0),
     ...resolveNickname(existing, account),
+    fullImportedAt: resolveFullImportedAt(existing, account),
   };
   writeAccount(game, merged);
   return merged;

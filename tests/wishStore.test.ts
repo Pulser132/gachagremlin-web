@@ -119,6 +119,42 @@ describe('importPayload', () => {
     const second = importPayload(payload, () => 2000);
     expect(second.items).toHaveLength(2);
   });
+
+  it('skips the write entirely for an empty incremental payload (no updatedAt bump)', () => {
+    importPayload(makePayload(), () => 1000);
+    const result = importPayload(makePayload({ items: [], incremental: true, fullImport: false }), () => 2000);
+    expect(result.updatedAt).toBe(1000); // untouched — the UI must not claim a re-import
+    expect(loadAccount('genshin', 'uid1')?.updatedAt).toBe(1000);
+  });
+
+  it('still merges an incremental payload that DID find new pulls', () => {
+    importPayload(makePayload({ items: [item('1')] }), () => 1000);
+    const result = importPayload(makePayload({ items: [item('2')], incremental: true, fullImport: false }), () => 2000);
+    expect(result.items.map((i) => i.id)).toEqual(['1', '2']);
+    expect(result.updatedAt).toBe(2000);
+  });
+
+  it('stamps fullImportedAt on a full import and preserves it through an incremental one', () => {
+    const full = importPayload(makePayload({ fullImport: true }), () => 1000);
+    expect(full.fullImportedAt).toBe(1000);
+    const inc = importPayload(makePayload({ items: [item('3')], incremental: true, fullImport: false }), () => 2000);
+    expect(inc.fullImportedAt).toBe(1000); // inherited, not re-stamped
+  });
+
+  it('never stamps fullImportedAt from a backup-format import (fullImport false/absent)', () => {
+    const account = importPayload(makePayload({ fullImport: false }), () => 1000);
+    expect(account.fullImportedAt).toBeUndefined();
+    const noVerdict = importPayload(makePayload({ uid: 'uid2' }), () => 1000);
+    expect(noVerdict.fullImportedAt).toBeUndefined();
+  });
+
+  it('preserves nicknameUpdatedAt across a re-import', () => {
+    importPayload(makePayload(), () => 1000);
+    setNickname('genshin', 'uid1', 'Main', () => 1500);
+    const second = importPayload(makePayload(), () => 2000);
+    expect(second.nickname).toBe('Main');
+    expect(second.nicknameUpdatedAt).toBe(1500);
+  });
 });
 
 describe('importPayloads', () => {
@@ -311,5 +347,31 @@ describe('restoreAccount', () => {
     importPayload(makePayload({ uid: 'uidA', items: [item('1')] }));
     restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('2')], updatedAt: 5, nickname: 'FromCloud' });
     expect(loadAccount('genshin', 'uidA')?.nickname).toBe('FromCloud');
+  });
+
+  // fullImportedAt across merges: survives only when both sides carry it (or
+  // there is no existing account) — merged-in data of unknown provenance may
+  // have holes, so the full-import heal must re-arm.
+  it('keeps the newer fullImportedAt when both sides have one', () => {
+    importPayload(makePayload({ uid: 'uidA', fullImport: true }), () => 100);
+    restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('3')], updatedAt: 5, fullImportedAt: 200 });
+    expect(loadAccount('genshin', 'uidA')?.fullImportedAt).toBe(200);
+  });
+
+  it('keeps the incoming fullImportedAt when there is no existing account', () => {
+    restoreAccount('genshin', { uid: 'uidNew', region: 'os_usa', items: [item('1')], updatedAt: 5, fullImportedAt: 42 });
+    expect(loadAccount('genshin', 'uidNew')?.fullImportedAt).toBe(42);
+  });
+
+  it('clears fullImportedAt when only one side has it', () => {
+    importPayload(makePayload({ uid: 'uidA', fullImport: true }), () => 100);
+    // e.g. a backup from before the field existed, or an un-upgraded device
+    restoreAccount('genshin', { uid: 'uidA', region: 'os_usa', items: [item('3')], updatedAt: 5 });
+    expect(loadAccount('genshin', 'uidA')?.fullImportedAt).toBeUndefined();
+
+    // ...and the mirror case: vetted incoming, unvetted local.
+    importPayload(makePayload({ uid: 'uidB' }), () => 100);
+    restoreAccount('genshin', { uid: 'uidB', region: 'os_usa', items: [item('3')], updatedAt: 5, fullImportedAt: 200 });
+    expect(loadAccount('genshin', 'uidB')?.fullImportedAt).toBeUndefined();
   });
 });

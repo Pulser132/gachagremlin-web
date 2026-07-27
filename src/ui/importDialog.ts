@@ -1,6 +1,7 @@
 import { GAME_BANNER_CONFIGS } from '../data/wishes/banners.ts';
+import { buildSinceArg } from '../data/wishes/importQuery.ts';
 import { parseAnyImport } from '../data/wishes/payload.ts';
-import { getActiveUid, importPayloads } from '../data/wishes/store.ts';
+import { getActiveAccount, getActiveUid, importPayloads } from '../data/wishes/store.ts';
 import { GAME_CONFIGS } from '../data/wiki/games.ts';
 import type { GameKey } from '../types.ts';
 
@@ -68,14 +69,33 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
   // account whose History screen was never opened (or whose link has expired)
   // has nothing to select, and the script says so by name.
   const targetUid = getActiveUid(game);
-  const oneLiner = targetUid
-    ? `iex "& { $(irm ${scriptUrl}) } '' '${targetUid}'"`
-    : `iwr -useb ${scriptUrl} | iex`;
+
+  // Watermarks for incremental import: only for an account whose stored
+  // history came from at least one complete script download. Watermarking off
+  // an unvetted baseline (a partial tracker backup, or a history truncated by
+  // the old paging bug) would stop the script above pulls it never fetched —
+  // a gap no later import would heal. Such accounts (and first imports) get
+  // the full-download one-liner, exactly as before.
+  const account = getActiveAccount(game);
+  const sinceArg = account?.fullImportedAt != null ? buildSinceArg(game, account.items) : '';
+
+  let fullReimport = false;
+  const buildOneLiner = (): string => {
+    if (!targetUid) return `iwr -useb ${scriptUrl} | iex`;
+    if (sinceArg && !fullReimport) return `iex "& { $(irm ${scriptUrl}) } '' '${targetUid}' '${sinceArg}'"`;
+    return `iex "& { $(irm ${scriptUrl}) } '' '${targetUid}'"`;
+  };
 
   const dialog = document.createElement('dialog');
   dialog.className = 'import-dialog';
 
   dialog.appendChild(el('h2', { text: `Import ${itemLabel}` }));
+
+  const copyStepText = (): string => {
+    if (!targetUid) return 'It copies your full history to your clipboard.';
+    if (sinceArg && !fullReimport) return `It copies UID ${targetUid}'s new pulls since your last import to your clipboard — usually just a few seconds.`;
+    return `It copies UID ${targetUid}'s full history to your clipboard.`;
+  };
 
   const steps = document.createElement('ol');
   steps.className = 'import-steps';
@@ -85,21 +105,21 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
       : `Open the ${historyLabel} screen in ${GAME_CONFIGS[game].label} on your PC (from any banner, tap History).`,
     'Open Windows PowerShell — search for "PowerShell" in the Start menu.',
     'Copy the command below, paste it into PowerShell, and press Enter.',
-    targetUid
-      ? `It copies UID ${targetUid}'s full history to your clipboard.`
-      : 'It copies your full history to your clipboard.',
+    copyStepText(),
     'Paste it (Ctrl+V) into the box below and click Import.',
   ];
+  const stepItems: HTMLLIElement[] = [];
   for (const text of stepTexts) {
     const li = document.createElement('li');
     li.textContent = text;
     steps.appendChild(li);
+    stepItems.push(li);
   }
   dialog.appendChild(steps);
 
   const commandBlock = el('div', { className: 'import-command' });
   const code = document.createElement('code');
-  code.textContent = oneLiner;
+  code.textContent = buildOneLiner();
   commandBlock.appendChild(code);
 
   const copyBtn = document.createElement('button');
@@ -108,7 +128,7 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
   copyBtn.textContent = 'Copy';
   copyBtn.addEventListener('click', async () => {
     try {
-      await navigator.clipboard.writeText(oneLiner);
+      await navigator.clipboard.writeText(buildOneLiner());
       copyBtn.textContent = 'Copied!';
     } catch {
       // Clipboard API unavailable (e.g. insecure context) — select the text
@@ -125,6 +145,25 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
   });
   commandBlock.appendChild(copyBtn);
   dialog.appendChild(commandBlock);
+
+  // Escape hatch: forces the watermark-free one-liner so the whole history is
+  // re-downloaded — the safety net when stored history is suspected partial
+  // (e.g. restored from a tracker backup that covered only some banners).
+  // Only rendered when watermarks would otherwise be used; not persisted.
+  if (sinceArg) {
+    const reimportLabel = document.createElement('label');
+    reimportLabel.className = 'import-reimport';
+    const reimportCheck = document.createElement('input');
+    reimportCheck.type = 'checkbox';
+    reimportCheck.addEventListener('change', () => {
+      fullReimport = reimportCheck.checked;
+      code.textContent = buildOneLiner();
+      stepItems[3].textContent = copyStepText();
+    });
+    reimportLabel.appendChild(reimportCheck);
+    reimportLabel.appendChild(document.createTextNode('Full re-import (re-download everything)'));
+    dialog.appendChild(reimportLabel);
+  }
 
   const textarea = document.createElement('textarea');
   textarea.className = 'import-textarea';
@@ -152,12 +191,20 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
     if (!file) return;
     textarea.value = await file.text();
     errorBox.hidden = true;
+    statusBox.hidden = true;
   });
 
   const errorBox = el('p', { className: 'import-error' });
   errorBox.hidden = true;
   errorBox.setAttribute('role', 'alert');
   dialog.appendChild(errorBox);
+
+  // Healthy non-error outcomes ("already up to date") — same slot as the
+  // error box, calmer styling.
+  const statusBox = el('p', { className: 'import-status' });
+  statusBox.hidden = true;
+  statusBox.setAttribute('role', 'status');
+  dialog.appendChild(statusBox);
 
   const actions = el('div', { className: 'import-actions' });
 
@@ -177,8 +224,21 @@ export function openImportDialog(game: GameKey, onImported: (summary: ImportSumm
     if (!result.ok) {
       errorBox.textContent = result.error;
       errorBox.hidden = false;
+      statusBox.hidden = true;
       return;
     }
+
+    // An incremental run that found nothing new: the healthy common outcome.
+    // No store write, no onImported — which is what keeps the caller's
+    // scheduleSync('merge') from firing over a no-op (wishesView.ts).
+    const single = result.payloads.length === 1 ? result.payloads[0] : null;
+    if (single?.incremental && single.items.length === 0) {
+      errorBox.hidden = true;
+      statusBox.textContent = 'Already up to date — no new pulls.';
+      statusBox.hidden = false;
+      return;
+    }
+
     const previousUid = getActiveUid(game);
     importPayloads(result.payloads);
     const importedUids = [...new Set(result.payloads.map((p) => p.uid))];

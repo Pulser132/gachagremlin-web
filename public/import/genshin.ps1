@@ -28,13 +28,27 @@
   script picks the one opened most recently by default. To target a specific
   account instead, pass its UID (leave the path blank to keep auto-detect):
     iex "& { $(irm https://pulser132.github.io/gachagremlin-web/import/genshin.ps1) } '' '100000001'"
+
+  A third argument carries per-banner watermarks ("301:1700...,302:1699...") so
+  only wishes newer than what's already imported are downloaded. GachaGremlin's
+  import dialog fills this in automatically; there's no reason to type it by
+  hand. Omit it (or run the plain one-liner) for a full download.
 #>
 param(
     [Parameter(Position = 0)]
     [string]$GamePath,
 
     [Parameter(Position = 1)]
-    [string]$Uid
+    [string]$Uid,
+
+    # Watermarks for incremental import, from GachaGremlin's import dialog:
+    # "301:1700...,302:1699..." - per banner type, the newest wish id already
+    # stored. Paging stops at the watermark instead of re-downloading the whole
+    # banner. Absent/empty means a full download, exactly as before. The 301
+    # watermark covers banner 400 too: both arrive through the gacha_type=301
+    # query, and the dialog computes 301's watermark across both.
+    [Parameter(Position = 2)]
+    [string]$Since
 )
 
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -48,9 +62,23 @@ $GachaTypes = @('100', '200', '301', '302', '500')
 # 5 - all three differ, so none of them is safe to assume from another. See
 # Todos/Todo_import_speed/.
 $PageSize = 20
+# An AIMD pace, not a fixed one: back off hard on -110, ease back down while
+# requests are landing. ZZZ is where the limiter actually bites (its host ignores
+# `size`, so a large history is ~232 requests against ~43 here), but the mechanism
+# is shared - see the note above Invoke-GachaPage for why this is adaptive rather
+# than a tuned constant.
 $PageDelayMs = 100
+$MinPageDelayMs = 100
+$MaxPageDelayMs = 2000
+$PaceEaseAfterOk = 5
+$PaceEaseFactor = 0.85
 $MaxAttempts = 4
 $RetryBackoffMs = @(500, 1000, 2000, 4000)
+# Throttling gets its own, longer budget. A -110 means the server is fine and only
+# wants us to wait, so giving up on it after 4 quick tries strands an import that
+# would have finished; a network error, by contrast, is unlikely to clear by try 8.
+$ThrottleMaxAttempts = 8
+$ThrottleBackoffMs = @(1000, 2000, 4000, 8000, 15000, 15000, 15000)
 
 function Get-VersionCompare {
     param([string]$A, [string]$B)
@@ -74,6 +102,34 @@ function Build-Url {
 }
 
 <#
+  Compares gacha ids the way GachaGremlin's compareIds (store.ts) does: longer
+  string wins, equal lengths compare ordinally. The ids are 19-digit numbers
+  that overflow both [int] and [double] (Number in JS), so numeric casts are
+  not an option and plain string comparison mis-orders mixed lengths.
+#>
+function Compare-GachaId {
+    param([string]$A, [string]$B)
+    if ($A.Length -ne $B.Length) { return $A.Length - $B.Length }
+    return [string]::CompareOrdinal($A, $B)
+}
+
+<#
+  Parses the $Since argument into a banner-type -> watermark-id hashtable.
+  Malformed pairs are dropped rather than fatal: a mangled watermark must
+  degrade to "download that banner in full", never to a wrong stop.
+#>
+function Convert-SinceArg {
+    param([string]$Arg)
+    $map = @{}
+    if (-not $Arg) { return $map }
+    foreach ($pair in $Arg.Split(',')) {
+        $kv = $pair.Split(':')
+        if ($kv.Count -eq 2 -and $kv[0] -and $kv[1] -match '^\d+$') { $map[$kv[0]] = $kv[1] }
+    }
+    return $map
+}
+
+<#
   Fetches one page of wish history, retrying failures that stand a chance of
   clearing: a thrown request (a network blip) and retcode -110, HoYoverse's
   "visit too frequently" throttle. Anything else comes straight back to the
@@ -84,25 +140,98 @@ function Build-Url {
   banner", which silently dropped that banner's older wishes and then copied a
   payload that looked complete. A loud failure is always better than a quietly
   incomplete history.
+
+  $Pace carries the request pace across calls and is adjusted AIMD-style: a -110
+  doubles the delay, and a run of clean responses eases it back down. Both halves
+  are load-bearing.
+
+  Backing off at all is what the original per-page retry got wrong: it waited out
+  the current page, succeeded, then reset to the fixed 100ms and walked straight
+  back into the limiter on the next request - an unbroken stream of "throttling -
+  retrying..." that never converged, because retrying was the only thing that ever
+  changed and the request rate never did. Throttling is a property of the pace, so
+  the pace is what has to change.
+
+  Easing back down is what keeps that from overcorrecting: without it the pace only
+  ratchets upward, so one -110 in the first channel pins the whole run at
+  $MaxPageDelayMs long after the limiter would have let go.
+
+  Together they converge on whatever rate the server currently tolerates, which is
+  the only sane target - the limit is not a constant to look up. Two runs of the
+  same script at the same 100ms produced zero -110 and immediate -110 respectively,
+  consistent with a token bucket carried across runs. See Todos/Todo_import_speed/.
+
+  A hashtable (reference type) rather than $script:, which resolves to the global
+  scope under the `iex "& { <text> } 'args'"` form the import dialog emits - see
+  the note above Get-Banners in hsr.ps1.
 #>
 function Invoke-GachaPage {
-    param([string]$Url)
+    param(
+        [string]$Url,
+        [hashtable]$Pace
+    )
 
-    for ($attempt = 1; $attempt -le $MaxAttempts; $attempt++) {
+    # Two independent budgets. A shared counter would let a long throttle wait
+    # consume the network budget, so the first blip after it would throw at once.
+    $errorHits = 0
+    $throttleHits = 0
+    while ($true) {
         $lastError = $null
+        $throttled = $false
         try {
             $resp = Invoke-RestMethod -Uri $Url -UseBasicParsing -ContentType 'application/json'
-            if ($resp.retcode -ne -110) { return $resp }
+            if ($resp.retcode -ne -110) {
+                # The additive-decrease half of AIMD. Without it the pace only ever
+                # ratchets up, so a single -110 in the first channel pins the whole
+                # run at $MaxPageDelayMs - ~8 minutes for a large ZZZ history - long
+                # after the bucket refilled. Easing back down is what turns "it got
+                # throttled once" into a brief slowdown instead of a slow import.
+                $Pace.OkStreak++
+                if ($Pace.OkStreak -ge $PaceEaseAfterOk -and $Pace.DelayMs -gt $MinPageDelayMs) {
+                    $eased = [int]($Pace.DelayMs * $PaceEaseFactor)
+                    # Defensive, and currently unreachable: PowerShell's [int] ROUNDS
+                    # rather than truncates ([int]0.85 -eq 1), so [int]($d * 0.85)
+                    # lands back on $d for $d -le 3 and the ramp would freeze there.
+                    # $MinPageDelayMs = 100 means that range can't be reached - this
+                    # only matters if someone lowers the floor, which is exactly the
+                    # kind of edit that would look safe.
+                    if ($eased -ge $Pace.DelayMs) { $eased = $Pace.DelayMs - 1 }
+                    $Pace.DelayMs = [Math]::Max($eased, $MinPageDelayMs)
+                    $Pace.OkStreak = 0
+                }
+                return $resp
+            }
+            $throttled = $true
             $lastError = 'HoYoverse is throttling this import (retcode -110)'
         } catch {
             $lastError = $_.Exception.Message
         }
 
-        if ($attempt -eq $MaxAttempts) {
-            throw "Gave up after $MaxAttempts attempts. Last error: $lastError"
+        if ($throttled) {
+            $throttleHits++
+            $Pace.OkStreak = 0
+            if ($throttleHits -ge $ThrottleMaxAttempts) {
+                # Marks the throw as "rate limit", not "bad candidate", so the probe
+                # loop can rethrow it instead of swallowing it as another dead link.
+                $Pace.GaveUpThrottled = $true
+                throw "HoYoverse kept throttling this import after $throttleHits attempts. Wait a few minutes and run the script again - it is a rate limit, not a problem with your account or your history link."
+            }
+            if ($Pace.DelayMs -lt $MaxPageDelayMs) {
+                $Pace.DelayMs = [Math]::Min([int]($Pace.DelayMs * 2), $MaxPageDelayMs)
+                Write-Host "    HoYoverse is throttling this import - slowing down to $($Pace.DelayMs)ms between requests..." -ForegroundColor Yellow
+            } else {
+                Write-Host "    Still throttled - waiting it out..." -ForegroundColor Yellow
+            }
+            $waitMs = $ThrottleBackoffMs[[Math]::Min($throttleHits - 1, $ThrottleBackoffMs.Count - 1)]
+        } else {
+            $errorHits++
+            if ($errorHits -ge $MaxAttempts) {
+                throw "Gave up after $errorHits attempts. Last error: $lastError"
+            }
+            Write-Host "    $lastError - retrying..." -ForegroundColor Yellow
+            $waitMs = $RetryBackoffMs[[Math]::Min($errorHits - 1, $RetryBackoffMs.Count - 1)]
         }
-        Write-Host "    $lastError - retrying..." -ForegroundColor Yellow
-        Start-Sleep -Milliseconds $RetryBackoffMs[$attempt - 1]
+        Start-Sleep -Milliseconds $waitMs
     }
 }
 
@@ -203,13 +332,25 @@ try {
     # probe already told us, so probe each authkey once.
     $seenAuthKeys = New-Object 'System.Collections.Generic.HashSet[string]'
     $validCandidates = New-Object System.Collections.Generic.List[object]
+    # One pace for the whole run: probing is where an already-active throttle shows
+    # up, and the page loop below inherits the slower pace it settles on.
+    $pace = @{ DelayMs = $PageDelayMs; OkStreak = 0 }
     foreach ($candidate in ($candidates | Sort-Object -Property Timestamp -Descending)) {
         # HashSet.Add is false when it was already there. A candidate whose
         # authkey couldn't be parsed still gets probed rather than skipped.
         if ($candidate.AuthKey -and -not $seenAuthKeys.Add($candidate.AuthKey)) { continue }
+        # Probing goes through the retry helper so a -110 here is waited out rather
+        # than read as a verdict on the link. A bare Invoke-RestMethod treated the
+        # throttle's non-zero retcode as "this candidate is invalid" and dropped it,
+        # so a run that started while already rate-limited could discard every valid
+        # link in the cache and report "your link has expired" - which sends the
+        # player back into the game to refresh a link that was never the problem.
         try {
-            $probe = Invoke-RestMethod -Uri $candidate.Url -UseBasicParsing -ContentType 'application/json'
+            $probe = Invoke-GachaPage -Url $candidate.Url -Pace $pace
         } catch {
+            # A rate limit says nothing about this link, so it must not be filed as
+            # a dead candidate - report it and let the player retry in a minute.
+            if ($pace.GaveUpThrottled) { throw }
             continue
         }
         # Every candidate has to be probed; there is no shortcut. Two tempting
@@ -275,18 +416,30 @@ try {
 
     $items = New-Object System.Collections.Generic.List[object]
     $uid = $chosen.Uid
+    $sinceMap = Convert-SinceArg $Since
+    $incremental = $sinceMap.Count -gt 0
 
     foreach ($gachaType in $GachaTypes) {
-        Write-Host "  Fetching banner type $gachaType..."
+        # The API answers newest-first, so once an entry is at or below the
+        # watermark (the newest wish GachaGremlin already has for this banner's
+        # query - for 301 that includes banner 400), everything after it is
+        # already stored - stop the banner.
+        $watermark = if ($incremental -and $sinceMap.ContainsKey($gachaType)) { $sinceMap[$gachaType] } else { $null }
+        if ($watermark) {
+            Write-Host "  Fetching banner type $gachaType (new wishes only)..."
+        } else {
+            Write-Host "  Fetching banner type $gachaType..."
+        }
+        $reachedKnown = $false
         $endId = '0'
-        while ($true) {
+        while (-not $reachedKnown) {
             $params = $baseParams.Clone()
             $params['gacha_type'] = $gachaType
             $params['size'] = "$PageSize"
             $params['end_id'] = $endId
             $url = Build-Url -BaseUrl $apiBase -Params $params
 
-            $resp = Invoke-GachaPage -Url $url
+            $resp = Invoke-GachaPage -Url $url -Pace $pace
 
             # A banner with no wishes answers retcode 0 with an empty list -
             # verified against the live API, which does the same even for a
@@ -299,6 +452,10 @@ try {
             if (-not $resp.data -or -not $resp.data.list -or $resp.data.list.Count -eq 0) { break }
 
             foreach ($entry in $resp.data.list) {
+                if ($watermark -and (Compare-GachaId "$($entry.id)" $watermark) -le 0) {
+                    $reachedKnown = $true
+                    break
+                }
                 if (-not $uid) { $uid = $entry.uid }
                 $items.Add([PSCustomObject]@{
                     id         = "$($entry.id)"
@@ -323,28 +480,35 @@ try {
             # Terminating on an empty list instead costs one extra request per
             # banner and cannot truncate, whatever page size the server decides
             # to use today or after the next patch.
+            if ($reachedKnown) { break }
             $endId = $resp.data.list[$resp.data.list.Count - 1].id
-            Start-Sleep -Milliseconds $PageDelayMs
+            Start-Sleep -Milliseconds $pace.DelayMs
         }
     }
 
-    if ($items.Count -eq 0) {
+    if ($items.Count -eq 0 -and -not $incremental) {
         Write-Host 'No wishes were found on any banner.' -ForegroundColor Red
         Write-Host 'Make sure you have made at least one wish, then try again.' -ForegroundColor Red
         return
     }
 
-    $sortedItems = $items | Sort-Object -Property @{ Expression = { $_.id.Length } }, @{ Expression = { $_.id } }
+    # @() matters: Sort-Object yields $null for zero items and a bare scalar
+    # for one, either of which serializes as not-an-array and the import box
+    # rejects it. One new pull is the NORMAL incremental outcome.
+    $sortedItems = @($items | Sort-Object -Property @{ Expression = { $_.id.Length } }, @{ Expression = { $_.id } })
 
     $epoch = [DateTime]::new(1970, 1, 1, 0, 0, 0, [DateTimeKind]::Utc)
     $exportedAt = [int64](((Get-Date).ToUniversalTime()) - $epoch).TotalSeconds
 
     $payload = [PSCustomObject]@{
-        game       = 'genshin'
-        uid        = "$uid"
-        region     = "$region"
-        exportedAt = $exportedAt
-        items      = $sortedItems
+        game        = 'genshin'
+        uid         = "$uid"
+        region      = "$region"
+        exportedAt  = $exportedAt
+        # Tells the import box that empty items means "already up to date",
+        # not a broken download.
+        incremental = $incremental
+        items       = $sortedItems
     }
 
     $json = $payload | ConvertTo-Json -Compress -Depth 6
@@ -361,7 +525,13 @@ try {
     Set-Clipboard -Value $json
 
     Write-Host ''
-    Write-Host "Done! Imported $($items.Count) wishes for UID $uid." -ForegroundColor Green
+    if ($incremental -and $items.Count -eq 0) {
+        Write-Host "Done! No new wishes since your last import - UID $uid is already up to date." -ForegroundColor Green
+    } elseif ($incremental) {
+        Write-Host "Done! Downloaded $($items.Count) new wish$(if ($items.Count -ne 1) { 'es' }) for UID $uid (everything older was already imported)." -ForegroundColor Green
+    } else {
+        Write-Host "Done! Imported $($items.Count) wishes for UID $uid." -ForegroundColor Green
+    }
     Write-Host 'Copied to your clipboard - paste it (Ctrl+V) into the GachaGremlin import box and click Import.' -ForegroundColor Yellow
     Write-Host "(A backup copy was also saved to $outputFile in case clipboard paste doesn't work - use the import box's `"Choose File`" button for that instead.)"
 } catch {

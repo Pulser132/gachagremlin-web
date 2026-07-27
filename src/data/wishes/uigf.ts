@@ -153,7 +153,9 @@ export function parseUigfPayload(text: string, expectedGame: GameKey): ParseMany
     }
 
     const region = typeof account.lang === 'string' ? account.lang : '';
-    payloads.push({ game: expectedGame, uid, region, exportedAt, items });
+    // Never a full-import verdict: another tracker's export can be partial,
+    // and must not arm incremental import (see WishAccount.fullImportedAt).
+    payloads.push({ game: expectedGame, uid, region, exportedAt, items, fullImport: false });
   }
 
   if (payloads.length === 0) {

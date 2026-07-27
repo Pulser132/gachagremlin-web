@@ -386,6 +386,73 @@ describe('openImportDialog', () => {
     expect(getActiveAccount('genshin')?.uid).toBe('800000099'); // the uid in uigf-genshin.json's hk4e account
   });
 
+  it('emits the plain full-download one-liner when the account has never full-imported', () => {
+    // A store-level import without the fullImport verdict (e.g. restored from
+    // a tracker backup) must not arm incremental — its history is unvetted.
+    importPayload(loadPayload('genshin.json'));
+    openImportDialog('genshin', vi.fn());
+
+    const code = document.querySelector('.import-command code')!;
+    // The one-liner ends at the uid — no third (watermark) argument.
+    expect(code.textContent!.endsWith(`'800000001'"`)).toBe(true);
+    expect(document.querySelector('.import-reimport')).toBeNull(); // no checkbox either
+  });
+
+  it('appends the watermark arg for a full-imported account, and the checkbox strips it', () => {
+    importPayload({ ...loadPayload('genshin.json'), fullImport: true });
+    openImportDialog('genshin', vi.fn());
+
+    const code = document.querySelector('.import-command code')!;
+    // Third positional arg present, carrying a 301 watermark (fixture ids are
+    // short, which classifies as real — see classifyIdScheme).
+    expect(code.textContent).toMatch(/'' '800000001' '[^']*301:/);
+
+    const checkbox = document.querySelector<HTMLInputElement>('.import-reimport input')!;
+    expect(checkbox).not.toBeNull();
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    expect(code.textContent).not.toMatch(/301:/); // full re-import: watermarks gone
+    expect(code.textContent).toContain(`'800000001'`);
+
+    checkbox.checked = false;
+    checkbox.dispatchEvent(new Event('change'));
+    expect(code.textContent).toMatch(/301:/); // and back
+  });
+
+  it('shows "already up to date" without importing or closing on an empty incremental payload', () => {
+    importPayload({ ...loadPayload('genshin.json'), fullImport: true }, () => 1000);
+    const onImported = vi.fn();
+    openImportDialog('genshin', onImported);
+
+    const payload = loadPayload('genshin.json');
+    const textarea = document.querySelector<HTMLTextAreaElement>('.import-textarea')!;
+    textarea.value = JSON.stringify({ ...payload, items: [], incremental: true });
+    document.querySelector<HTMLButtonElement>('.import-confirm')!.click();
+
+    const statusBox = document.querySelector<HTMLElement>('.import-status')!;
+    expect(statusBox.hidden).toBe(false);
+    expect(statusBox.textContent).toMatch(/already up to date/i);
+    expect(document.querySelector<HTMLElement>('.import-error')!.hidden).toBe(true);
+    expect(onImported).not.toHaveBeenCalled();
+    expect(document.querySelector('.import-dialog')).not.toBeNull(); // stays open
+    expect(getActiveAccount('genshin')?.updatedAt).toBe(1000); // store untouched
+  });
+
+  it('still imports an incremental payload that carries new pulls', () => {
+    importPayload({ ...loadPayload('genshin.json'), fullImport: true });
+    const onImported = vi.fn();
+    openImportDialog('genshin', onImported);
+
+    const payload = loadPayload('genshin.json');
+    const newPull = { ...payload.items[0], id: '9000000000000000000' };
+    const textarea = document.querySelector<HTMLTextAreaElement>('.import-textarea')!;
+    textarea.value = JSON.stringify({ ...payload, items: [newPull], incremental: true });
+    document.querySelector<HTMLButtonElement>('.import-confirm')!.click();
+
+    expect(onImported).toHaveBeenCalledTimes(1);
+    expect(getActiveAccount('genshin')?.items.some((i) => i.id === '9000000000000000000')).toBe(true);
+  });
+
   it('targets the account being viewed, so the script cannot silently grab another UID cached by the game', () => {
     importPayload(loadPayload('genshin.json'));
     const uid = getActiveUid('genshin')!;

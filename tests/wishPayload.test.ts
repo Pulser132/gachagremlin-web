@@ -56,6 +56,38 @@ describe('parsePayload', () => {
     if (!result.ok) expect(result.error).toMatch(/no pulls/i);
   });
 
+  it('accepts empty items when the payload is incremental ("already up to date")', () => {
+    const payload = JSON.parse(load('genshin.json'));
+    payload.items = [];
+    payload.incremental = true;
+    const result = parsePayload(JSON.stringify(payload), 'genshin');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.payload.items).toHaveLength(0);
+      expect(result.payload.incremental).toBe(true);
+    }
+  });
+
+  it('verdicts fullImport from what happened: full download true, incremental false', () => {
+    const full = parsePayload(load('genshin.json'), 'genshin');
+    expect(full.ok).toBe(true);
+    if (full.ok) expect(full.payload.fullImport).toBe(true);
+
+    const payload = JSON.parse(load('genshin.json'));
+    payload.incremental = true;
+    const inc = parsePayload(JSON.stringify(payload), 'genshin');
+    expect(inc.ok).toBe(true);
+    if (inc.ok) expect(inc.payload.fullImport).toBe(false);
+  });
+
+  it('ignores a non-boolean incremental field (empty items still reject)', () => {
+    const payload = JSON.parse(load('genshin.json'));
+    payload.items = [];
+    payload.incremental = 'yes';
+    const result = parsePayload(JSON.stringify(payload), 'genshin');
+    expect(result.ok).toBe(false);
+  });
+
   it('rejects a payload with a malformed item', () => {
     const payload = JSON.parse(load('genshin.json'));
     payload.items[0].rank = 'legendary';

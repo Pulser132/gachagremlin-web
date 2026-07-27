@@ -62,7 +62,11 @@ export function parsePayload(text: string, expectedGame: GameKey): ParseResult {
   if (typeof v.exportedAt !== 'number') {
     return { ok: false, error: 'Missing "exportedAt" field in the pasted data.' };
   }
-  if (!Array.isArray(v.items) || v.items.length === 0) {
+  // An incremental (watermarked) script run that found nothing new emits an
+  // empty items array — the common, healthy outcome, not an error. Only a
+  // FULL download with zero items still means something went wrong.
+  const incremental = v.incremental === true;
+  if (!Array.isArray(v.items) || (v.items.length === 0 && !incremental)) {
     return {
       ok: false,
       error: 'No pulls found in the pasted data. Make sure you opened your history in-game before running the script.',
@@ -80,6 +84,10 @@ export function parsePayload(text: string, expectedGame: GameKey): ParseResult {
       region: v.region,
       exportedAt: v.exportedAt,
       items: v.items as WishItem[],
+      incremental,
+      // The parser decides, from what actually happened — not the dialog's
+      // intent — so a hand-run `iwr … | iex` still marks the account healed.
+      fullImport: !incremental,
     },
   };
 }

@@ -144,5 +144,7 @@ export function parsePaimonMoeLocalData(text: string): ParseManyResult {
     return { ok: false, error: 'No wishes were found in this file.' };
   }
 
-  return { ok: true, payloads: [{ game: 'genshin', uid, region, exportedAt, items }] };
+  // Never a full-import verdict: this data is synthetic-id'd and can be
+  // gappy, and must not arm incremental import (see WishAccount.fullImportedAt).
+  return { ok: true, payloads: [{ game: 'genshin', uid, region, exportedAt, items, fullImport: false }] };
 }
