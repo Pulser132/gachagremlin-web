@@ -1,0 +1,45 @@
+{{Wish
+|name              = Reign of Serenity 2026-07-21
+|image             = Reign of Serenity 2026-07-21.png
+|type              = Character Event
+|type2             = Character Event-2
+|duration          = event
+|time_start        = 2026-07-21 18:00:00
+|time_end          = 2026-08-11 14:59:59
+|link              = https://genshin.hoyoverse.com/en/news/detail/165236
+|preceding         = To the Looking-Glass the Mademoiselle Said/2026-07-01
+|preceding2        = Starry Night's Whispers/2026-07-01
+|preceding3        = Heavenlit Prophecy/2026-07-01
+|succeeding        = 
+|succeeding2       = 
+|alongside         = Somnias a Luna/2026-07-21
+|alongside2        = Epitome Invocation/2026-07-21
+|previous          = Reign of Serenity/2025-05-27
+}}
+'''Reign of Serenity''' is a [[Character Event Wish-2]] in {{LL|Version "Luna VIII"|.}}
+
+==Wish Details==
+===Duration===
+* 2026-07-21 18:00:00 &mdash; 2026-08-11 14:59:59
+
+===Summary===
+* In this event wish, the event-exclusive 5-star character {{Wish Item|Raiden Shogun}} will get a huge drop-rate boost!
+* During this event wish, the 4-star characters {{Wish Item|Jahoda; Ororon; Sethos}} will receive a huge drop-rate boost!
+* Of the above characters, the event-exclusive character will not be available in the standard wish "[[Wanderlust Invocation]]."
+* For information about rates, see [[Wish]]es.
+
+==Item Pool==
+{{Wish Pool
+|character_5_F = Raiden Shogun
+|character_4_F = Jahoda; Ororon; Sethos
+|character_5   = Dehya; Diluc; Jean; Keqing; Mona; Qiqi; Tighnari; Yumemizuki Mizuki
+|character_4   = Aino; Barbara; Beidou; Bennett; Candace; Charlotte; Chevreuse; Chongyun; Collei; Dahlia; Diona; Dori; Faruzan; Fischl; Freminet; Gaming; Gorou; Iansan; Ifa; Illuga; Kachina; Kaveh; Kirara; Kujou Sara; Kuki Shinobu; Lan Yan; Layla; Lynette; Mika; Ningguang; Noelle; Razor; Rosaria; Sayu; Shikanoin Heizou; Sucrose; Thoma; Xiangling; Xingqiu; Xinyan; Yanfei; Yaoyao; Yun Jin
+|weapon_4      = Dragon's Bane; Eye of Perception; Favonius Codex; Favonius Greatsword; Favonius Lance; Favonius Sword; Favonius Warbow; Lion's Roar; Rainslasher; Rust; Sacrificial Bow; Sacrificial Fragments; Sacrificial Greatsword; Sacrificial Sword; The Bell; The Flute; The Stringless; The Widsith
+|weapon_3      = Black Tassel; Bloodtainted Greatsword; Cool Steel; Debate Club; Emerald Orb; Ferrous Shadow; Harbinger of Dawn; Magic Guide; Raven Bow; Sharpshooter's Oath; Skyrider Sword; Slingshot; Thrilling Tales of Dragon Slayers
+}}
+
+==Change History==
+{{Change History|Luna VIII}}
+
+[[it:Regno della serenità/2026-07-21]]
+[[tr:Huzur Saltanatı/2026-07-21]]

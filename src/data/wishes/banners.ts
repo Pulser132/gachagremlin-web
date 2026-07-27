@@ -131,3 +131,12 @@ export const GAME_BANNER_CONFIGS: Record<GameKey, GameBannerConfig> = {
 export function findBannerGroup(game: GameKey, bannerType: string): BannerGroup | undefined {
   return GAME_BANNER_CONFIGS[game].groups.find((g) => g.bannerTypes.includes(bannerType));
 }
+
+/** Looks up a Banner group by its display label — the wiki's Banner-category
+ * row labels happen to match these labels verbatim for mapped categories
+ * (e.g. "Character Event Wish"). Used by the Banners tab to decide whether a
+ * wiki category shares vocabulary with the Wishes tab's pity math, or falls
+ * back to the wiki's own label (see ADR-0003). */
+export function findBannerGroupByLabel(game: GameKey, label: string): BannerGroup | undefined {
+  return GAME_BANNER_CONFIGS[game].groups.find((g) => g.label === label);
+}

@@ -17,6 +17,15 @@ export interface GameConfig {
   label: string;
   host: string;
   indexPage: string;
+  /**
+   * The game's gacha-Banner listing page (e.g. Genshin's `Wish`). Its
+   * presence is the single switch that turns the Banners tab on for a game —
+   * absence drives the "not wired up yet" panel and skips any network
+   * request. HSR's `Warp` and ZZZ's `Exclusive Channel` are deliberately left
+   * unset in v1: different template families, never verified (see the
+   * issue's Out of Scope section).
+   */
+  bannerIndexPage?: string;
   /** Regional servers and their fixed UTC offsets (HoYoverse does not observe DST). */
   servers: Partial<Record<Region, number>>;
 }
@@ -27,6 +36,7 @@ export const GAME_CONFIGS: Record<GameKey, GameConfig> = {
     label: 'Genshin Impact',
     host: 'genshin-impact.fandom.com',
     indexPage: 'Event',
+    bannerIndexPage: 'Wish',
     servers: { America: -5, Europe: 1, Asia: 8, SAR: 8 },
   },
   hsr: {
@@ -53,4 +63,10 @@ export function getGame(key: GameKey): GameConfig {
     throw new Error(`unknown game ${key}; expected one of ${GAME_KEYS.join(', ')}`);
   }
   return config;
+}
+
+/** Whether `game` has a configured Banner listing page — the switch that
+ * turns the Banners tab's real fetch on for it (see `GameConfig.bannerIndexPage`). */
+export function hasBannerIndexPage(key: GameKey): boolean {
+  return !!GAME_CONFIGS[key].bannerIndexPage;
 }
