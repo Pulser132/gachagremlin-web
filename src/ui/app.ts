@@ -3,6 +3,16 @@ import { cachedSource } from '../data/cache.ts';
 import { connect, disconnect, getToken, isConnected } from '../data/cloud/auth.ts';
 import { isCloudConfigured } from '../data/cloud/config.ts';
 import { configureSync, getSyncState, onSyncStateChange, scheduleSync, setOnMerged, syncNow } from '../data/cloud/sync.ts';
+import { categorizeEvent, EVENT_CATEGORIES, type EventCategory } from '../data/eventCategories.ts';
+import {
+  eventHideKey,
+  hideEvent,
+  listHiddenCategories,
+  listHiddenNames,
+  setCategoryHidden,
+  unhideEvent,
+} from '../data/eventPrefs.ts';
+import { DEFAULT_EVENT_SORT, isEventSortOrder, sortEvents, type EventSortOrder, type SortableEvent } from '../data/eventSort.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
@@ -18,6 +28,13 @@ const REMINDER_WINDOW_SECONDS = 72 * 60 * 60;
 const GAME_PREF_KEY = 'gachagremlin:selectedGame';
 const REGION_PREF_KEY = 'gachagremlin:selectedRegion';
 const VIEW_PREF_KEY = 'gachagremlin:selectedView';
+const EVENT_SORT_PREF_KEY = 'gachagremlin:eventSort';
+
+const EVENT_SORT_OPTIONS: { value: EventSortOrder; label: string }[] = [
+  { value: 'wiki', label: 'Wiki order' },
+  { value: 'time', label: 'Time' },
+  { value: 'name', label: 'Name' },
+];
 const REGIONS: Region[] = ['America', 'Europe', 'Asia', 'SAR'];
 
 type ViewMode = 'events' | 'wishes';
@@ -49,6 +66,8 @@ export function mountApp(root: HTMLElement): void {
   let game: GameKey = (loadPref(GAME_PREF_KEY) as GameKey) ?? 'genshin';
   let region: Region = (loadPref(REGION_PREF_KEY) as Region) ?? 'America';
   let view: ViewMode = (loadPref(VIEW_PREF_KEY) as ViewMode) ?? 'events';
+  const storedSort = loadPref(EVENT_SORT_PREF_KEY);
+  let sortOrder: EventSortOrder = isEventSortOrder(storedSort) ? storedSort : DEFAULT_EVENT_SORT;
   let showEnded = false;
 
   root.innerHTML = '';
@@ -220,8 +239,132 @@ export function mountApp(root: HTMLElement): void {
     lastUpdated.textContent = `Last updated ${new Date(data.fetchedAt).toLocaleTimeString()}`;
 
     main.innerHTML = '';
-    const visibleCurrent = data.current.filter((e) => showEnded || e.status !== 'ended');
-    const endedCount = data.current.length - visibleCurrent.length;
+    main.appendChild(buildEventsView(data));
+
+    populateReminderBanner(reminderBanner, game, data, region);
+
+    main.setAttribute('aria-busy', 'false');
+    startCountdownTicker();
+  }
+
+  /**
+   * The events view: toolbar (sort / sections / ended toggle), one section per
+   * visible category, and the collapsed Hidden list at the bottom. The old
+   * Current/Upcoming split is carried by each card's status badge instead of
+   * the layout. Closure over mountApp state (game, region, sortOrder,
+   * showEnded) on purpose — every control mutates state and re-renders.
+   */
+  function buildEventsView(data: GameEvents): DocumentFragment {
+    const frag = document.createDocumentFragment();
+    const onToggleReminder = () => render();
+    const onHide = (ev: EventInfo) => {
+      hideEvent(game, ev.name);
+      scheduleSync('merge'); // hiding is additive — a union merge preserves it
+      render();
+    };
+
+    // One storage read per render; every event is tested against the Set.
+    const hiddenRules = listHiddenNames(game);
+    const hidden = new Set(hiddenRules);
+    const hiddenCategories = new Set(listHiddenCategories(game));
+
+    // Position in Current-then-Upcoming IS wiki order (the index page's own).
+    const all: SortableEvent[] = [...data.current, ...data.upcoming].map((ev, wikiIndex) => ({ ev, wikiIndex }));
+
+    const ruleMatches = new Map<string, number>();
+    const byCategory = new Map<EventCategory, SortableEvent[]>(EVENT_CATEGORIES.map(({ key }) => [key, []]));
+    let endedCount = 0;
+    for (const item of all) {
+      const key = eventHideKey(item.ev.name);
+      if (hidden.has(key)) {
+        ruleMatches.set(key, (ruleMatches.get(key) ?? 0) + 1);
+        continue;
+      }
+      const category = categorizeEvent(item.ev);
+      if (hiddenCategories.has(category)) continue;
+      // Count only ended events the toggle could actually reveal — rule- and
+      // section-hidden ones stay hidden either way.
+      if (item.ev.status === 'ended') {
+        endedCount++;
+        if (!showEnded) continue;
+      }
+      byCategory.get(category)!.push(item);
+    }
+
+    frag.appendChild(buildEventsToolbar(endedCount, hiddenCategories));
+
+    let renderedAny = false;
+    for (const { key, label } of EVENT_CATEGORIES) {
+      const items = byCategory.get(key)!;
+      // Empty sections are skipped entirely (HSR often has zero Web events);
+      // the Sections-menu checkbox still lists them, so the pref survives.
+      if (hiddenCategories.has(key) || items.length === 0) continue;
+      const sorted = sortEvents(items, sortOrder, region);
+      frag.appendChild(buildSection(label, sorted.map((i) => i.ev), region, onToggleReminder, onHide));
+      renderedAny = true;
+    }
+    if (!renderedAny) {
+      const empty = document.createElement('p');
+      empty.className = 'empty';
+      empty.textContent = 'No events to show — everything is hidden or filtered. Check the Sections menu above or the Hidden list below.';
+      frag.appendChild(empty);
+    }
+
+    const hiddenSection = buildHiddenSection(hiddenRules, ruleMatches);
+    if (hiddenSection) frag.appendChild(hiddenSection);
+    return frag;
+  }
+
+  function buildEventsToolbar(endedCount: number, hiddenCategories: Set<EventCategory>): HTMLElement {
+    const toolbar = document.createElement('div');
+    toolbar.className = 'events-toolbar';
+
+    const sortLabel = document.createElement('label');
+    sortLabel.className = 'events-sort';
+    sortLabel.append('Sort: ');
+    const sortSelect = document.createElement('select');
+    sortSelect.setAttribute('aria-label', 'Sort events');
+    for (const { value, label } of EVENT_SORT_OPTIONS) {
+      const opt = document.createElement('option');
+      opt.value = value;
+      opt.textContent = label;
+      sortSelect.appendChild(opt);
+    }
+    sortSelect.value = sortOrder;
+    sortSelect.addEventListener('change', () => {
+      sortOrder = isEventSortOrder(sortSelect.value) ? sortSelect.value : DEFAULT_EVENT_SORT;
+      savePref(EVENT_SORT_PREF_KEY, sortOrder);
+      render();
+    });
+    sortLabel.appendChild(sortSelect);
+    toolbar.appendChild(sortLabel);
+
+    // Native <details> menu: opens/closes without any popover JS.
+    const menu = document.createElement('details');
+    menu.className = 'events-sections-menu';
+    const summary = document.createElement('summary');
+    summary.textContent = 'Sections';
+    menu.appendChild(summary);
+    const list = document.createElement('div');
+    list.className = 'events-sections-list';
+    for (const { key, label } of EVENT_CATEGORIES) {
+      const checkboxLabel = document.createElement('label');
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = !hiddenCategories.has(key);
+      checkbox.addEventListener('change', () => {
+        const hide = !checkbox.checked;
+        setCategoryHidden(game, key, hide);
+        // Hiding is additive (merge unions it up); re-showing is destructive —
+        // a merge would resurrect the hide from the cloud copy, so push over it.
+        scheduleSync(hide ? 'merge' : 'push-only');
+        render();
+      });
+      checkboxLabel.append(checkbox, ` ${label}`);
+      list.appendChild(checkboxLabel);
+    }
+    menu.appendChild(list);
+    toolbar.appendChild(menu);
 
     if (endedCount > 0) {
       const toggle = document.createElement('button');
@@ -232,17 +375,79 @@ export function mountApp(root: HTMLElement): void {
         showEnded = !showEnded;
         render();
       });
-      main.appendChild(toggle);
+      toolbar.appendChild(toggle);
     }
 
-    const onToggleReminder = () => render();
-    main.appendChild(buildSection('Current Events', visibleCurrent, region, onToggleReminder));
-    main.appendChild(buildSection('Upcoming Events', data.upcoming, region, onToggleReminder));
+    return toolbar;
+  }
 
-    populateReminderBanner(reminderBanner, game, data, region);
+  /**
+   * The collapsed "Hidden (N)" list: one row per hidden section and per hide
+   * rule (its stored canonical text, so the breadth of a rule is visible),
+   * each with an un-hide button. Rules matching nothing right now are still
+   * listed — they are standing rules, not stale state. Returns null when
+   * nothing is hidden so a fresh install renders no empty chrome.
+   */
+  function buildHiddenSection(hiddenRules: string[], ruleMatches: Map<string, number>): HTMLElement | null {
+    const hiddenCats = EVENT_CATEGORIES.filter(({ key }) => listHiddenCategories(game).includes(key));
+    const count = hiddenRules.length + hiddenCats.length;
+    if (count === 0) return null;
 
-    main.setAttribute('aria-busy', 'false');
-    startCountdownTicker();
+    const details = document.createElement('details');
+    details.className = 'hidden-events';
+    const summary = document.createElement('summary');
+    summary.textContent = `Hidden (${count})`;
+    details.appendChild(summary);
+
+    const list = document.createElement('ul');
+    list.className = 'hidden-events-list';
+
+    const unhideButton = (label: string, ariaLabel: string, onClick: () => void): HTMLButtonElement => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hidden-events-btn';
+      btn.textContent = label;
+      btn.setAttribute('aria-label', ariaLabel);
+      btn.addEventListener('click', () => {
+        onClick();
+        // Un-hiding is destructive: a merge would union the hide back in
+        // from the cloud copy, so push over it instead (same rule as
+        // un-belling a reminder).
+        scheduleSync('push-only');
+        render();
+      });
+      return btn;
+    };
+
+    for (const { key, label } of hiddenCats) {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.className = 'hidden-events-name';
+      text.textContent = `${label} section hidden`;
+      li.appendChild(text);
+      li.appendChild(unhideButton('Show', `Show the ${label} section`, () => setCategoryHidden(game, key, false)));
+      list.appendChild(li);
+    }
+
+    for (const rule of hiddenRules) {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.className = 'hidden-events-name';
+      text.textContent = rule;
+      li.appendChild(text);
+      const matches = ruleMatches.get(rule) ?? 0;
+      if (matches > 0) {
+        const badge = document.createElement('span');
+        badge.className = 'hidden-events-count';
+        badge.textContent = matches === 1 ? 'matches 1 event' : `matches ${matches} events`;
+        li.appendChild(badge);
+      }
+      li.appendChild(unhideButton('Unhide', `Unhide ${rule}`, () => unhideEvent(game, rule)));
+      list.appendChild(li);
+    }
+
+    details.appendChild(list);
+    return details;
   }
 
   render();
@@ -256,12 +461,17 @@ export function mountApp(root: HTMLElement): void {
  * a live countdown span driven by the shared ticker. Hidden when none qualify. */
 function populateReminderBanner(banner: HTMLElement, game: GameKey, data: GameEvents, region: Region): void {
   const reminded = new Set(listReminders(game));
+  // Hidden means hidden everywhere: a hide-rule match stays out of the banner
+  // too. The subscription itself is left in storage, so un-hiding restores
+  // banner behavior without re-belling.
+  const hidden = new Set(listHiddenNames(game));
   const nowSeconds = Date.now() / 1000;
   banner.innerHTML = '';
 
   const rows: { name: string; label: string; deadline: number }[] = [];
   const consider = (ev: EventInfo, unix: number | null, label: string) => {
     if (unix === null || !reminded.has(eventKey(ev))) return;
+    if (hidden.has(eventHideKey(ev.name))) return;
     if (unix > nowSeconds && unix - nowSeconds <= REMINDER_WINDOW_SECONDS) {
       rows.push({ name: ev.name, label, deadline: unix });
     }
@@ -473,25 +683,25 @@ function buildDataFooter(onRestored: () => void): HTMLElement {
   return footer;
 }
 
-function buildSection(title: string, events: EventInfo[], region: Region, onToggleReminder: () => void): HTMLElement {
+/** One category section. Callers skip empty categories, so `events` is never
+ * empty here. */
+function buildSection(
+  title: string,
+  events: EventInfo[],
+  region: Region,
+  onToggleReminder: () => void,
+  onHide: (ev: EventInfo) => void,
+): HTMLElement {
   const section = document.createElement('section');
   section.className = 'event-section';
   const heading = document.createElement('h2');
   heading.textContent = title;
   section.appendChild(heading);
 
-  if (events.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'empty';
-    empty.textContent = 'No events.';
-    section.appendChild(empty);
-    return section;
-  }
-
   const grid = document.createElement('div');
   grid.className = 'event-grid';
   for (const ev of events) {
-    grid.appendChild(renderEventCard(ev, region, onToggleReminder));
+    grid.appendChild(renderEventCard(ev, region, onToggleReminder, onHide));
   }
   section.appendChild(grid);
   return section;

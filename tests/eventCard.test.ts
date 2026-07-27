@@ -90,3 +90,37 @@ describe('renderEventCard reminder bell', () => {
     expect(renderEventCard(makeEvent({ status: 'unknown' }), 'America').querySelector('.event-reminder-bell')).toBeNull();
   });
 });
+
+describe('renderEventCard status badge', () => {
+  it.each(['active', 'upcoming', 'ended', 'unknown'] as const)('renders a badge for %s', (status) => {
+    const badge = renderEventCard(makeEvent({ status }), 'America').querySelector('.event-status-badge');
+    expect(badge).not.toBeNull();
+    expect(badge!.classList.contains(`status-${status}`)).toBe(true);
+    expect(badge!.textContent).toBe(status);
+  });
+});
+
+describe('renderEventCard hide button', () => {
+  it('renders no hide button when onHide is omitted', () => {
+    expect(renderEventCard(makeEvent(), 'America').querySelector('.event-hide-btn')).toBeNull();
+  });
+
+  it('fires onHide with the event and labels itself with the rule scope', () => {
+    const onHide = vi.fn();
+    const ev = makeEvent({ name: 'Heated Battle Mode: Automatic Chess' });
+    const card = renderEventCard(ev, 'America', undefined, onHide);
+
+    const btn = card.querySelector<HTMLButtonElement>('.event-hide-btn');
+    expect(btn).not.toBeNull();
+    expect(btn!.getAttribute('aria-label')).toBe('Hide Heated Battle Mode: Automatic Chess — all reruns');
+
+    btn!.click();
+    expect(onHide).toHaveBeenCalledExactlyOnceWith(ev);
+  });
+
+  it('appears on ended cards too — bell-less cards can still be hidden', () => {
+    const card = renderEventCard(makeEvent({ status: 'ended' }), 'America', undefined, vi.fn());
+    expect(card.querySelector('.event-hide-btn')).not.toBeNull();
+    expect(card.querySelector('.event-reminder-bell')).toBeNull();
+  });
+});

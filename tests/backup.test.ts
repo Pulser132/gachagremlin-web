@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACKUP_SCHEMA_VERSION, exportAll, importBackup, UnsupportedBackupVersionError } from '../src/data/backup.ts';
+import { hideEvent, listHiddenCategories, listHiddenNames, setCategoryHidden, unhideEvent } from '../src/data/eventPrefs.ts';
 import { listReminders, toggleReminder } from '../src/data/reminders.ts';
 import { getActiveUid, importPayload, loadAccount, setActiveUid, setNickname } from '../src/data/wishes/store.ts';
 import type { WishItem, WishPayload } from '../src/types.ts';
@@ -149,6 +150,77 @@ describe('importBackup', () => {
     // The other rejection paths must NOT masquerade as a version problem.
     expect(() => importBackup({ app: 'other', schemaVersion: 1, games: {} })).not.toThrow(UnsupportedBackupVersionError);
     expect(() => importBackup(null)).not.toThrow(UnsupportedBackupVersionError);
+  });
+});
+
+describe('event prefs in backups', () => {
+  it('exportAll captures hide rules, hidden categories, and the sort pref', () => {
+    hideEvent('genshin', 'Heated Battle Mode: Automatic Chess');
+    setCategoryHidden('genshin', 'web', true);
+    localStorage.setItem('gachagremlin:eventSort', 'time');
+
+    const backup = exportAll();
+    expect(backup.games.genshin.eventPrefs).toEqual({
+      hiddenNames: ['heated battle mode'],
+      hiddenCategories: ['web'],
+    });
+    expect(backup.games.hsr.eventPrefs).toEqual({ hiddenNames: [], hiddenCategories: [] });
+    expect(backup.prefs.eventSort).toBe('time');
+  });
+
+  it('imports by union, re-canonicalizing names and filtering categories', () => {
+    hideEvent('genshin', 'Local Rule');
+    setCategoryHidden('genshin', 'other', true);
+
+    const backup = exportAll();
+    backup.games.genshin.eventPrefs = {
+      // Raw variants a foreign/legacy file might carry — must canonicalize.
+      hiddenNames: ['Heated Battle Mode: Prevailing Winds', 'LOCAL rule', 42 as never],
+      hiddenCategories: ['web', 'bogus' as never],
+    };
+
+    importBackup(backup);
+    expect(listHiddenNames('genshin').sort()).toEqual(['heated battle mode', 'local rule']);
+    expect(listHiddenCategories('genshin').sort()).toEqual(['other', 'web']);
+  });
+
+  it('never removes a local rule — un-hiding is push-only for exactly this reason', () => {
+    const key = hideEvent('genshin', 'Heated Battle Mode');
+    const backup = exportAll();
+    unhideEvent('genshin', key); // player un-hides after the backup was taken
+
+    importBackup(backup);
+    // The union resurrects it — which is why the un-hide path must sync
+    // push-only instead of merging (verified at the sync layer, not here).
+    expect(listHiddenNames('genshin')).toEqual(['heated battle mode']);
+  });
+
+  it('imports a legacy v1 file without eventPrefs cleanly', () => {
+    seed();
+    const backup = exportAll();
+    for (const game of Object.values(backup.games)) delete game.eventPrefs;
+    localStorage.clear();
+
+    const result = importBackup(backup);
+    expect(result.accounts).toBe(3);
+    expect(listHiddenNames('genshin')).toEqual([]);
+    expect(listHiddenCategories('genshin')).toEqual([]);
+  });
+
+  it('eventSort follows viewState: fill-if-absent preserves local, overwrite replaces', () => {
+    localStorage.setItem('gachagremlin:eventSort', 'time');
+    const backup = exportAll();
+
+    localStorage.setItem('gachagremlin:eventSort', 'name'); // picked on this device
+    importBackup(backup, { viewState: 'fill-if-absent' });
+    expect(localStorage.getItem('gachagremlin:eventSort')).toBe('name');
+
+    importBackup(backup); // manual restore: overwrite
+    expect(localStorage.getItem('gachagremlin:eventSort')).toBe('time');
+
+    localStorage.removeItem('gachagremlin:eventSort');
+    importBackup(backup, { viewState: 'fill-if-absent' });
+    expect(localStorage.getItem('gachagremlin:eventSort')).toBe('time');
   });
 });
 

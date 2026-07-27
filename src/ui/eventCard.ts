@@ -86,9 +86,29 @@ function renderReminderBell(ev: EventInfo, onToggle: () => void): HTMLElement {
   return btn;
 }
 
+/** A card-header hide button. The card stays dumb: the hide-rule write and
+ * sync scheduling live in the caller (contrast with the bell, which owns its
+ * own storage write). */
+function renderHideButton(ev: EventInfo, onHide: (ev: EventInfo) => void): HTMLElement {
+  const btn = el('button', { className: 'event-hide-btn', text: '🙈' });
+  btn.type = 'button';
+  const label = `Hide ${ev.name} — all reruns`;
+  btn.setAttribute('aria-label', label);
+  btn.title = label;
+  btn.addEventListener('click', () => onHide(ev));
+  return btn;
+}
+
 /** `onToggleReminder`, when provided, is called after the bell is toggled so
- * the caller can refresh the "starting/ending soon" banner. */
-export function renderEventCard(ev: EventInfo, region: Region, onToggleReminder?: () => void): HTMLElement {
+ * the caller can refresh the "starting/ending soon" banner. `onHide`, when
+ * provided, renders a hide button on EVERY card (ended ones included — the
+ * "Show ended" view is where players meet recurring events they're tired of). */
+export function renderEventCard(
+  ev: EventInfo,
+  region: Region,
+  onToggleReminder?: () => void,
+  onHide?: (ev: EventInfo) => void,
+): HTMLElement {
   const card = el('article', { className: `event-card game-${ev.game} status-${ev.status}` });
 
   if (ev.imageUrl) {
@@ -121,11 +141,14 @@ export function renderEventCard(ev: EventInfo, region: Region, onToggleReminder?
 
   const header = el('div', { className: 'event-card-header' });
   header.appendChild(el('h3', { className: 'event-name', text: ev.name }));
-  if (ev.status === 'ended' || ev.status === 'unknown') {
-    header.appendChild(el('span', { className: `event-status-badge status-${ev.status}`, text: ev.status }));
-  }
+  // Every status gets a badge: the category sections mix active/upcoming/
+  // ended cards, so the badge — not the layout — carries the status.
+  header.appendChild(el('span', { className: `event-status-badge status-${ev.status}`, text: ev.status }));
   if (canRemind(ev)) {
     header.appendChild(renderReminderBell(ev, () => onToggleReminder?.()));
+  }
+  if (onHide) {
+    header.appendChild(renderHideButton(ev, onHide));
   }
   card.appendChild(header);
 

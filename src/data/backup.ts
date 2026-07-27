@@ -7,14 +7,17 @@
  * and versioned so those consumers have a stable contract:
  *
  *   { schemaVersion, app, exportedAt,
- *     games: { <game>: { activeUid, accounts: { <uid>: WishAccount }, reminders: string[] } },
- *     prefs: { selectedGame?, selectedRegion?, selectedView? } }
+ *     games: { <game>: { activeUid, accounts: { <uid>: WishAccount }, reminders: string[],
+ *                        eventPrefs?: { hiddenNames, hiddenCategories } } },
+ *     prefs: { selectedGame?, selectedRegion?, selectedView?, eventSort? } }
  *
  * Restore MERGES rather than overwrites (unioning pulls via the same dedupe as
  * import), so pulling in an older backup can never drop pulls made since.
  * The re-fetchable wiki events cache (`gachagremlin:events:*`) is excluded.
  */
 import type { GameKey, WishAccount } from '../types.ts';
+import { isEventCategory } from './eventCategories.ts';
+import { listHiddenCategories, listHiddenNames, setHiddenCategories, setHiddenNames } from './eventPrefs.ts';
 import { GAME_KEYS } from './wiki/games.ts';
 import { listReminders, setReminders } from './reminders.ts';
 import { getActiveUid, listAccounts, loadAccount, restoreAccount, setActiveUid } from './wishes/store.ts';
@@ -26,6 +29,9 @@ interface GameBackup {
   activeUid: string | null;
   accounts: Record<string, WishAccount>;
   reminders: string[];
+  /** Optional (added post-v1-launch): hide rules + hidden sections for the
+   * Events tab. Older files simply lack the key; absence means empty. */
+  eventPrefs?: { hiddenNames: string[]; hiddenCategories: string[] };
 }
 
 export interface BackupFile {
@@ -33,13 +39,14 @@ export interface BackupFile {
   app: 'gachagremlin';
   exportedAt: number;
   games: Record<GameKey, GameBackup>;
-  prefs: { selectedGame?: string; selectedRegion?: string; selectedView?: string };
+  prefs: { selectedGame?: string; selectedRegion?: string; selectedView?: string; eventSort?: string };
 }
 
 const PREF_KEYS = {
   selectedGame: 'gachagremlin:selectedGame',
   selectedRegion: 'gachagremlin:selectedRegion',
   selectedView: 'gachagremlin:selectedView',
+  eventSort: 'gachagremlin:eventSort',
 } as const;
 
 function readPref(key: string): string | undefined {
@@ -60,16 +67,23 @@ export function exportAll(now: () => number = Date.now): BackupFile {
       const account = loadAccount(game, uid);
       if (account) accounts[uid] = account;
     }
-    games[game] = { activeUid: getActiveUid(game), accounts, reminders: listReminders(game) };
+    games[game] = {
+      activeUid: getActiveUid(game),
+      accounts,
+      reminders: listReminders(game),
+      eventPrefs: { hiddenNames: listHiddenNames(game), hiddenCategories: listHiddenCategories(game) },
+    };
   }
 
   const prefs: BackupFile['prefs'] = {};
   const selectedGame = readPref(PREF_KEYS.selectedGame);
   const selectedRegion = readPref(PREF_KEYS.selectedRegion);
   const selectedView = readPref(PREF_KEYS.selectedView);
+  const eventSort = readPref(PREF_KEYS.eventSort);
   if (selectedGame) prefs.selectedGame = selectedGame;
   if (selectedRegion) prefs.selectedRegion = selectedRegion;
   if (selectedView) prefs.selectedView = selectedView;
+  if (eventSort) prefs.eventSort = eventSort;
 
   return { schemaVersion: BACKUP_SCHEMA_VERSION, app: BACKUP_APP, exportedAt: now(), games, prefs };
 }
@@ -156,6 +170,26 @@ export function importBackup(data: unknown, options: ImportBackupOptions = {}): 
       const merged = [...new Set([...listReminders(game), ...incoming])];
       reminderCount += incoming.length;
       setReminders(game, merged);
+    }
+
+    // Union event hide prefs the same way — a restore adds rules, never
+    // removes them (un-hiding syncs push-only for exactly this reason).
+    // setHiddenNames re-canonicalizes and dedupes; categories are filtered to
+    // known values so a newer build's category can't corrupt this one.
+    const hidePrefs = gameBackup.eventPrefs;
+    if (hidePrefs && typeof hidePrefs === 'object') {
+      const names = Array.isArray(hidePrefs.hiddenNames)
+        ? hidePrefs.hiddenNames.filter((n): n is string => typeof n === 'string')
+        : [];
+      if (names.length > 0) {
+        setHiddenNames(game, [...listHiddenNames(game), ...names]);
+      }
+      const categories = Array.isArray(hidePrefs.hiddenCategories)
+        ? hidePrefs.hiddenCategories.filter(isEventCategory)
+        : [];
+      if (categories.length > 0) {
+        setHiddenCategories(game, [...listHiddenCategories(game), ...categories]);
+      }
     }
 
     // Only adopt the backup's active pointer if that account now exists — and

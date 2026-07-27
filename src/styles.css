@@ -73,6 +73,11 @@
   --rarity-5: #c8952a;
   --rarity-4: #a256d0;
 
+  /* Upcoming-status badge hue: deliberately game-neutral (unlike --accent,
+     which marks "active") and distinct from --link despite both being blue.
+     Light mode re-points it below for contrast on white surfaces. */
+  --status-upcoming: #8ab4f8;
+
   /* Rarity hues as large *text* (the banner-card stat numbers). Dark mode can
      use the vivid rarity hues directly (>=3:1 large-text AA on the inset row,
      validated); light mode re-points to darker on-hue variants below, since
@@ -111,6 +116,7 @@
     /* Validated >=3:1 (large-text AA) against the light inset-row surface. */
     --stat-5: #8f7228;
     --stat-4: #7c3fa8;
+    --status-upcoming: #1a56a8;
   }
 }
 
@@ -264,8 +270,108 @@ select {
   cursor: pointer;
 }
 
-.toggle-ended {
+/* --- Events toolbar: sort dropdown, sections menu, ended toggle --- */
+.events-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.events-sort select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+}
+
+.events-sections-menu {
+  position: relative;
+}
+
+.events-sections-menu > summary {
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.35rem 0.8rem;
+  cursor: pointer;
+}
+
+.events-sections-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.events-sections-menu > summary::after {
+  content: ' ▾';
+  color: var(--text-muted);
+}
+
+.events-sections-list {
+  position: absolute;
+  z-index: 10;
+  margin-top: 0.25rem;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+}
+
+.events-sections-list label {
+  cursor: pointer;
+}
+
+/* --- Collapsed "Hidden (N)" list at the bottom of the events view --- */
+.hidden-events {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+
+.hidden-events > summary {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-family: var(--font-display);
+}
+
+.hidden-events-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.6rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.hidden-events-list li {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.hidden-events-name {
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.hidden-events-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.hidden-events-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  cursor: pointer;
+  font-size: 0.85rem;
 }
 
 .status-banner {
@@ -417,6 +523,22 @@ select {
   letter-spacing: 0.03em;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* Active/upcoming get colored pills; ended/unknown keep the muted look. */
+.event-status-badge.status-active,
+.event-status-badge.status-upcoming {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+}
+
+.event-status-badge.status-active {
+  color: var(--accent-icon);
+}
+
+.event-status-badge.status-upcoming {
+  color: var(--status-upcoming);
 }
 
 .event-summary {
@@ -1003,6 +1125,23 @@ select {
   margin-top: 0.75rem;
 }
 
+/* "Already up to date" — a healthy outcome, deliberately NOT error styling. */
+.import-status {
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  margin-top: 0.75rem;
+}
+
+.import-reimport {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  cursor: pointer;
+}
+
 .import-actions {
   display: flex;
   justify-content: flex-end;
@@ -1027,6 +1166,27 @@ select {
   filter: none;
 }
 .event-reminder-bell:hover {
+  filter: none;
+}
+
+.event-hide-btn {
+  /* Takes the bell's right-alignment role on bell-less (ended/unknown)
+     cards; sits flush beside the bell when both render. */
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 6px;
+  filter: grayscale(1) opacity(0.6);
+  transition: filter 150ms ease;
+}
+.event-reminder-bell + .event-hide-btn {
+  margin-left: 0;
+}
+.event-hide-btn:hover {
   filter: none;
 }
 
