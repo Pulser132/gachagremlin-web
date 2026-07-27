@@ -1,7 +1,7 @@
 import { scheduleSync } from '../data/cloud/sync.ts';
 import { eventKey, isReminded, toggleReminder } from '../data/reminders.ts';
 import type { EventInfo, Region, RegionUnix } from '../types.ts';
-import { formatAbsolute } from './format.ts';
+import { renderCountdownRow } from './countdown.ts';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -32,11 +32,11 @@ function renderTimes(ev: EventInfo, region: Region): HTMLElement {
   const startAt = resolveRegionUnix(ev.startUnix, region);
 
   if (startAt !== null && ev.status === 'upcoming') {
-    wrap.appendChild(renderTimeRow('starts in', startAt));
+    wrap.appendChild(renderCountdownRow('starts in', startAt));
   }
 
   if (endAt !== null) {
-    wrap.appendChild(renderTimeRow('ends in', endAt));
+    wrap.appendChild(renderCountdownRow('ends in', endAt));
     if (ev.globalTime) {
       wrap.appendChild(el('p', { className: 'event-time-note', text: 'One global time — same for every server.' }));
     }
@@ -45,16 +45,6 @@ function renderTimes(ev: EventInfo, region: Region): HTMLElement {
   }
 
   return wrap;
-}
-
-function renderTimeRow(label: string, unixSeconds: number): HTMLElement {
-  const row = el('p', { className: 'event-time-row' });
-  const countdown = el('span', { className: 'countdown' });
-  countdown.dataset.deadline = String(unixSeconds);
-  countdown.dataset.countdownLabel = label;
-  row.appendChild(countdown);
-  row.appendChild(el('span', { className: 'event-time-absolute', text: ` (${formatAbsolute(unixSeconds)})` }));
-  return row;
 }
 
 /** True for events a reminder can meaningfully fire for — ones that are

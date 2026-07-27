@@ -3,7 +3,7 @@
  * per card — updates every `[data-deadline]` element's text each tick and
  * flips it to "Ended" once its deadline passes.
  */
-import { formatCountdown } from './format.ts';
+import { formatAbsolute, formatCountdown } from './format.ts';
 
 let started = false;
 
@@ -25,4 +25,24 @@ export function startCountdownTicker(): void {
   started = true;
   tick();
   setInterval(tick, 1000);
+}
+
+/**
+ * A `<p>` carrying the `[data-deadline]`/`data-countdown-label` pair `tick()`
+ * above reads every second, plus the absolute time alongside it. Shared by
+ * `eventCard.ts` and `bannersView.ts` so this contract lives in one place.
+ */
+export function renderCountdownRow(label: string, unixSeconds: number): HTMLElement {
+  const row = document.createElement('p');
+  row.className = 'event-time-row';
+  const countdown = document.createElement('span');
+  countdown.className = 'countdown';
+  countdown.dataset.deadline = String(unixSeconds);
+  countdown.dataset.countdownLabel = label;
+  row.appendChild(countdown);
+  const absolute = document.createElement('span');
+  absolute.className = 'event-time-absolute';
+  absolute.textContent = ` (${formatAbsolute(unixSeconds)})`;
+  row.appendChild(absolute);
+  return row;
 }

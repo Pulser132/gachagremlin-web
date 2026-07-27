@@ -40,6 +40,36 @@ export interface IndexSections {
   upcoming: string[];
 }
 
+interface HeadingPosition {
+  pos: number;
+  id: string;
+}
+
+/** Collects `<h1-6 id="...">` / `class="mw-headline" id="...">` heading
+ * positions in document order — the shared preamble `parseIndex` and
+ * `parseBannerIndex` both slice a page into sections by. */
+function collectHeadingPositions(pageHtml: string): HeadingPosition[] {
+  const heads: HeadingPosition[] = [];
+  for (const m of pageHtml.matchAll(/<h[1-6][^>]*\bid="([^"]+)"/g)) {
+    heads.push({ pos: m.index, id: m[1] });
+  }
+  for (const m of pageHtml.matchAll(/class="mw-headline"[^>]*\bid="([^"]+)"/g)) {
+    heads.push({ pos: m.index, id: m[1] });
+  }
+  heads.sort((a, b) => a.pos - b.pos);
+  return heads;
+}
+
+/** The HTML between the first heading `matchId` accepts and the next heading
+ * (or end of page). Empty string when no heading matches. */
+function sliceSection(pageHtml: string, heads: HeadingPosition[], matchId: (id: string) => boolean): string {
+  const i = heads.findIndex((h) => matchId(h.id));
+  if (i === -1) return '';
+  const p0 = heads[i].pos;
+  const p1 = i + 1 < heads.length ? heads[i + 1].pos : pageHtml.length;
+  return pageHtml.slice(p0, p1);
+}
+
 /**
  * Extract event page titles from the rendered Event index page.
  *
@@ -48,21 +78,10 @@ export interface IndexSections {
  * twice (icon + text), hence the de-dup.
  */
 export function parseIndex(pageHtml: string): IndexSections {
-  const heads: { pos: number; id: string }[] = [];
-  for (const m of pageHtml.matchAll(/<h[1-6][^>]*\bid="([^"]+)"/g)) {
-    heads.push({ pos: m.index, id: m[1] });
-  }
-  for (const m of pageHtml.matchAll(/class="mw-headline"[^>]*\bid="([^"]+)"/g)) {
-    heads.push({ pos: m.index, id: m[1] });
-  }
-  heads.sort((a, b) => a.pos - b.pos);
+  const heads = collectHeadingPositions(pageHtml);
 
   function section(name: string): string[] {
-    const i = heads.findIndex((h) => h.id === name);
-    if (i === -1) return [];
-    const p0 = heads[i].pos;
-    const p1 = i + 1 < heads.length ? heads[i + 1].pos : pageHtml.length;
-    const seg = pageHtml.slice(p0, p1);
+    const seg = sliceSection(pageHtml, heads, (id) => id === name);
     const out: string[] = [];
     for (const m of seg.matchAll(/<a [^>]*title="([^"]+)"/g)) {
       const x = decodeHtmlEntities(m[1]);
@@ -77,15 +96,88 @@ export function parseIndex(pageHtml: string): IndexSections {
   return { current: section('Current'), upcoming: section('Upcoming') };
 }
 
+export interface BannerListingEntry {
+  /** The dated per-Banner page title (e.g. "Somnias a Luna/2026-07-21") —
+   * what a detail fetch is made against. */
+  title: string;
+  /** The listing's own already-resolved CDN thumbnail, kept as a fallback
+   * for when the detail page's own image resolution fails. Null if the
+   * listing's `<img>` couldn't be read (e.g. no src/data-src attribute). */
+  thumbUrl: string | null;
+}
+
+export interface BannerListingCategory {
+  /** The category row's link title (e.g. "Character Event Wish") — matched
+   * against a `BannerGroup` label by the caller (see ADR-0003). */
+  label: string;
+  banners: BannerListingEntry[];
+}
+
+export interface BannerIndexSections {
+  current: BannerListingCategory[];
+  upcoming: BannerListingCategory[];
+}
+
 /**
- * Parse the event infobox template's fields.
+ * Extract Banner-category rows from the rendered Banner listing page (e.g.
+ * Genshin's `Wish`).
  *
- * Matches the template name exactly ("Event" or "Event Infobox" — ZZZ uses
- * the latter) followed by a newline or pipe, so "{{Event Tabs}}",
- * "{{Event Details}}" etc. are not mistaken for it.
+ * The page is a table per Current/Upcoming section: one row per category,
+ * its first cell a link to the category page (whose `title` attribute is
+ * the category's full display label), its second cell a `<div>` per Banner
+ * carrying a link (icon + text, both to the same dated page) and an image.
+ * A different enough shape from the Event index's heading-anchored link
+ * list (`parseIndex`) that a new function serves it better than stretching
+ * that one to cover both (see ADR-0002).
+ *
+ * Slices by heading id exactly like `parseIndex` does, rather than an extra
+ * `prop=sections` round-trip to resolve a section number first.
  */
-export function parseInfobox(wikitext: string): Record<string, string> {
-  const m = /\{\{Event(?: Infobox)?[ \t]*(?:\n|\|)/.exec(wikitext);
+export function parseBannerIndex(pageHtml: string): BannerIndexSections {
+  const heads = collectHeadingPositions(pageHtml);
+
+  function categories(idPrefix: string): BannerListingCategory[] {
+    const segment = sliceSection(pageHtml, heads, (id) => id.startsWith(idPrefix));
+    const out: BannerListingCategory[] = [];
+    const rowRe = /<tr>\s*<td>\s*<a[^>]*\btitle="([^"]+)"[^>]*>[\s\S]*?<\/a>\s*<\/td>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>/g;
+    for (const rowMatch of segment.matchAll(rowRe)) {
+      const label = decodeHtmlEntities(rowMatch[1]);
+      const cell = rowMatch[2];
+      const banners: BannerListingEntry[] = [];
+      // Each Banner block links its icon and its name to the same dated
+      // page; matching the icon-wrapping anchor (href immediately followed
+      // by title, then <img>) naturally captures one entry per Banner
+      // without a second pass to de-dup the repeated text link.
+      const entryRe = /<a[^>]*\bhref="[^"]*"[^>]*\btitle="([^"]+)"[^>]*><img([^>]*)>/g;
+      for (const entryMatch of cell.matchAll(entryRe)) {
+        const title = decodeHtmlEntities(entryMatch[1]);
+        const imgAttrs = entryMatch[2];
+        // Whole-page fetches lazyload these thumbnails: `src` holds a
+        // placeholder data: URI and the real CDN url is in `data-src`.
+        // Section-scoped fetches skip lazyload and put it straight in `src`.
+        // Prefer data-src; fall back to src only when it isn't a data: URI.
+        const dataSrc = /\bdata-src="([^"]+)"/.exec(imgAttrs)?.[1];
+        const src = /\bsrc="([^"]+)"/.exec(imgAttrs)?.[1];
+        const thumbUrl = dataSrc ?? (src && !src.startsWith('data:') ? src : null);
+        banners.push({ title, thumbUrl: thumbUrl ? decodeHtmlEntities(thumbUrl) : null });
+      }
+      if (banners.length > 0) out.push({ label, banners });
+    }
+    return out;
+  }
+
+  return { current: categories('Current'), upcoming: categories('Upcoming') };
+}
+
+/**
+ * Scan a `{{TemplateName|...}}` invocation's `|field = value` lines into a
+ * flat map, starting right after `headerRe`'s match. Shared by `parseInfobox`
+ * (Event/Wish infoboxes) and `parseItemPool` (Wish Pool) — the field-scanning
+ * logic below the template header is identical between them; only the
+ * header pattern differs.
+ */
+function parseTemplateFields(wikitext: string, headerRe: RegExp): Record<string, string> {
+  const m = headerRe.exec(wikitext);
   if (!m) return {};
   const fields: Record<string, string> = {};
   const lineRe = /^\s*\|\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/;
@@ -98,6 +190,45 @@ export function parseInfobox(wikitext: string): Record<string, string> {
     if (lm) fields[lm[1]] = lm[2];
   }
   return fields;
+}
+
+/**
+ * Parse an infobox template's fields, matching one of `templateNames`
+ * exactly (default: "Event" or "Event Infobox" — ZZZ uses the latter)
+ * followed by a newline or pipe, so "{{Event Tabs}}", "{{Event Details}}"
+ * etc. are not mistaken for it. Pass `['Wish']` for a Banner's `{{Wish|...}}`
+ * infobox — the field-extraction logic is identical, only the template name
+ * differs.
+ */
+export function parseInfobox(
+  wikitext: string,
+  templateNames: string[] = ['Event', 'Event Infobox'],
+): Record<string, string> {
+  const alternatives = templateNames.map(escapeRegExp).join('|');
+  const headerRe = new RegExp(`\\{\\{(?:${alternatives})[ \\t]*(?:\\n|\\|)`);
+  return parseTemplateFields(wikitext, headerRe);
+}
+
+/**
+ * Parse a Banner's `{{Wish Pool|...}}` item-pool template. Featured fields
+ * (`character_5_F`/`character_4_F` for character Banners,
+ * `weapon_5_F`/`weapon_4_F` for weapon Banners) are what the cards render;
+ * standard-pool fields are ignored here — parsed by nobody in v1, since
+ * they're identical across every Banner in a group (see the issue's Out of
+ * Scope section).
+ */
+export function parseItemPool(wikitext: string): { featured5Star: string[]; featured4Star: string[] } {
+  const headerRe = /\{\{Wish Pool[ \t]*(?:\n|\|)/;
+  const fields = parseTemplateFields(wikitext, headerRe);
+  const splitList = (s: string | undefined): string[] =>
+    (s ?? '')
+      .split(';')
+      .map((x) => x.trim())
+      .filter(Boolean);
+  return {
+    featured5Star: [...splitList(fields.character_5_F), ...splitList(fields.weapon_5_F)],
+    featured4Star: [...splitList(fields.character_4_F), ...splitList(fields.weapon_4_F)],
+  };
 }
 
 /** Bullet lines under a ==Header== section, cleaned to plain text. */

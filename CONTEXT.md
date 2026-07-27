@@ -55,3 +55,18 @@ The pull-history/pity tracker, keyed off a player's own imported pull data and t
 group definitions. Distinct from the Banners tab: Wishes answers "where do I stand on
 pity"; Banners answers "what's live right now and who's in it."
 _Avoid_: Banners (see above — a different tab, a different data source)
+
+## Where things live
+
+- `src/data/wiki/` — MediaWiki Action API client, per-game config, wikitext/
+  HTML parsing, wall-clock → per-region time conversion. Shared by Events and
+  Banners.
+- `src/data/source.ts` — `EventSource` / `BannerSource`: the fetch-layer seam
+  a future bot-backed source could implement instead of `WikiSource`.
+- `src/data/cache.ts` — generic localStorage TTL cache wrapping either source,
+  namespaced by storage prefix.
+- `src/data/wishes/banners.ts` — per-game Banner group / pity config, the
+  vocabulary Banner categories reuse (ADR-0003).
+- `src/ui/` — pure `data → DOM` render functions (`eventCard.ts`,
+  `wishesView.ts`, `bannersView.ts`) driven by `app.ts`, which owns fetching,
+  caching, and view-switching state.

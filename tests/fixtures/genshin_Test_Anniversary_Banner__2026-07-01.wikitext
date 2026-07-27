@@ -1,0 +1,17 @@
+{{Wish
+|name              = Test Anniversary Banner 2026-07-01
+|image             = Test Anniversary Banner 2026-07-01.png
+|type              = Anniversary Wish
+|time_start        = 2026-07-01 18:00:00
+|time_end          = 2026-07-15 14:59:59
+|link              = https://genshin.hoyoverse.com/en/news/detail/000000
+}}
+'''Test Anniversary Banner''' is an [[Anniversary Wish]].
+
+==Item Pool==
+{{Wish Pool
+|character_5_F = Test Featured Five
+|character_4_F = Test Featured Four A; Test Featured Four B
+|character_5   = Dehya; Diluc; Jean; Keqing; Mona; Qiqi; Tighnari
+|character_4   = Aino; Barbara; Beidou
+}}

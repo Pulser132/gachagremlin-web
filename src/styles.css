@@ -596,6 +596,42 @@ select {
   margin-top: 0.6rem;
 }
 
+/* Banners tab: the Featured 5★ is "front and centre" per spec — larger and
+   bolder than the 4★ line beneath it. */
+.banner-featured {
+  margin: 0.3rem 0;
+  font-size: 0.92rem;
+}
+
+.banner-featured-5 {
+  font-size: 1rem;
+}
+
+.banner-featured-4 {
+  color: var(--text-muted);
+}
+
+.banner-live-ended {
+  font-weight: 600;
+}
+
+.banners-upcoming {
+  margin-top: 2rem;
+}
+
+.banners-upcoming > h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.15rem;
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 0.4rem;
+}
+
+.banners-unsupported {
+  color: var(--text-muted);
+  padding: 2rem 0;
+}
+
 .view-tabs {
   display: flex;
   gap: 0.5rem;

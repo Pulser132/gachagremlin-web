@@ -41,6 +41,51 @@ export interface GameEvents {
 }
 
 /**
+ * One gacha Banner run. Identity is the wiki page title, which embeds the
+ * start date (e.g. "Somnias a Luna/2026-07-21") — the undated series name
+ * alone doesn't pin down which run is meant. `name` is the series name
+ * (date suffix stripped) shown on the card; `title` is what was fetched and
+ * what `wikiUrl` links to.
+ */
+export interface BannerInfo {
+  game: GameKey;
+  title: string;
+  name: string;
+  status: EventStatus;
+  /** Rate-boosted 5★ item(s) — shown front and centre on the card. */
+  featured5Star: string[];
+  /** Rate-boosted 4★ item(s) — shown beneath the 5★. */
+  featured4Star: string[];
+  imageUrl: string | null;
+  startUnix: RegionUnix | null;
+  endUnix: RegionUnix | null;
+  /** Link to this Banner's own wiki page. */
+  wikiUrl: string;
+}
+
+/**
+ * One Banner-category section as read from the wiki's listing, in the
+ * wiki's own order. `key`/`label` come from the matching `BannerGroup` in
+ * the pity config when one matches this category's wiki label, otherwise
+ * `key` is a slug derived from the wiki's own label and `label` is that
+ * label verbatim (see ADR-0003).
+ */
+export interface BannerCategorySection {
+  key: string;
+  label: string;
+  banners: BannerInfo[];
+}
+
+/** Mirrors `GameEvents` one level deeper: current/upcoming are each an
+ * ordered list of category sections rather than a flat list of items. */
+export interface GameBanners {
+  current: BannerCategorySection[];
+  upcoming: BannerCategorySection[];
+  fetchedAt: number;
+  stale?: boolean;
+}
+
+/**
  * A single pull, as returned by the HoYoverse gacha log API. Field names and
  * types mirror the API response (all strings) so the import scripts can pass
  * items through with no transformation.

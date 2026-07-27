@@ -14,9 +14,11 @@ import {
 } from '../data/eventPrefs.ts';
 import { DEFAULT_EVENT_SORT, isEventSortOrder, sortEvents, type EventSortOrder, type SortableEvent } from '../data/eventSort.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
-import { GAME_CONFIGS, GAME_KEYS } from '../data/wiki/games.ts';
+import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
-import type { EventInfo, GameEvents, GameKey, Region } from '../types.ts';
+import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
+import { renderBannersView } from './bannersView.ts';
+import { renderCardSection } from './cardSection.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
 import { renderWishesView } from './wishesView.ts';
@@ -37,13 +39,16 @@ const EVENT_SORT_OPTIONS: { value: EventSortOrder; label: string }[] = [
 ];
 const REGIONS: Region[] = ['America', 'Europe', 'Asia', 'SAR'];
 
-type ViewMode = 'events' | 'wishes';
+type ViewMode = 'events' | 'wishes' | 'banners';
 const VIEWS: { key: ViewMode; label: string }[] = [
   { key: 'events', label: 'Events' },
   { key: 'wishes', label: 'Wishes' },
+  { key: 'banners', label: 'Banners' },
 ];
 
-const source = cachedSource(new WikiSource());
+const wikiSource = new WikiSource();
+const eventSource = cachedSource<GameEvents>((game) => wikiSource.fetchEvents(game), 'gachagremlin:events:');
+const bannerSource = cachedSource<GameBanners>((game) => wikiSource.fetchBanners(game), 'gachagremlin:banners:');
 
 function loadPref(key: string): string | null {
   try {
@@ -202,6 +207,7 @@ export function mountApp(root: HTMLElement): void {
     regionSelect.value = region;
 
     const wishesMode = view === 'wishes';
+    const bannersMode = view === 'banners';
     regionLabel.hidden = wishesMode;
     refreshBtn.hidden = wishesMode;
     lastUpdated.hidden = wishesMode;
@@ -215,13 +221,59 @@ export function mountApp(root: HTMLElement): void {
       return;
     }
 
+    if (bannersMode) {
+      // Absence of a configured banner index page is the switch that turns
+      // this tab off for a game — checked before touching the cache/network
+      // layer at all, so an unwired game costs nothing (spec: HSR/ZZZ v1).
+      if (!hasBannerIndexPage(game)) {
+        // Nothing to refresh and no fetch timestamp to show — a leftover
+        // "Last updated" from a previous game/tab would be misleading here.
+        regionLabel.hidden = true;
+        refreshBtn.hidden = true;
+        lastUpdated.hidden = true;
+        main.innerHTML = '';
+        main.appendChild(renderBannersView(game, null, region));
+        main.setAttribute('aria-busy', 'false');
+        return;
+      }
+
+      main.setAttribute('aria-busy', 'true');
+      main.innerHTML = '';
+      main.appendChild(buildSkeleton());
+
+      let bannerData: GameBanners;
+      try {
+        bannerData = forceRefresh ? await bannerSource.forceRefresh(game) : await bannerSource.fetch(game);
+      } catch (e) {
+        if (myGen !== renderGen) return; // a newer render already won
+        main.innerHTML = '';
+        status.hidden = false;
+        status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} banners: ${(e as Error).message}. Try Refresh in a moment.`;
+        main.setAttribute('aria-busy', 'false');
+        return;
+      }
+      if (myGen !== renderGen) return; // a newer render already won
+
+      status.hidden = !bannerData.stale;
+      if (bannerData.stale) {
+        status.textContent = `The wiki couldn't be reached — showing cached data from ${new Date(bannerData.fetchedAt).toLocaleString()}.`;
+      }
+      lastUpdated.textContent = `Last updated ${new Date(bannerData.fetchedAt).toLocaleTimeString()}`;
+
+      main.innerHTML = '';
+      main.appendChild(renderBannersView(game, bannerData, region));
+      main.setAttribute('aria-busy', 'false');
+      startCountdownTicker();
+      return;
+    }
+
     main.setAttribute('aria-busy', 'true');
     main.innerHTML = '';
     main.appendChild(buildSkeleton());
 
     let data: GameEvents;
     try {
-      data = forceRefresh ? await source.forceRefresh(game) : await source.fetchEvents(game);
+      data = forceRefresh ? await eventSource.forceRefresh(game) : await eventSource.fetch(game);
     } catch (e) {
       if (myGen !== renderGen) return; // a newer render (e.g. switching to Wishes) already won
       main.innerHTML = '';
@@ -692,17 +744,8 @@ function buildSection(
   onToggleReminder: () => void,
   onHide: (ev: EventInfo) => void,
 ): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'event-section';
   const heading = document.createElement('h2');
   heading.textContent = title;
-  section.appendChild(heading);
-
-  const grid = document.createElement('div');
-  grid.className = 'event-grid';
-  for (const ev of events) {
-    grid.appendChild(renderEventCard(ev, region, onToggleReminder, onHide));
-  }
-  section.appendChild(grid);
-  return section;
+  const cards = events.map((ev) => renderEventCard(ev, region, onToggleReminder, onHide));
+  return renderCardSection('event-section', heading, cards);
 }
