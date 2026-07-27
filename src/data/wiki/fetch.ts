@@ -42,6 +42,22 @@ function formatWalltime(w: readonly [number, number, number, number, number] | n
   return `${pad(y, 4)}-${pad(mo)}-${pad(d)} ${pad(h)}:${pad(mi)}`;
 }
 
+/** Shared by `showEvent` and `showBanner`: fetch a page's wikitext and
+ * resolve its canonical title (following redirects), or throw a `WikiError`
+ * carrying the wiki's own error info. */
+async function fetchWikitextPage(
+  host: string,
+  title: string,
+  userAgent?: string,
+): Promise<{ wikitext: string; pageTitle: string }> {
+  const data = await api(host, { action: 'parse', page: title, prop: 'wikitext', redirects: 1 }, userAgent);
+  if (data.error) {
+    const info = data.error.info ?? JSON.stringify(data.error);
+    throw new WikiError(`${host}: ${info} (title "${title}")`);
+  }
+  return { wikitext: normalizeNewlines(data.parse.wikitext), pageTitle: data.parse.title ?? title };
+}
+
 export async function listEvents(gameKey: GameKey, userAgent?: string): Promise<IndexSections> {
   const game = getGame(gameKey);
   const data = await api(game.host, { action: 'parse', page: game.indexPage, prop: 'text' }, userAgent);
@@ -50,16 +66,7 @@ export async function listEvents(gameKey: GameKey, userAgent?: string): Promise<
 
 export async function showEvent(gameKey: GameKey, title: string, userAgent?: string): Promise<EventInfo> {
   const game = getGame(gameKey);
-  const data = await api(
-    game.host,
-    { action: 'parse', page: title, prop: 'wikitext', redirects: 1 },
-    userAgent,
-  );
-  if (data.error) {
-    const info = data.error.info ?? JSON.stringify(data.error);
-    throw new WikiError(`${game.host}: ${info} (title "${title}")`);
-  }
-  const wikitext: string = normalizeNewlines(data.parse.wikitext);
+  const { wikitext, pageTitle } = await fetchWikitextPage(game.host, title, userAgent);
   const fields = parseInfobox(wikitext);
   const durationText = sectionBullets(wikitext, 'Duration');
   const requirements = sectionBullets(wikitext, 'Requirements');
@@ -72,7 +79,7 @@ export async function showEvent(gameKey: GameKey, title: string, userAgent?: str
 
   return {
     game: game.key,
-    title: data.parse.title ?? title,
+    title: pageTitle,
     name: cleanEventName(fields.name ?? title, title),
     type: fields.type ?? '',
     group: fields.group ?? '',
@@ -122,16 +129,7 @@ export async function listBanners(gameKey: GameKey, userAgent?: string): Promise
  */
 export async function showBanner(gameKey: GameKey, title: string, userAgent?: string): Promise<BannerInfo> {
   const game = getGame(gameKey);
-  const data = await api(
-    game.host,
-    { action: 'parse', page: title, prop: 'wikitext', redirects: 1 },
-    userAgent,
-  );
-  if (data.error) {
-    const info = data.error.info ?? JSON.stringify(data.error);
-    throw new WikiError(`${game.host}: ${info} (title "${title}")`);
-  }
-  const wikitext: string = normalizeNewlines(data.parse.wikitext);
+  const { wikitext, pageTitle } = await fetchWikitextPage(game.host, title, userAgent);
   const fields = parseInfobox(wikitext, ['Wish']);
   const pool = parseItemPool(wikitext);
   const [startWt, endWt] = findWalltimes(fields, []);
@@ -140,7 +138,6 @@ export async function showBanner(gameKey: GameKey, title: string, userAgent?: st
   const imageUrl = fields.image
     ? await resolveImageUrl(game.host, fields.image.trim(), WISH_ART_WIDTH, userAgent)
     : null;
-  const pageTitle: string = data.parse.title ?? title;
 
   return {
     game: game.key,

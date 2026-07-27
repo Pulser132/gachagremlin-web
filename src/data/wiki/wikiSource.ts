@@ -91,19 +91,25 @@ export class WikiSource implements EventSource, BannerSource {
  * Banner failed to fetch is dropped — the wiki listed it, but there's
  * nothing left to show under it.
  */
+/** A listing entry paired with the category label it was found under —
+ * flattened out of `BannerListingCategory.banners` so every entry across
+ * every category can be fetched by one `mapLimit` call, then regrouped by
+ * `categoryLabel` once details land. */
+interface CategorizedBannerEntry extends BannerListingEntry {
+  categoryLabel: string;
+}
+
 async function fetchBannerSections(
   game: GameKey,
   categories: BannerListingCategory[],
 ): Promise<BannerCategorySection[]> {
-  const entries: (BannerListingEntry & { categoryLabel: string })[] = categories.flatMap((cat) =>
+  const entries: CategorizedBannerEntry[] = categories.flatMap((cat) =>
     cat.banners.map((b) => ({ ...b, categoryLabel: cat.label })),
   );
 
   // A single Banner's parse failure must not take down its whole category
   // (same failure posture as fetchEvents' per-event handling).
-  const fetchDetail = async (
-    entry: BannerListingEntry & { categoryLabel: string },
-  ): Promise<BannerInfo | null> => {
+  const fetchDetail = async (entry: CategorizedBannerEntry): Promise<BannerInfo | null> => {
     try {
       const info = await showBanner(game, entry.title);
       // The detail page's own image resolution can fail; the listing's

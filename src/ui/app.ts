@@ -18,6 +18,7 @@ import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
+import { renderCardSection } from './cardSection.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
 import { renderWishesView } from './wishesView.ts';
@@ -743,17 +744,8 @@ function buildSection(
   onToggleReminder: () => void,
   onHide: (ev: EventInfo) => void,
 ): HTMLElement {
-  const section = document.createElement('section');
-  section.className = 'event-section';
   const heading = document.createElement('h2');
   heading.textContent = title;
-  section.appendChild(heading);
-
-  const grid = document.createElement('div');
-  grid.className = 'event-grid';
-  for (const ev of events) {
-    grid.appendChild(renderEventCard(ev, region, onToggleReminder, onHide));
-  }
-  section.appendChild(grid);
-  return section;
+  const cards = events.map((ev) => renderEventCard(ev, region, onToggleReminder, onHide));
+  return renderCardSection('event-section', heading, cards);
 }

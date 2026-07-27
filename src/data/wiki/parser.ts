@@ -40,6 +40,36 @@ export interface IndexSections {
   upcoming: string[];
 }
 
+interface HeadingPosition {
+  pos: number;
+  id: string;
+}
+
+/** Collects `<h1-6 id="...">` / `class="mw-headline" id="...">` heading
+ * positions in document order — the shared preamble `parseIndex` and
+ * `parseBannerIndex` both slice a page into sections by. */
+function collectHeadingPositions(pageHtml: string): HeadingPosition[] {
+  const heads: HeadingPosition[] = [];
+  for (const m of pageHtml.matchAll(/<h[1-6][^>]*\bid="([^"]+)"/g)) {
+    heads.push({ pos: m.index, id: m[1] });
+  }
+  for (const m of pageHtml.matchAll(/class="mw-headline"[^>]*\bid="([^"]+)"/g)) {
+    heads.push({ pos: m.index, id: m[1] });
+  }
+  heads.sort((a, b) => a.pos - b.pos);
+  return heads;
+}
+
+/** The HTML between the first heading `matchId` accepts and the next heading
+ * (or end of page). Empty string when no heading matches. */
+function sliceSection(pageHtml: string, heads: HeadingPosition[], matchId: (id: string) => boolean): string {
+  const i = heads.findIndex((h) => matchId(h.id));
+  if (i === -1) return '';
+  const p0 = heads[i].pos;
+  const p1 = i + 1 < heads.length ? heads[i + 1].pos : pageHtml.length;
+  return pageHtml.slice(p0, p1);
+}
+
 /**
  * Extract event page titles from the rendered Event index page.
  *
@@ -48,21 +78,10 @@ export interface IndexSections {
  * twice (icon + text), hence the de-dup.
  */
 export function parseIndex(pageHtml: string): IndexSections {
-  const heads: { pos: number; id: string }[] = [];
-  for (const m of pageHtml.matchAll(/<h[1-6][^>]*\bid="([^"]+)"/g)) {
-    heads.push({ pos: m.index, id: m[1] });
-  }
-  for (const m of pageHtml.matchAll(/class="mw-headline"[^>]*\bid="([^"]+)"/g)) {
-    heads.push({ pos: m.index, id: m[1] });
-  }
-  heads.sort((a, b) => a.pos - b.pos);
+  const heads = collectHeadingPositions(pageHtml);
 
   function section(name: string): string[] {
-    const i = heads.findIndex((h) => h.id === name);
-    if (i === -1) return [];
-    const p0 = heads[i].pos;
-    const p1 = i + 1 < heads.length ? heads[i + 1].pos : pageHtml.length;
-    const seg = pageHtml.slice(p0, p1);
+    const seg = sliceSection(pageHtml, heads, (id) => id === name);
     const out: string[] = [];
     for (const m of seg.matchAll(/<a [^>]*title="([^"]+)"/g)) {
       const x = decodeHtmlEntities(m[1]);
@@ -115,24 +134,10 @@ export interface BannerIndexSections {
  * `prop=sections` round-trip to resolve a section number first.
  */
 export function parseBannerIndex(pageHtml: string): BannerIndexSections {
-  const heads: { pos: number; id: string }[] = [];
-  for (const m of pageHtml.matchAll(/<h[1-6][^>]*\bid="([^"]+)"/g)) {
-    heads.push({ pos: m.index, id: m[1] });
-  }
-  for (const m of pageHtml.matchAll(/class="mw-headline"[^>]*\bid="([^"]+)"/g)) {
-    heads.push({ pos: m.index, id: m[1] });
-  }
-  heads.sort((a, b) => a.pos - b.pos);
+  const heads = collectHeadingPositions(pageHtml);
 
-  function slice(idPrefix: string): string {
-    const i = heads.findIndex((h) => h.id.startsWith(idPrefix));
-    if (i === -1) return '';
-    const p0 = heads[i].pos;
-    const p1 = i + 1 < heads.length ? heads[i + 1].pos : pageHtml.length;
-    return pageHtml.slice(p0, p1);
-  }
-
-  function categories(segment: string): BannerListingCategory[] {
+  function categories(idPrefix: string): BannerListingCategory[] {
+    const segment = sliceSection(pageHtml, heads, (id) => id.startsWith(idPrefix));
     const out: BannerListingCategory[] = [];
     const rowRe = /<tr>\s*<td>\s*<a[^>]*\btitle="([^"]+)"[^>]*>[\s\S]*?<\/a>\s*<\/td>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>/g;
     for (const rowMatch of segment.matchAll(rowRe)) {
@@ -161,7 +166,7 @@ export function parseBannerIndex(pageHtml: string): BannerIndexSections {
     return out;
   }
 
-  return { current: categories(slice('Current')), upcoming: categories(slice('Upcoming')) };
+  return { current: categories('Current'), upcoming: categories('Upcoming') };
 }
 
 /**

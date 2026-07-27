@@ -1,7 +1,8 @@
 import { getGame } from '../data/wiki/games.ts';
 import type { BannerCategorySection, BannerInfo, GameBanners, GameKey, Region } from '../types.ts';
+import { renderCardSection } from './cardSection.ts';
+import { renderCountdownRow } from './countdown.ts';
 import { resolveRegionUnix } from './eventCard.ts';
-import { formatAbsolute } from './format.ts';
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -61,16 +62,9 @@ function renderCategorySection(
   region: Region,
   headingTag: 'h2' | 'h3',
 ): HTMLElement {
-  const sectionEl = document.createElement('section');
-  sectionEl.className = 'event-section banner-category-section';
-  sectionEl.appendChild(el(headingTag, { text: section.label }));
-
-  const grid = el('div', { className: 'event-grid' });
-  for (const banner of section.banners) {
-    grid.appendChild(renderBannerCard(banner, region));
-  }
-  sectionEl.appendChild(grid);
-  return sectionEl;
+  const heading = el(headingTag, { text: section.label });
+  const cards = section.banners.map((banner) => renderBannerCard(banner, region));
+  return renderCardSection('event-section banner-category-section', heading, cards);
 }
 
 function renderBannerCard(banner: BannerInfo, region: Region): HTMLElement {
@@ -131,26 +125,16 @@ function renderBannerTimes(banner: BannerInfo, region: Region): HTMLElement {
   const startAt = resolveRegionUnix(banner.startUnix, region);
 
   if (startAt !== null && banner.status === 'upcoming') {
-    wrap.appendChild(renderTimeRow('starts in', startAt));
+    wrap.appendChild(renderCountdownRow('starts in', startAt));
   }
 
   if (banner.status === 'ended') {
     wrap.appendChild(el('p', { className: 'event-times-missing banner-live-ended', text: 'Ended' }));
   } else if (endAt !== null) {
-    wrap.appendChild(renderTimeRow('ends in', endAt));
+    wrap.appendChild(renderCountdownRow('ends in', endAt));
   } else {
     wrap.appendChild(el('p', { className: 'event-times-missing', text: 'End time not announced on the wiki yet.' }));
   }
 
   return wrap;
-}
-
-function renderTimeRow(label: string, unixSeconds: number): HTMLElement {
-  const row = el('p', { className: 'event-time-row' });
-  const countdown = el('span', { className: 'countdown' });
-  countdown.dataset.deadline = String(unixSeconds);
-  countdown.dataset.countdownLabel = label;
-  row.appendChild(countdown);
-  row.appendChild(el('span', { className: 'event-time-absolute', text: ` (${formatAbsolute(unixSeconds)})` }));
-  return row;
 }
