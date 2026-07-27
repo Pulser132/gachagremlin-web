@@ -1,31 +1,60 @@
-# GachaGremlin Web — Domain Glossary
+# GachaGremlin Web
 
-Single-context repo. This is the one `CONTEXT.md`; see `docs/adr/` for decisions.
+A no-backend site that shows gacha-game event and pull data for Genshin Impact, Honkai:
+Star Rail, and Zenless Zone Zero, fetched client-side from each game's public Fandom wiki
+and from the player's own locally-imported pull history.
 
-## Vocabulary
+## Language
 
-- **Event** — a time-boxed in-game happening (story quest, web event, login
-  event) sourced from a game's Fandom wiki Event index. See `EventInfo`.
-- **Banner** — one gacha promotion run, identified by its wiki page title,
-  which embeds the start date (e.g. `Somnias a Luna/2026-07-21`). A Banner has
-  its own splash art, Featured items, and a start/end time. See `BannerInfo`.
-- **Banner series** — the undated name shared by every run of a recurring
-  Banner (e.g. "Somnias a Luna"). Displayed on cards; not itself fetchable —
-  the dated Banner title is what's fetched and linked to.
-- **Banner group** — the pity/guarantee bucket a Banner belongs to, defined in
-  the pity config (`src/data/wishes/banners.ts`, `BannerGroup`), e.g.
-  "Character Event Wish". Shared vocabulary between the Wishes tab (pity math)
-  and the Banners tab (live listing) — see ADR-0003.
-- **Banner category** — the section label the wiki's own listing page groups
-  current/upcoming Banners under (e.g. "Character Event Wish", "Weapon Event
-  Wish"). When a category's label matches a Banner group's label, the section
-  carries that group's key; otherwise it renders under the wiki's own label
-  with a derived key. See ADR-0003.
-- **Featured item** — the rate-boosted 5★ (front and centre) or 4★ items on a
-  Banner, parsed from the per-Banner page's item-pool template's `*_F` fields.
-- **Standard pool** — the permanent-pool items also biddable on a Banner,
-  parsed into the model but not displayed in v1 (identical across every
-  Banner in a group).
+**Event**:
+A time-limited in-game happening shown on the Events tab — login events, story quests,
+web events — sourced from each wiki's generic `Event`/`Events` index page.
+_Avoid_: Banner (a different wiki page family; see below)
+
+**Banner**:
+A single gacha promotion running for a fixed window, shown on the Banners tab. Identified
+by its wiki page title plus start date (e.g. "Somnias a Luna/2026-07-21") — that dated
+subpage is the live, currently-relevant Banner; the undated series name alone is not
+enough to pin down which run is meant.
+_Avoid_: Wish, Warp, Signal Search (the per-game names for the pull-history tracking
+feature — see Wishes tab, below — not this concept), Event (unrelated wiki page family)
+
+**Banner series**:
+The undated, recurring name a Banner belongs to (e.g. "Somnias a Luna"), spanning every
+past and future run of the same lineup.
+_Avoid_: Banner (a series isn't itself a live promotion — only one of its dated runs is)
+
+**Banner group**:
+A named bucket of same-shaped Banners that share pity/guarantee rules (novice, standard,
+character, weapon, chronicled, ...), independent of which specific Banner is currently
+live. Fixed, closed set defined per game.
+_Avoid_: Category (see Banner category, below — related but not the same thing)
+
+**Banner category**:
+The wiki's own label for a group of currently-running Banners (e.g. "Character Event",
+"Weapon Event"), read fresh from the wiki on every fetch. Usually corresponds to a Banner
+group's name, but the mapping isn't guaranteed — the wiki can list a category with no
+matching Banner group (a brand-new promotion type not yet added to the pity-tracking
+config), and that category is still shown rather than dropped.
+_Avoid_: Banner group (the closed, pity-tracking set — a Banner category is open-ended and
+wiki-driven)
+
+**Featured item**:
+The character or weapon whose drop rate is boosted on a specific Banner — what a player is
+actually pulling for.
+_Avoid_: Rate-up (in-game term, not used in this codebase), "5-star"/"4-star" alone (a
+rarity, not the same thing — the standard pool also has 5-stars and 4-stars)
+
+**Standard pool**:
+The permanent, non-featured items every Banner in a group can also drop, shared across all
+Banners in that group.
+_Avoid_: Fallback pool, base pool
+
+**Wishes tab** *(existing feature)*:
+The pull-history/pity tracker, keyed off a player's own imported pull data and the Banner
+group definitions. Distinct from the Banners tab: Wishes answers "where do I stand on
+pity"; Banners answers "what's live right now and who's in it."
+_Avoid_: Banners (see above — a different tab, a different data source)
 
 ## Where things live
 
