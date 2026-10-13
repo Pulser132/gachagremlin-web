@@ -138,3 +138,16 @@ describe('renderBannersView unsupported game panel', () => {
     expect(view.textContent).toMatch(/honkai.*star.*rail.*isn't wired up yet/i);
   });
 });
+
+describe('renderBannersView second-tier Featured line', () => {
+  it.each(['genshin', 'hsr'] as const)('shows the second-tier line for %s', (game) => {
+    const view = renderBannersView(game, makeGameBanners(), 'America');
+    expect(view.querySelector('.banner-featured-4')?.textContent).toContain('Jahoda');
+  });
+
+  it('hides the second-tier line for zzz even when the payload carries second-tier items, keeping top tier', () => {
+    const view = renderBannersView('zzz', makeGameBanners(), 'America');
+    expect(view.querySelector('.banner-featured-4')).toBeNull();
+    expect(view.querySelector('.banner-featured-5')?.textContent).toContain('Columbina');
+  });
+});
