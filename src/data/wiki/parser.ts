@@ -7,6 +7,7 @@
  * fixtures (tests/fixtures/, copied verbatim from the bot repo).
  */
 import { decodeHtmlEntities } from './entities.ts';
+import type { ItemPoolSpec } from './games.ts';
 
 function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -172,7 +173,7 @@ export function parseBannerIndex(pageHtml: string): BannerIndexSections {
 /**
  * Scan a `{{TemplateName|...}}` invocation's `|field = value` lines into a
  * flat map, starting right after `headerRe`'s match. Shared by `parseInfobox`
- * (Event/Wish infoboxes) and `parseItemPool` (Wish Pool) — the field-scanning
+ * (Event/Wish infoboxes) and `parseItemPool` (the item-pool template) — the field-scanning
  * logic below the template header is identical between them; only the
  * header pattern differs.
  */
@@ -180,7 +181,7 @@ function parseTemplateFields(wikitext: string, headerRe: RegExp): Record<string,
   const m = headerRe.exec(wikitext);
   if (!m) return {};
   const fields: Record<string, string> = {};
-  const lineRe = /^\s*\|\s*([A-Za-z0-9_]+)\s*=\s*(.*?)\s*$/;
+  const lineRe = /^\s*\|\s*([A-Za-z0-9_-]+)\s*=\s*(.*?)\s*$/;
   const rest = wikitext.slice(m.index + m[0].length);
   for (const line of rest.split(/\r\n|\r|\n/)) {
     const trimmed = line.trim();
@@ -210,24 +211,29 @@ export function parseInfobox(
 }
 
 /**
- * Parse a Banner's `{{Wish Pool|...}}` item-pool template. Featured fields
- * (`character_5_F`/`character_4_F` for character Banners,
- * `weapon_5_F`/`weapon_4_F` for weapon Banners) are what the cards render;
- * standard-pool fields are ignored here — parsed by nobody in v1, since
- * they're identical across every Banner in a group (see the issue's Out of
- * Scope section).
+ * Parse a Banner's item-pool template (`spec.templateName`, e.g.
+ * `{{Wish Pool|...}}`). The Featured fields named by `spec` are what the
+ * cards render; standard-pool fields are ignored here — parsed by nobody,
+ * since they're identical across every Banner in a group (see the issue's
+ * Out of Scope section). Top tier maps to `featured5Star` and second tier to
+ * `featured4Star` positionally, whatever the game's own rarity names are.
  */
-export function parseItemPool(wikitext: string): { featured5Star: string[]; featured4Star: string[] } {
-  const headerRe = /\{\{Wish Pool[ \t]*(?:\n|\|)/;
+export function parseItemPool(
+  wikitext: string,
+  spec: ItemPoolSpec,
+): { featured5Star: string[]; featured4Star: string[] } {
+  const headerRe = new RegExp(`\\{\\{${escapeRegExp(spec.templateName)}[ \\t]*(?:\\n|\\|)`);
   const fields = parseTemplateFields(wikitext, headerRe);
-  const splitList = (s: string | undefined): string[] =>
-    (s ?? '')
-      .split(';')
-      .map((x) => x.trim())
-      .filter(Boolean);
+  const collect = (names: string[]): string[] =>
+    names.flatMap((name) =>
+      (fields[name] ?? '')
+        .split(';')
+        .map((x) => x.trim())
+        .filter(Boolean),
+    );
   return {
-    featured5Star: [...splitList(fields.character_5_F), ...splitList(fields.weapon_5_F)],
-    featured4Star: [...splitList(fields.character_4_F), ...splitList(fields.weapon_4_F)],
+    featured5Star: collect(spec.topTierFeatured),
+    featured4Star: collect(spec.secondTierFeatured),
   };
 }
 

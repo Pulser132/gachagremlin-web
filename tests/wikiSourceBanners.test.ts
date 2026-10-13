@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizeNewlines } from '../src/data/wiki/parser.ts';
+import { GAME_CONFIGS } from '../src/data/wiki/games.ts';
 import { WikiSource } from '../src/data/wiki/wikiSource.ts';
 import type { GameBanners } from '../src/types.ts';
 
@@ -205,6 +206,26 @@ describe('WikiSource.fetchBanners', () => {
     for (const url of calls) {
       expect(url.pathname).toBe('/api.php');
       expect(url.searchParams.get('origin')).toBe('*');
+    }
+  });
+
+  it('reads hyphenated item-pool field names (regression: they used to be silently skipped)', async () => {
+    const genshin = GAME_CONFIGS.genshin;
+    const original = genshin.itemPool;
+    // Config-driven: point the top tier at a hyphenated field, as ZZZ's
+    // `w-engine_S_F` will be.
+    genshin.itemPool = { ...original, topTierFeatured: ['w-engine_S_F'], secondTierFeatured: [] };
+    try {
+      const somnias = WIKITEXT_BY_TITLE['Somnias a Luna/2026-07-21'].replace(
+        '|character_5_F = Columbina',
+        '|w-engine_S_F = Hyphen Blade; Hyphen Bow',
+      );
+      stubWikiFetch({ wikitextOverrides: { 'Somnias a Luna/2026-07-21': somnias } });
+      const banners = await new WikiSource().fetchBanners('genshin');
+
+      expect(banners.current[0].banners[0].featured5Star).toEqual(['Hyphen Blade', 'Hyphen Bow']);
+    } finally {
+      genshin.itemPool = original;
     }
   });
 
