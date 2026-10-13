@@ -108,15 +108,25 @@ export async function showEvent(gameKey: GameKey, title: string, userAgent?: str
 /**
  * List current/upcoming Banner-category rows from the game's Banner listing
  * page (e.g. Genshin's `Wish`). Returns empty sections without any network
- * request when the game has no configured `bannerIndexPage` — the same
+ * request when the game has no configured `bannerIndexPages` — the same
  * "absence is the switch" contract `WikiSource.fetchBanners` relies on for
  * the unwired-game placeholder panel.
  */
 export async function listBanners(gameKey: GameKey, userAgent?: string): Promise<BannerIndexSections> {
   const game = getGame(gameKey);
-  if (!game.bannerIndexPage) return { current: [], upcoming: [] };
-  const data = await api(game.host, { action: 'parse', page: game.bannerIndexPage, prop: 'text' }, userAgent);
-  return parseBannerIndex(normalizeNewlines(data.parse.text));
+  if (game.bannerIndexPages.length === 0) return { current: [], upcoming: [] };
+  // One API call per listing page, merged in config order. Only the 'table'
+  // shape has a walker so far; 'channelPages' arrives with ZZZ.
+  const pages = await Promise.all(
+    game.bannerIndexPages.map(async (page) => {
+      const data = await api(game.host, { action: 'parse', page, prop: 'text' }, userAgent);
+      return parseBannerIndex(normalizeNewlines(data.parse.text));
+    }),
+  );
+  return {
+    current: pages.flatMap((p) => p.current),
+    upcoming: pages.flatMap((p) => p.upcoming),
+  };
 }
 
 /**
@@ -130,8 +140,8 @@ export async function listBanners(gameKey: GameKey, userAgent?: string): Promise
 export async function showBanner(gameKey: GameKey, title: string, userAgent?: string): Promise<BannerInfo> {
   const game = getGame(gameKey);
   const { wikitext, pageTitle } = await fetchWikitextPage(game.host, title, userAgent);
-  const fields = parseInfobox(wikitext, ['Wish']);
-  const pool = parseItemPool(wikitext);
+  const fields = parseInfobox(wikitext, [game.bannerInfoboxTemplate]);
+  const pool = parseItemPool(wikitext, game.itemPool);
   const [startWt, endWt] = findWalltimes(fields, []);
   const startUnix = perServer(startWt, game.servers);
   const endUnix = perServer(endWt, game.servers);

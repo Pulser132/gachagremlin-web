@@ -68,10 +68,10 @@ export class WikiSource implements EventSource, BannerSource {
   }
 
   async fetchBanners(game: GameKey): Promise<GameBanners> {
-    // "Not wired up" games have no bannerIndexPage; listBanners() already
+    // "Not wired up" games have no bannerIndexPages; listBanners() already
     // short-circuits before any network call, but checking here too keeps
     // that contract explicit at this seam rather than implicit in fetch.ts.
-    if (!getGame(game).bannerIndexPage) {
+    if (getGame(game).bannerIndexPages.length === 0) {
       return { current: [], upcoming: [], fetchedAt: Date.now() };
     }
 
