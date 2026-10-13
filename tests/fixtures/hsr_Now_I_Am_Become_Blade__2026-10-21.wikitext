@@ -1,0 +1,61 @@
+{{Warp
+|name              = Now I Am Become Blade 2026-10-21
+|image             = Now I Am Become Blade 2026-10-21.png
+|type              = Character Event
+|duration          = event
+|time_known        = yes
+|time_start        = 2026-10-21 12:00:00
+<!--|time_start_offset = GMT+8-->
+|time_end          = 2026-11-10 14:59:59
+<!--|time_end_offset   = GMT+8-->
+|preceding         = The Demoiselle in Charge/2026-09-28
+|preceding2        = Bygone Reminiscence/2026-09-28
+<!--
+|succeeding        = 
+|succeeding2       = 
+|succeeding3       = 
+|succeeding4       = 
+-->
+|alongside         = An Ocean in a Pearl/2026-09-28
+|alongside2        = Brilliant Fixation/2026-09-28
+|alongside3        = Bygone Reminiscence/2026-10-21
+|previous          = Now I Am Become Blade/2026-06-01
+<!--
+|next              = {{subst:ROOTPAGENAME}}/YYYY-MM-DD
+-->
+|link              = 
+|earlyaccess       = <!--any domains with early access during the warp separated by semicolons-->
+|aptitudeshowcase  = 2026-10-21
+}}
+'''Now I Am Become Blade''' is a [[Character Event Warp]] in [[Version 4.6]].
+
+==Event Details==
+During the event, the drop rate of the limited 5{{star}} character {{Character Intro|Mortenax Blade}} will be boosted.
+
+===Drop Rate Boost: 5{{star}} Character===
+* {{Character Intro|Mortenax Blade}}
+
+===Drop Rate Boost: 4{{star}} Characters===
+* {{Character Intro|Qingque}}
+* {{Character Intro|Xueyi}}
+* {{Character Intro|Misha}}
+
+==Notes==
+* Among the above characters, the limited character will not be available in the [[Stellar Warp]] event.
+* This Warp is counted as a Character Event Warp. The Warp count for the guarantee with any Character Event Warp will always be carried over to other Character Event Warps, but is independent of and unaffected by other types of Warps.
+{{For|additional information|Warp}}
+
+==Item Pool==
+{{Warp Pool
+|character_5_F = Mortenax Blade
+|character_4_F = Qingque; Xueyi; Misha
+|character_5   = Bailu; Blade; Bronya; Clara; Fu Xuan; Gepard; Himeko; Seele; Welt; Yanqing
+|character_4   = Arlan; Asta; Dan Heng; Gallagher; Guinaifen; Hanya; Herta; Hook; Luka; Lynx; March 7th (Preservation); Moze; Natasha; Pela; Sampo; Serval; Sushang; Tingyun; Yukong
+|lightcone_4   = A Secret Vow; After the Charmony Fall; Boundless Choreo; Concert for Two; Dance! Dance! Dance!; Day One of My New Life; Dream's Montage; Eyes of the Prey; Geniuses' Greetings; Geniuses' Repose; Good Night and Sleep Well; Indelible Promise; Landau's Choice; Make the World Clamor; Memories of the Past; Only Silence Remains; Perfect Timing; Planetary Rendezvous; Poised to Bloom; Post-Op Conversation; Resolution Shines As Pearls of Sweat; Shadowed by Night; Shared Feeling; Subscribe for More!; Swordplay; The Birth of the Self; The Moles Welcome You; Trend of the Universal Market; Under the Blue Sky
+|lightcone_3   = Adversarial; Amber (Light Cone); Arrows; Chorus; Collapsing Sky; Cornucopia; Darting Arrow; Data Bank (Light Cone); Defense; Fine Fruit; Hidden Shadow; Lingering Tear; Loop; Mediation; Meshing Cogs; Multiplication; Mutual Demise; Passkey; Pioneering; Reminiscence; Sagacity; Shadowburn; Shattered Home; Sneering; Void
+}}
+
+==Change History==
+{{Change History|4.6}}
+
+[[ru:Я стал клинком/21-10-2026]]

@@ -144,24 +144,29 @@ export function parseBannerIndex(pageHtml: string): BannerIndexSections {
     for (const rowMatch of segment.matchAll(rowRe)) {
       const label = decodeHtmlEntities(rowMatch[1]);
       const cell = rowMatch[2];
-      const banners: BannerListingEntry[] = [];
       // Each Banner block links its icon and its name to the same dated
-      // page; matching the icon-wrapping anchor (href immediately followed
-      // by title, then <img>) naturally captures one entry per Banner
-      // without a second pass to de-dup the repeated text link.
-      const entryRe = /<a[^>]*\bhref="[^"]*"[^>]*\btitle="([^"]+)"[^>]*><img([^>]*)>/g;
+      // page, so anchors are de-duped by title. Not-yet-uploaded art renders
+      // as a broken-file anchor (title "File:...", no <img>) and is skipped;
+      // the Banner still appears via its name link, just with no thumbnail.
+      const entryRe = /<a[^>]*\bhref="\/wiki\/[^"]*"[^>]*\btitle="([^"]+)"[^>]*>(<img([^>]*)>)?/g;
+      const byTitle = new Map<string, BannerListingEntry>();
       for (const entryMatch of cell.matchAll(entryRe)) {
         const title = decodeHtmlEntities(entryMatch[1]);
-        const imgAttrs = entryMatch[2];
+        if (/^(File|Special):/.test(title)) continue;
+        const imgAttrs = entryMatch[3] ?? '';
         // Whole-page fetches lazyload these thumbnails: `src` holds a
         // placeholder data: URI and the real CDN url is in `data-src`.
         // Section-scoped fetches skip lazyload and put it straight in `src`.
         // Prefer data-src; fall back to src only when it isn't a data: URI.
         const dataSrc = /\bdata-src="([^"]+)"/.exec(imgAttrs)?.[1];
         const src = /\bsrc="([^"]+)"/.exec(imgAttrs)?.[1];
-        const thumbUrl = dataSrc ?? (src && !src.startsWith('data:') ? src : null);
-        banners.push({ title, thumbUrl: thumbUrl ? decodeHtmlEntities(thumbUrl) : null });
+        const rawThumb = dataSrc ?? (src && !src.startsWith('data:') ? src : null);
+        const thumbUrl = rawThumb ? decodeHtmlEntities(rawThumb) : null;
+        const existing = byTitle.get(title);
+        if (!existing) byTitle.set(title, { title, thumbUrl });
+        else if (!existing.thumbUrl && thumbUrl) existing.thumbUrl = thumbUrl;
       }
+      const banners = [...byTitle.values()];
       if (banners.length > 0) out.push({ label, banners });
     }
     return out;

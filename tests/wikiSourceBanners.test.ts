@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { normalizeNewlines } from '../src/data/wiki/parser.ts';
@@ -18,7 +18,19 @@ function load(name: string): string {
 const WISH_INDEX_HTML = load('genshin_wish_index.html');
 const UNMAPPED_CATEGORY_HTML = load('genshin_wish_index_unmapped_category.html');
 
+const WARP_INDEX_HTML = load('hsr_warp_index.html');
+
+// HSR per-Banner wikitext, keyed by dated page title; fixture names are the
+// title with spaces -> `_` and `/` -> `__`.
+const HSR_WIKITEXT_BY_TITLE: Record<string, string> = Object.fromEntries(
+  readdirSync(FIXTURES)
+    .map((f) => /^hsr_(.+)__(\d{4}-\d{2}-\d{2})\.wikitext$/.exec(f))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => [`${m[1].replace(/_/g, ' ')}/${m[2]}`, load(m[0])]),
+);
+
 const WIKITEXT_BY_TITLE: Record<string, string> = {
+  ...HSR_WIKITEXT_BY_TITLE,
   'Somnias a Luna/2026-07-21': load('genshin_Somnias_a_Luna__2026-07-21.wikitext'),
   'Reign of Serenity/2026-07-21': load('genshin_Reign_of_Serenity__2026-07-21.wikitext'),
   'Epitome Invocation/2026-07-21': load('genshin_Epitome_Invocation__2026-07-21.wikitext'),
@@ -31,6 +43,7 @@ function jsonResponse(body: unknown): Response {
 
 interface StubOptions {
   wishHtml?: string;
+  warpHtml?: string;
   /** Per-title overrides: a string replaces the default wikitext lookup, and
    * `null` simulates the wiki returning a parse error for that title. */
   wikitextOverrides?: Record<string, string | null>;
@@ -53,6 +66,9 @@ function stubWikiFetch(opts: StubOptions = {}) {
 
     if (action === 'parse' && page === 'Wish' && prop === 'text') {
       return jsonResponse({ parse: { title: 'Wish', text: opts.wishHtml ?? WISH_INDEX_HTML } });
+    }
+    if (action === 'parse' && page === 'Warp' && prop === 'text') {
+      return jsonResponse({ parse: { title: 'Warp', text: opts.warpHtml ?? WARP_INDEX_HTML } });
     }
 
     if (action === 'parse' && prop === 'wikitext' && page) {
@@ -231,9 +247,84 @@ describe('WikiSource.fetchBanners', () => {
 
   it('returns empty sections with no network request for a game with no configured banner page', async () => {
     const { fetchMock } = stubWikiFetch();
-    const banners = await new WikiSource().fetchBanners('hsr');
+    const banners = await new WikiSource().fetchBanners('zzz');
 
     expect(banners).toMatchObject({ current: [], upcoming: [] });
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('WikiSource.fetchBanners (HSR)', () => {
+  it('groups Warp Banners by the category from the wiki, in wiki order, with Banners nested', async () => {
+    stubWikiFetch();
+    const banners = await new WikiSource().fetchBanners('hsr');
+
+    expect(banners.current.map((s) => s.label)).toEqual([
+      'Character Event Warp',
+      'Light Cone Event Warp',
+      'Character Collaboration Warp',
+      'Light Cone Collaboration Warp',
+    ]);
+    expect(banners.current[0].banners.map((b) => b.title)).toEqual([
+      'An Ocean in a Pearl/2026-09-28',
+      'The Demoiselle in Charge/2026-09-28',
+    ]);
+    expect(banners.current[1].banners.map((b) => b.title)).toEqual([
+      'Brilliant Fixation/2026-09-28',
+      'Bygone Reminiscence/2026-09-28',
+    ]);
+  });
+
+  it('requests the Warp listing page and nothing outside api.php', async () => {
+    const { calls } = stubWikiFetch();
+    await new WikiSource().fetchBanners('hsr');
+
+    const listing = calls.filter((u) => u.searchParams.get('prop') === 'text');
+    expect(listing.map((u) => u.searchParams.get('page'))).toEqual(['Warp']);
+    for (const url of calls) {
+      expect(url.pathname).toBe('/api.php');
+      expect(url.searchParams.get('origin')).toBe('*');
+    }
+  });
+
+  it('reads the real thumbnail from data-src when src is a lazy-load data: URI', async () => {
+    stubWikiFetch({ imagesUnresolvable: true });
+    const banners = await new WikiSource().fetchBanners('hsr');
+
+    const ocean = banners.current[0].banners[0];
+    expect(ocean.imageUrl).toMatch(/^https:\/\/static\.wikia\.nocookie\.net\/.*An_Ocean_in_a_Pearl_2026-09-28\.png/);
+  });
+
+  it('populates Light Cone featured lists without leaking standard-pool fields', async () => {
+    stubWikiFetch();
+    const banners = await new WikiSource().fetchBanners('hsr');
+
+    const brilliant = banners.current[1].banners[0];
+    expect(brilliant.featured5Star).toEqual(['Colors for Tomorrow']);
+    expect(brilliant.featured4Star).toEqual(['Post-Op Conversation', 'Planetary Rendezvous', 'Boundless Choreo']);
+  });
+
+  it('shows a collaboration Banner with no end date as unknown with a null end, under the wiki label', async () => {
+    stubWikiFetch();
+    const banners = await new WikiSource().fetchBanners('hsr');
+
+    const collab = banners.current.find((s) => s.label === 'Character Collaboration Warp');
+    expect(collab).toBeDefined();
+    expect(collab!.key).toBe('character-collaboration-warp'); // unmapped -> slugified fallback
+    const enuma = collab!.banners.find((b) => b.title === 'Of the Beginning, Enuma Elish/2026-07-24')!;
+    expect(enuma.featured5Star).toEqual(['Gilgamesh']);
+    expect(enuma.status).toBe('unknown');
+    expect(enuma.endUnix).toBeNull();
+  });
+
+  it('lists Upcoming Banners whose art is not uploaded yet, with no thumbnail', async () => {
+    stubWikiFetch({ imagesUnresolvable: true });
+    const banners = await new WikiSource().fetchBanners('hsr');
+
+    expect(banners.upcoming.map((s) => s.label)).toEqual(['Character Event Warp', 'Light Cone Event Warp']);
+    const blade = banners.upcoming[0].banners[0];
+    expect(blade.title).toBe('Now I Am Become Blade/2026-10-21');
+    expect(blade.featured5Star).toEqual(['Mortenax Blade']);
+    expect(blade.imageUrl).toBeNull();
   });
 });

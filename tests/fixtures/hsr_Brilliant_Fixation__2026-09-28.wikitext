@@ -1,0 +1,60 @@
+{{Warp
+|name              = Brilliant Fixation 2026-09-28
+|image             = Brilliant Fixation 2026-09-28.png
+|type              = Light Cone Event
+|duration          = event
+|time_known        = yes
+|time_start        = 2026-09-28 11:00:00
+|time_start_offset = GMT+8
+|time_end          = 2026-11-10 15:00:00
+<!--|time_end_offset   = GMT+8-->
+|preceding         = Over the Gilded Tides/2026-09-12
+|preceding2        = A Hunt Through Night/2026-09-12
+|preceding3        = Brilliant Fixation/2026-09-12
+|preceding4        = Bygone Reminiscence/2026-09-12
+<!--
+|succeeding        = 
+|succeeding2       = 
+|succeeding3       = 
+|succeeding4       = 
+-->
+|alongside         = An Ocean in a Pearl/2026-09-28
+|alongside2        = The Demoiselle in Charge/2026-09-28
+|alongside3        = Now I Am Become Blade/2026-10-21
+|alongside4        = Bygone Reminiscence/2026-09-28
+|alongside5        = Bygone Reminiscence/2026-10-21
+|link              = https://www.hoyolab.com/article/46851682
+}}
+'''Brilliant Fixation''' is a [[Light Cone Event Warp]] in [[Version 4.6]].
+
+==Event Details==
+During the event, the drop rate of the limited 5{{Star}} [[Light Cone]], {{Light Cone Intro|Colors for Tomorrow}} will be boosted.
+
+===Drop Rate Boost: 5{{Star}} Light Cone===
+* {{Light Cone Intro|Colors for Tomorrow}}
+
+===Drop Rate Boost: 4{{Star}} Light Cones===
+* {{Light Cone Intro|Post-Op Conversation}}
+* {{Light Cone Intro|Planetary Rendezvous}}
+* {{Light Cone Intro|Boundless Choreo}}
+
+==Notes==
+* This Warp runs for the entire duration of Version 4.6 instead of the standard half-patch duration.
+* Among the above Light Cones, the limited Light Cone will not become available in the Stellar Warp event.
+* This Warp is counted as a Light Cone Event Warp. The Warp count for the guarantee with any Light Cone Event Warp will always be carried over to other Light Cone Event Warps, but is independent of and unaffected by other types of Warps.
+{{For|additional information|Warp}}
+
+==Item Pool==
+{{Warp Pool
+|lightcone_5_F = Colors for Tomorrow
+|lightcone_4_F = Post-Op Conversation; Planetary Rendezvous; Boundless Choreo
+|lightcone_5   = But the Battle Isn't Over; In the Name of the World; Moment of Victory; Night on the Milky Way; Sleep Like the Dead; Something Irreplaceable; Time Waits for No One
+|character_4   = Arlan; Asta; Dan Heng; Gallagher; Guinaifen; Hanya; Herta; Hook; Luka; Lynx; March 7th (Preservation); Misha; Moze; Natasha; Pela; Qingque; Sampo; Serval; Sushang; Tingyun; Xueyi; Yukong
+|lightcone_4   = A Little Getaway; A Secret Vow; After the Charmony Fall; Concert for Two; Dance! Dance! Dance!; Day One of My New Life; Dream's Montage; Eyes of the Prey; Geniuses' Greetings; Geniuses' Repose; Good Night and Sleep Well; Indelible Promise; Landau's Choice; Make the World Clamor; Memories of the Past; Only Silence Remains; Perfect Timing; Poised to Bloom; Resolution Shines As Pearls of Sweat; Shadowed by Night; Shared Feeling; Subscribe for More!; Swordplay; The Birth of the Self; The Moles Welcome You; The Story's Next Page; Trend of the Universal Market; Under the Blue Sky
+|lightcone_3   = Adversarial; Amber (Light Cone); Arrows; Chorus; Collapsing Sky; Cornucopia; Darting Arrow; Data Bank (Light Cone); Defense; Fine Fruit; Hidden Shadow; Lingering Tear; Loop; Mediation; Meshing Cogs; Multiplication; Mutual Demise; Passkey; Pioneering; Reminiscence; Sagacity; Shadowburn; Shattered Home; Sneering; Void
+}}
+
+==Change History==
+{{Change History|4.6}}
+
+[[ru:Искрящаяся фиксация/28-09-2026]]

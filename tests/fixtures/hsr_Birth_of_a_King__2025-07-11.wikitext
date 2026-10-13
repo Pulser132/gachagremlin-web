@@ -1,0 +1,58 @@
+{{Warp
+|name              = Birth of a King 2025-07-11
+|image             = Birth of a King 2025-07-11.png
+|type              = Light Cone Collaboration
+|duration          = event
+|time_known        = yes
+|time_start        = 2025-07-11 12:00:00
+<!--|time_start_offset = GMT+8-->
+|time_end          = none
+<!--|time_end_offset   = GMT+8-->
+|preceding         = 
+|preceding2        = 
+|preceding3        = 
+|preceding4        = 
+|succeeding        = 
+|succeeding2       = 
+|succeeding3       =
+|succeeding4       =
+|alongside         = Excalibur Excelsior/2025-07-11
+|alongside2        = I Am the Bone of My Sword/2025-07-11
+|alongside3        = Red Radiance of Fuyuki/2025-07-11
+|alongside4        = The Gem Coursing in Red/2026-07-24
+|alongside5        = Of the Beginning, Enuma Elish/2026-07-24
+|alongside6        = Kaleidic Coruscation/2026-07-24
+|alongside7        = Age of Gods Golden Gate/2026-07-24
+|link              = https://www.hoyolab.com/article/39896770
+}}
+'''Birth of a King''' is a [[Light Cone Collaboration Warp]] in [[Version 3.4]].
+
+==Event Details==
+During the event, the drop rate of the limited 5{{Star}} [[Light Cone]], {{Light Cone Intro|A Thankless Coronation}} will be boosted.
+
+===Drop Rate Boost: 5{{Star}} Light Cone===
+* {{Light Cone Intro|A Thankless Coronation}}
+
+==Notes==
+* Among the above Light Cones, the limited Light Cone will not become available in the [[Stellar Warp]] event.
+* During the Collaboration Warp period, the limited 5-star collaboration Light Cone "A Thankless Coronation (Destruction)" can only be obtained from Light Cone Collaboration Warp "Birth of a King."
+* "Birth of a King" and "Red Radiance of Fuyuki" are considered Light Cone Collaboration Warps, and share the same guaranteed drop counter. The cumulative Warp count for a guaranteed 5-star Light Cone in any "Light Cone Collaboration Warp" will always be carried over to other "Light Cone Collaboration Warps," but is independent of and unaffected by other types of Warps.
+* In this Light Cone Collaboration Warp, there are no featured 4-star rate-up Light Cones. The drop rates for all 4-star Light Cones are equal.
+* This Collaboration Warp will be available for a long time, with no scheduled end date.
+{{For|additional information|Warp}}
+
+==Item Pool==
+{{Warp Pool
+|lightcone_5_F = A Thankless Coronation
+|lightcone_4_F = 
+|lightcone_5   = But the Battle Isn't Over; In the Name of the World; Moment of Victory; Night on the Milky Way; Sleep Like the Dead; Something Irreplaceable; Time Waits for No One
+|character_4   = Arlan; Asta; Dan Heng; Gallagher; Guinaifen; Hanya; Herta; Hook; Luka; Lynx; March 7th (Preservation); Moze; Misha; Natasha; Pela; Qingque; Sampo; Serval; Sushang; Tingyun; Xueyi; Yukong
+|lightcone_4   = A Secret Vow; After the Charmony Fall; Boundless Choreo; Concert for Two; Dance! Dance! Dance!; Day One of My New Life; Dream's Montage; Eyes of the Prey; Geniuses' Greetings; Geniuses' Repose; Good Night and Sleep Well; Indelible Promise; Landau's Choice; Make the World Clamor; Memories of the Past; Only Silence Remains; Perfect Timing; Planetary Rendezvous; Poised to Bloom; Post-Op Conversation; Resolution Shines As Pearls of Sweat; Shadowed by Night; Shared Feeling; Subscribe for More!; Swordplay; The Birth of the Self; The Moles Welcome You; Trend of the Universal Market; Under the Blue Sky
+|lightcone_3   = Adversarial; Amber (Light Cone); Arrows; Chorus; Collapsing Sky; Cornucopia; Darting Arrow; Data Bank (Light Cone); Defense; Fine Fruit; Hidden Shadow; Loop; Mediation; Meshing Cogs; Multiplication; Mutual Demise; Passkey; Pioneering; Reminiscence; Sagacity; Shadowburn; Shattered Home; Void
+}}
+
+==Change History==
+{{Change History|3.4}}
+
+[[ru:Рождение короля/11-07-2025]]
+[[vi:Sự Ra Đời Của Vị Vua/11-07-2025]]
