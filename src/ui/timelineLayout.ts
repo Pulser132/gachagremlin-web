@@ -14,6 +14,8 @@ export const DAY = 86400;
 export const MIN_SPAN_DAYS = 30;
 /** Every bar is drawn at least this wide so short items stay tappable. */
 export const MIN_BAR_PX = 44;
+/** Horizontal room an axis "MM-DD" label needs; narrower days label every Nth gridline. */
+export const TICK_LABEL_MIN_PX = 48;
 /** Breathing room kept between two bars sharing a lane. */
 const LANE_GAP_PX = 6;
 
@@ -47,6 +49,8 @@ export interface TimelineTick {
   x: number;
   /** "MM-DD" in the axis zone. */
   label: string;
+  /** False when the gridline is drawn but its label is dropped to avoid overlap. */
+  labelled: boolean;
 }
 
 export interface TimelineBar {
@@ -269,12 +273,13 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
   // Day gridlines at the axis zone's midnight (not the 04:00 reset). Walk
   // wall-clock days so DST-length days stay correct in a local zone.
   const ticks: TimelineTick[] = [];
+  const labelEvery = Math.max(1, Math.ceil(TICK_LABEL_MIN_PX / pxPerDay));
   for (let wall = Math.ceil((spanStart + offsetAt(spanStart)) / DAY) * DAY; ; wall += DAY) {
     // `wall` is local midnight read as UTC; subtract the offset in force at that
     // midnight (found by a second pass) to get the real instant.
     const unix = wall - offsetAt(wall - offsetAt(wall));
     if (unix > spanEnd) break;
-    ticks.push({ unix, x: (unix - spanStart) / span, label: dayLabel(wall) });
+    ticks.push({ unix, x: (unix - spanStart) / span, label: dayLabel(wall), labelled: ticks.length % labelEvery === 0 });
   }
 
   return { spanStart, spanEnd, spanDays, ticks, nowX: (now - spanStart) / span, nowLabel: clockLabel(now, offsetAt), lanes, tba };

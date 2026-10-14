@@ -169,7 +169,7 @@ function renderScroller(
   for (const tick of layout.ticks) {
     const line = el('div', { className: 'timeline-tick' });
     line.style.left = px(tick.x);
-    line.appendChild(el('span', { text: tick.label }));
+    if (tick.labelled) line.appendChild(el('span', { text: tick.label }));
     axis.appendChild(line);
   }
   canvas.appendChild(axis);

@@ -62,6 +62,23 @@ describe('layoutTimeline span and now line', () => {
     expect(eu.nowX).toBeCloseTo(7 / 30);
   });
 
+  it('labels every tick when days are wide enough', () => {
+    const out = layoutTimeline(input({ pxPerDay: 60 }));
+    expect(out.ticks.every((t) => t.labelled)).toBe(true);
+  });
+
+  it('thins labels at phone density but keeps every gridline', () => {
+    const wide = layoutTimeline(input({ pxPerDay: 30 }));
+    const phone = layoutTimeline(input({ pxPerDay: 18 }));
+    expect(phone.ticks.length).toBe(wide.ticks.length);
+    const labelled = phone.ticks.filter((t) => t.labelled);
+    expect(labelled.length).toBeLessThan(phone.ticks.length);
+    // Labelled ticks are evenly spaced and far enough apart to fit a "MM-DD".
+    const gaps = labelled.slice(1).map((t, i) => (t.unix - labelled[i].unix) / DAY);
+    expect(new Set(gaps).size).toBe(1);
+    expect(gaps[0] * 18).toBeGreaterThanOrEqual(48);
+  });
+
   it('labels ticks with the date in the axis zone', () => {
     const out = layoutTimeline(input({ utcOffsetHours: 8 }));
     // 93*86400 + 16h UTC is day 94 00:00 in UTC+8; day 94 of 1970 = April 5.

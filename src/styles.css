@@ -1462,7 +1462,8 @@ select {
 
 .timeline-axis {
   position: relative;
-  height: 1.6rem;
+  /* Two rows: day labels on top, the now chip beneath so it never covers one. */
+  height: 2.9rem;
   border-bottom: 1px solid var(--border);
 }
 
@@ -1654,7 +1655,7 @@ select {
 
 .timeline-now-label {
   position: absolute;
-  top: 0;
+  top: 1.5rem;
   left: 4px;
   padding: 0 0.3rem;
   border-radius: 3px;
