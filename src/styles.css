@@ -1602,7 +1602,7 @@ select {
   width: min(45%, 9rem);
   object-fit: cover;
   object-position: center 20%;
-  opacity: 0.6;
+  opacity: 0.85;
   pointer-events: none;
   -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
   mask-image: linear-gradient(to right, transparent, #000 70%);
