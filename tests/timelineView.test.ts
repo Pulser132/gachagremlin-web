@@ -283,4 +283,18 @@ describe('local time controls', () => {
     expect(byName('Art').style.color).not.toBe('');
     expect(byName('Broken').style.backgroundColor).toBe('');
   });
+
+  it('puts the art inside the bar as a decorative image, and drops it if it fails to load', () => {
+    const withArt = { ...ev('Art', NOW_S, NOW_S + 5 * DAY), imageUrl: 'https://img/art.png' };
+    const view = renderTimelineView('genshin', events([withArt, ev('Plain', NOW_S, NOW_S + 5 * DAY)]), null, 'America', NOW_S * 1000, {
+      colourSource: async () => null,
+    });
+    const bars = [...view.querySelectorAll<HTMLElement>('button.timeline-bar')];
+    const art = bars[0].querySelector<HTMLImageElement>('img.timeline-bar-art')!;
+    expect(art.getAttribute('src')).toBe('https://img/art.png');
+    expect(art.alt).toBe('');
+    expect(bars[1].querySelector('img')).toBeNull();
+    art.dispatchEvent(new Event('error'));
+    expect(bars[0].querySelector('img')).toBeNull();
+  });
 });

@@ -282,6 +282,16 @@ function renderBar(
   btn.setAttribute('aria-label', labelFor(btn));
 
   btn.addEventListener('click', () => onOpen(b, btn));
+  if (b.imageUrl) {
+    // Decorative: the name and dates already carry the meaning. Dropped if it fails to load.
+    const art = el('img', { className: 'timeline-bar-art' });
+    art.alt = '';
+    art.loading = 'lazy';
+    art.referrerPolicy = 'no-referrer';
+    art.addEventListener('error', () => art.remove());
+    art.src = b.imageUrl;
+    btn.appendChild(art);
+  }
   btn.appendChild(el('span', { className: 'timeline-bar-label', text: b.name }));
   if (widthPx >= CHIP_MIN_PX) {
     const chip = el('span', { className: 'timeline-bar-chip countdown' });

@@ -1593,6 +1593,27 @@ select {
   padding-left: 14px;
 }
 
+/* Art sits behind the text at the right edge and fades out leftwards. */
+.timeline-bar-art {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(45%, 9rem);
+  object-fit: cover;
+  object-position: center 20%;
+  opacity: 0.6;
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 70%);
+  mask-image: linear-gradient(to right, transparent, #000 70%);
+}
+
+.timeline-bar-label,
+.timeline-bar-chip {
+  position: relative;
+  z-index: 1;
+}
+
 .timeline-bar-label {
   position: sticky;
   left: 0.5rem;
