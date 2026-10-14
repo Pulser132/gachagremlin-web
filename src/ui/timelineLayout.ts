@@ -9,7 +9,7 @@ import { categorizeEvent } from '../data/eventCategories.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, Region } from '../types.ts';
 import { resolveRegionUnix } from './eventCard.ts';
 
-const DAY = 86400;
+export const DAY = 86400;
 /** Axis never spans fewer days than this, however little is scheduled. */
 export const MIN_SPAN_DAYS = 30;
 /** Every bar is drawn at least this wide so short items stay tappable. */
@@ -270,6 +270,8 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
   // wall-clock days so DST-length days stay correct in a local zone.
   const ticks: TimelineTick[] = [];
   for (let wall = Math.ceil((spanStart + offsetAt(spanStart)) / DAY) * DAY; ; wall += DAY) {
+    // `wall` is local midnight read as UTC; subtract the offset in force at that
+    // midnight (found by a second pass) to get the real instant.
     const unix = wall - offsetAt(wall - offsetAt(wall));
     if (unix > spanEnd) break;
     ticks.push({ unix, x: (unix - spanStart) / span, label: dayLabel(wall) });

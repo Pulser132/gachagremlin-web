@@ -170,6 +170,7 @@ describe('local time controls', () => {
     updateTimelineNow(view, (NOW_S + 3600) * 1000);
     expect(line.querySelector('.timeline-now-label')?.textContent).toBe('10:00');
     expect(parseFloat(line.style.left)).toBeGreaterThan(before);
+    expect(view.querySelector('[aria-live], [role="status"], [role="alert"]')).toBeNull();
   });
 
   it('keeps the tick out of any live region', () => {

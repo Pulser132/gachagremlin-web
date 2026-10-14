@@ -18,7 +18,7 @@ import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
-import { renderTimelineView, scrollTimelineToNow } from './timelineView.ts';
+import { renderTimelineView, scrollTimelineToNow, updateTimelineNow } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
@@ -52,6 +52,20 @@ const VIEWS: { key: ViewMode; label: string }[] = [
 const wikiSource = new WikiSource();
 const eventSource = cachedSource<GameEvents>((game) => wikiSource.fetchEvents(game), 'gachagremlin:events:');
 const bannerSource = cachedSource<GameBanners>((game) => wikiSource.fetchBanners(game), 'gachagremlin:banners:');
+
+let timelineNowTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** Moves the Timeline's now line on each minute boundary until the view is
+ * replaced; a newer call cancels the previous ticker. */
+function startTimelineNowTicker(view: HTMLElement): void {
+  clearTimeout(timelineNowTimer);
+  const step = (): void => {
+    if (!view.isConnected) return;
+    updateTimelineNow(view, Date.now());
+    timelineNowTimer = setTimeout(step, 60_000 - (Date.now() % 60_000));
+  };
+  timelineNowTimer = setTimeout(step, 60_000 - (Date.now() % 60_000));
+}
 
 function loadPref(key: string): string | null {
   try {
@@ -261,11 +275,12 @@ export function mountApp(root: HTMLElement): void {
         localTime: loadPref(TIMELINE_LOCAL_PREF_KEY) === '1',
         onLocalTimeChange: (on) => {
           savePref(TIMELINE_LOCAL_PREF_KEY, on ? '1' : '0');
-          void render();
+          void render().then(() => document.querySelector<HTMLInputElement>('.timeline-local-toggle input')?.focus());
         },
       });
       main.appendChild(timeline);
       scrollTimelineToNow(timeline);
+      startTimelineNowTicker(timeline);
       main.setAttribute('aria-busy', 'false');
       startCountdownTicker();
       return;

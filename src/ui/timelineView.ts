@@ -2,7 +2,7 @@ import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderCountdownRow } from './countdown.ts';
 import { renderEventCard } from './eventCard.ts';
-import { KIND_LABELS, axisOffset, clockLabel, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
+import { DAY, KIND_LABELS, axisOffset, clockLabel, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
 
 const LOOKBACK_DAYS = 7;
 const PX_PER_DAY_DESKTOP = 30;
@@ -30,17 +30,8 @@ export interface TimelineViewOptions {
   onLocalTimeChange?: (on: boolean) => void;
 }
 
-const MINUTE_MS = 60_000;
-const SECONDS_PER_DAY = 86400;
-/** Repositions the now line and relabels it for a new instant. */
-const nowUpdaters = new WeakMap<HTMLElement, (nowMs: number) => void>();
-
 function browserTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
-}
-
-function prefersReducedMotion(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function isPhone(): boolean {
@@ -94,7 +85,7 @@ export function renderTimelineView(
   );
   const nowBtn = el('button', { className: 'timeline-now-btn', text: 'Jump to now' });
   nowBtn.type = 'button';
-  nowBtn.addEventListener('click', () => scrollTimelineToNow(wrap, !prefersReducedMotion()));
+  nowBtn.addEventListener('click', () => scrollTimelineToNow(wrap));
   toolbar.appendChild(nowBtn);
   wrap.appendChild(toolbar);
 
@@ -124,43 +115,38 @@ export function renderTimelineView(
     wrap.appendChild(tba);
   }
 
-  const nowLine = wrap.querySelector<HTMLElement>('.timeline-now');
-  if (nowLine) {
-    const offsetAt = axisOffset(offset, localTimeZone);
-    const label = nowLine.querySelector<HTMLElement>('.timeline-now-label');
-    nowUpdaters.set(wrap, (ms) => {
-      const now = Math.floor(ms / 1000);
-      nowLine.style.left = `${((now - layout.spanStart) / SECONDS_PER_DAY) * pxPerDay}px`;
-      const text = clockLabel(now, offsetAt);
-      if (label && label.textContent !== text) label.textContent = text;
-    });
-        let attached = false;
-    const timer = setInterval(() => {
-      if (wrap.isConnected) attached = true;
-      else if (attached) return clearInterval(timer);
-      updateTimelineNow(wrap, Date.now());
-    }, MINUTE_MS);
-  }
+  // What updateTimelineNow needs to move the now line without a re-layout.
+  wrap.dataset.spanStart = String(layout.spanStart);
+  wrap.dataset.utcOffsetHours = String(offset);
+  if (localTimeZone) wrap.dataset.localTimeZone = localTimeZone;
 
   return wrap;
 }
 
 /** Moves the now line and rewrites its HH:MM label (only if the text changed).
- * Driven once a minute; deliberately not an aria-live region. */
+ * Driven once a minute by `app.ts`; deliberately not an aria-live region. */
 export function updateTimelineNow(view: HTMLElement, nowMs: number): void {
-  nowUpdaters.get(view)?.(nowMs);
+  const nowLine = view.querySelector<HTMLElement>('.timeline-now');
+  if (!nowLine) return;
+  const now = Math.floor(nowMs / 1000);
+  const pxPerDay = Number(view.dataset.pxPerDay);
+  nowLine.style.left = `${((now - Number(view.dataset.spanStart)) / DAY) * pxPerDay}px`;
+  const offsetAt = axisOffset(Number(view.dataset.utcOffsetHours), view.dataset.localTimeZone);
+  const label = nowLine.querySelector<HTMLElement>('.timeline-now-label');
+  const text = clockLabel(now, offsetAt);
+  if (label && label.textContent !== text) label.textContent = text;
 }
 
 /** Scrolls so the now line sits ~15% in from the left. Call once the view is
  * attached; happy-dom/no-layout environments have zero widths and are no-ops. */
-export function scrollTimelineToNow(view: HTMLElement, smooth = false): void {
+export function scrollTimelineToNow(view: HTMLElement): void {
   const scroller = view.querySelector<HTMLElement>('.timeline-scroll');
   const nowLine = view.querySelector<HTMLElement>('.timeline-now');
   if (!scroller || !nowLine) return;
   const nowPx = parseFloat(nowLine.style.left);
   const left = Math.max(0, nowPx - scroller.clientWidth * NOW_VIEWPORT_FRACTION);
-  if (smooth && typeof scroller.scrollTo === 'function') scroller.scrollTo({ left, behavior: 'smooth' });
-  else scroller.scrollLeft = left;
+  // No animation (PRD): an instant jump is also what reduced-motion asks for.
+  scroller.scrollLeft = left;
 }
 
 function renderScroller(
