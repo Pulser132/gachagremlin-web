@@ -1685,8 +1685,8 @@ select {
   padding: 0 0.75rem;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: transparent;
-  color: var(--text);
+  background: var(--danger-bg);
+  color: var(--danger-text);
   cursor: pointer;
 }
 
@@ -1749,4 +1749,9 @@ select {
   background: transparent;
   color: var(--text);
   cursor: pointer;
+}
+
+.timeline-hide-undo {
+  background: var(--danger-bg);
+  color: var(--danger-text);
 }
