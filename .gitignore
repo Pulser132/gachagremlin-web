@@ -31,3 +31,7 @@ Dev examples
 # Cloudflare Worker local secrets and build cache
 workers/oauth/.dev.vars
 workers/oauth/.wrangler
+
+# Claude Code local settings and worktrees
+.claude/settings.local.json
+.claude/worktrees/
