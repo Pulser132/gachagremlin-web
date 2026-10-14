@@ -2,7 +2,7 @@
  * localStorage persistence for the Events tab's hide preferences.
  *
  * One JSON blob per game at `gachagremlin:eventPrefs:<game>`:
- *   { hiddenNames: string[], hiddenCategories: EventCategory[] }
+ *   { hiddenNames: string[], hiddenCategories: EventCategory[], hiddenBanners?: string[] }
  * Per-game because hiding the Web section for Genshin must not hide it for
  * HSR, mirroring the reminders/backup structure.
  *
@@ -11,6 +11,10 @@
  * subtitles changing between reruns, while reminders key on the specific
  * event instance. Two different keys for two different lifetimes — do not
  * unify them.
+ *
+ * Banner rules (`hiddenBanners`) are a third, narrower lifetime: they hide one
+ * dated run of a banner (see `bannerHideKey`) and live apart from the Event
+ * name rules so identical text never collides across the two.
  *
  * All reads/writes are wrapped in try/catch so private-browsing / quota
  * failures degrade silently, matching src/data/reminders.ts.
@@ -23,7 +27,10 @@ const STORAGE_PREFIX = 'gachagremlin:eventPrefs:';
 interface EventPrefs {
   hiddenNames: string[];
   hiddenCategories: EventCategory[];
+  hiddenBanners: string[];
 }
+
+const emptyPrefs = (): EventPrefs => ({ hiddenNames: [], hiddenCategories: [], hiddenBanners: [] });
 
 // Same pattern as DATE_SUFFIX_RE in src/data/wiki/parser.ts — hide rules can
 // be created from backup entries that never went through cleanEventName.
@@ -62,7 +69,7 @@ function prefsKey(game: GameKey): string {
 function readPrefs(game: GameKey): EventPrefs {
   try {
     const raw = localStorage.getItem(prefsKey(game));
-    if (!raw) return { hiddenNames: [], hiddenCategories: [] };
+    if (!raw) return emptyPrefs();
     const parsed = JSON.parse(raw) as Partial<EventPrefs> | null;
     return {
       hiddenNames: Array.isArray(parsed?.hiddenNames)
@@ -71,9 +78,12 @@ function readPrefs(game: GameKey): EventPrefs {
       hiddenCategories: Array.isArray(parsed?.hiddenCategories)
         ? parsed.hiddenCategories.filter(isEventCategory)
         : [],
+      hiddenBanners: Array.isArray(parsed?.hiddenBanners)
+        ? parsed.hiddenBanners.filter((n): n is string => typeof n === 'string')
+        : [],
     };
   } catch {
-    return { hiddenNames: [], hiddenCategories: [] };
+    return emptyPrefs();
   }
 }
 
@@ -141,4 +151,47 @@ export function setCategoryHidden(game: GameKey, category: EventCategory, hidden
 export function setHiddenCategories(game: GameKey, categories: EventCategory[]): void {
   const valid = [...new Set(categories.filter(isEventCategory))];
   writePrefs(game, { ...readPrefs(game), hiddenCategories: valid });
+}
+
+/**
+ * Canonical hide key for one dated banner run: the wiki page title (which
+ * carries the run's start date), lowercased and whitespace-collapsed. Unlike
+ * `eventHideKey` nothing is stripped — a rule hides exactly that run.
+ */
+export function bannerHideKey(title: string): string {
+  return title.toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+export function listHiddenBanners(game: GameKey): string[] {
+  return readPrefs(game).hiddenBanners;
+}
+
+export function isBannerHidden(game: GameKey, title: string): boolean {
+  return listHiddenBanners(game).includes(bannerHideKey(title));
+}
+
+/** Stores a hide rule for the banner run and returns the stored key. */
+export function hideBanner(game: GameKey, title: string): string {
+  const key = bannerHideKey(title);
+  if (key === '') return key;
+  const prefs = readPrefs(game);
+  if (!prefs.hiddenBanners.includes(key)) {
+    prefs.hiddenBanners.push(key);
+    writePrefs(game, prefs);
+  }
+  return key;
+}
+
+export function unhideBanner(game: GameKey, key: string): void {
+  const prefs = readPrefs(game);
+  const next = prefs.hiddenBanners.filter((k) => k !== key);
+  if (next.length !== prefs.hiddenBanners.length) {
+    writePrefs(game, { ...prefs, hiddenBanners: next });
+  }
+}
+
+/** Replaces the stored banner rule set (backup restore) — re-canonicalizes and dedupes. */
+export function setHiddenBanners(game: GameKey, titles: string[]): void {
+  const keys = [...new Set(titles.map(bannerHideKey).filter((k) => k !== ''))];
+  writePrefs(game, { ...readPrefs(game), hiddenBanners: keys });
 }

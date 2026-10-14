@@ -8,7 +8,7 @@
  *
  *   { schemaVersion, app, exportedAt,
  *     games: { <game>: { activeUid, accounts: { <uid>: WishAccount }, reminders: string[],
- *                        eventPrefs?: { hiddenNames, hiddenCategories } } },
+ *                        eventPrefs?: { hiddenNames, hiddenCategories, hiddenBanners? } } },
  *     prefs: { selectedGame?, selectedRegion?, selectedView?, eventSort? } }
  *
  * Restore MERGES rather than overwrites (unioning pulls via the same dedupe as
@@ -17,7 +17,14 @@
  */
 import type { GameKey, WishAccount } from '../types.ts';
 import { isEventCategory } from './eventCategories.ts';
-import { listHiddenCategories, listHiddenNames, setHiddenCategories, setHiddenNames } from './eventPrefs.ts';
+import {
+  listHiddenBanners,
+  listHiddenCategories,
+  listHiddenNames,
+  setHiddenBanners,
+  setHiddenCategories,
+  setHiddenNames,
+} from './eventPrefs.ts';
 import { GAME_KEYS } from './wiki/games.ts';
 import { listReminders, setReminders } from './reminders.ts';
 import { getActiveUid, listAccounts, loadAccount, restoreAccount, setActiveUid } from './wishes/store.ts';
@@ -31,7 +38,7 @@ interface GameBackup {
   reminders: string[];
   /** Optional (added post-v1-launch): hide rules + hidden sections for the
    * Events tab. Older files simply lack the key; absence means empty. */
-  eventPrefs?: { hiddenNames: string[]; hiddenCategories: string[] };
+  eventPrefs?: { hiddenNames: string[]; hiddenCategories: string[]; hiddenBanners?: string[] };
 }
 
 export interface BackupFile {
@@ -71,7 +78,11 @@ export function exportAll(now: () => number = Date.now): BackupFile {
       activeUid: getActiveUid(game),
       accounts,
       reminders: listReminders(game),
-      eventPrefs: { hiddenNames: listHiddenNames(game), hiddenCategories: listHiddenCategories(game) },
+      eventPrefs: {
+        hiddenNames: listHiddenNames(game),
+        hiddenCategories: listHiddenCategories(game),
+        hiddenBanners: listHiddenBanners(game),
+      },
     };
   }
 
@@ -189,6 +200,12 @@ export function importBackup(data: unknown, options: ImportBackupOptions = {}): 
         : [];
       if (categories.length > 0) {
         setHiddenCategories(game, [...listHiddenCategories(game), ...categories]);
+      }
+      const banners = Array.isArray(hidePrefs.hiddenBanners)
+        ? hidePrefs.hiddenBanners.filter((n): n is string => typeof n === 'string')
+        : [];
+      if (banners.length > 0) {
+        setHiddenBanners(game, [...listHiddenBanners(game), ...banners]);
       }
     }
 

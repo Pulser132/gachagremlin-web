@@ -1,6 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  bannerHideKey,
   eventHideKey,
+  hideBanner,
+  isBannerHidden,
+  listHiddenBanners,
+  setHiddenBanners,
+  unhideBanner,
   hideEvent,
   isCategoryHidden,
   isEventHidden,
@@ -175,5 +181,41 @@ describe('degradation', () => {
     expect(listHiddenNames('genshin')).toEqual([]);
     expect(() => hideEvent('genshin', 'Heated Battle Mode')).not.toThrow();
     expect(() => setCategoryHidden('genshin', 'web', true)).not.toThrow();
+  });
+});
+
+describe('banner hide rules', () => {
+  it('canonicalises to a lowercased, collapsed dated-run key without series stripping', () => {
+    expect(bannerHideKey('  Wishful   Drops: Event 2026-01-01 ')).toBe('wishful drops: event 2026-01-01');
+  });
+
+  it('round-trips hide/unhide', () => {
+    const key = hideBanner('genshin', 'Some Banner 2026-01-01');
+    expect(isBannerHidden('genshin', 'some  BANNER 2026-01-01')).toBe(true);
+    expect(isBannerHidden('hsr', 'Some Banner 2026-01-01')).toBe(false);
+    unhideBanner('genshin', key);
+    expect(listHiddenBanners('genshin')).toEqual([]);
+  });
+
+  it('never collides with event name rules, even for identical text', () => {
+    hideBanner('genshin', 'Same Text');
+    expect(listHiddenNames('genshin')).toEqual([]);
+    expect(isEventHidden('genshin', 'Same Text')).toBe(false);
+    hideEvent('genshin', 'Other Text');
+    expect(isBannerHidden('genshin', 'Other Text')).toBe(false);
+  });
+
+  it('setHiddenBanners re-canonicalises and dedupes, preserving other prefs', () => {
+    setHiddenCategories('genshin', ['web']);
+    setHiddenBanners('genshin', ['A 1', 'a  1', '']);
+    expect(listHiddenBanners('genshin')).toEqual(['a 1']);
+    expect(listHiddenCategories('genshin')).toEqual(['web']);
+  });
+
+  it('reads an old blob without the field, or with junk, as empty', () => {
+    localStorage.setItem('gachagremlin:eventPrefs:genshin', JSON.stringify({ hiddenNames: ['x'], hiddenCategories: [] }));
+    expect(listHiddenBanners('genshin')).toEqual([]);
+    localStorage.setItem('gachagremlin:eventPrefs:genshin', JSON.stringify({ hiddenBanners: ['ok', 3] }));
+    expect(listHiddenBanners('genshin')).toEqual(['ok']);
   });
 });

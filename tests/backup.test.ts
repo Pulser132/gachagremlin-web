@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BACKUP_SCHEMA_VERSION, exportAll, importBackup, UnsupportedBackupVersionError } from '../src/data/backup.ts';
-import { hideEvent, listHiddenCategories, listHiddenNames, setCategoryHidden, unhideEvent } from '../src/data/eventPrefs.ts';
+import { hideBanner, hideEvent, listHiddenBanners, listHiddenCategories, listHiddenNames, setCategoryHidden, unhideEvent } from '../src/data/eventPrefs.ts';
 import { listReminders, toggleReminder } from '../src/data/reminders.ts';
 import { getActiveUid, importPayload, loadAccount, setActiveUid, setNickname } from '../src/data/wishes/store.ts';
 import type { WishItem, WishPayload } from '../src/types.ts';
@@ -163,8 +163,9 @@ describe('event prefs in backups', () => {
     expect(backup.games.genshin.eventPrefs).toEqual({
       hiddenNames: ['heated battle mode'],
       hiddenCategories: ['web'],
+      hiddenBanners: [],
     });
-    expect(backup.games.hsr.eventPrefs).toEqual({ hiddenNames: [], hiddenCategories: [] });
+    expect(backup.games.hsr.eventPrefs).toEqual({ hiddenNames: [], hiddenCategories: [], hiddenBanners: [] });
     expect(backup.prefs.eventSort).toBe('time');
   });
 
@@ -193,6 +194,25 @@ describe('event prefs in backups', () => {
     // The union resurrects it — which is why the un-hide path must sync
     // push-only instead of merging (verified at the sync layer, not here).
     expect(listHiddenNames('genshin')).toEqual(['heated battle mode']);
+  });
+
+  it('exports banner rules and imports them by union, deduped and canonicalized', () => {
+    hideBanner('genshin', 'Local Banner 2026-01-01');
+    const backup = exportAll();
+    expect(backup.games.genshin.eventPrefs?.hiddenBanners).toEqual(['local banner 2026-01-01']);
+    expect(backup.schemaVersion).toBe(1);
+
+    backup.games.genshin.eventPrefs!.hiddenBanners = ['LOCAL  banner 2026-01-01', 'Other 2026-02-02', 7 as never];
+    importBackup(backup);
+    expect(listHiddenBanners('genshin').sort()).toEqual(['local banner 2026-01-01', 'other 2026-02-02']);
+    expect(listHiddenNames('genshin')).toEqual([]);
+  });
+
+  it('loads a backup whose eventPrefs lacks hiddenBanners as empty', () => {
+    const backup = exportAll();
+    delete backup.games.genshin.eventPrefs!.hiddenBanners;
+    importBackup(backup);
+    expect(listHiddenBanners('genshin')).toEqual([]);
   });
 
   it('imports a legacy v1 file without eventPrefs cleanly', () => {
