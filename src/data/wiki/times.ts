@@ -53,6 +53,31 @@ function matchWalltime(text: string): Walltime | null {
   return [Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])];
 }
 
+function allWalltimes(text: string): Walltime[] {
+  const out: Walltime[] = [];
+  for (const m of text.matchAll(new RegExp(DATETIME_RE.source, 'g'))) {
+    out.push([Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])]);
+  }
+  return out;
+}
+
+/**
+ * The datetimes of the bullet that states the event's own window. Later
+ * bullets are sub-phases ("Disturbance Outbreak", "Result Announcement",
+ * "Quest Completion Period") whose dates must not leak into the event's end,
+ * so pick a bullet labelled "Event Duration", else the first one holding a
+ * start-and-end pair, else the first one holding any datetime.
+ */
+function displayedWalltimes(bullets: string[]): Walltime[] {
+  const parsed = bullets.map((b) => ({ bullet: b, times: allWalltimes(b) }));
+  const dated = parsed.filter((p) => p.times.length > 0);
+  const pick =
+    dated.find((p) => /event duration/i.test(p.bullet)) ??
+    dated.find((p) => p.times.length >= 2) ??
+    dated[0];
+  return pick ? pick.times : [];
+}
+
 /**
  * Return [start, end] as wall-clock component tuples.
  *
@@ -65,11 +90,7 @@ export function findWalltimes(
   fields: Record<string, string>,
   durationBullets: string[],
 ): [Walltime | null, Walltime | null] {
-  const text = durationBullets.join(' ');
-  const displayed: Walltime[] = [];
-  for (const m of text.matchAll(new RegExp(DATETIME_RE.source, 'g'))) {
-    displayed.push([Number(m[1]), Number(m[2]), Number(m[3]), Number(m[4]), Number(m[5])]);
-  }
+  const displayed = displayedWalltimes(durationBullets);
 
   let start: Walltime | null = null;
   let end: Walltime | null = null;

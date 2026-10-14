@@ -67,6 +67,34 @@ describe('findWalltimes', () => {
     expect(start).toEqual([2026, 7, 1, 11, 0]);
   });
 
+  it('takes the end from the Event Duration bullet, not later phase bullets', () => {
+    const bullets = [
+      'Event Duration: 2026/09/30 10:00 - 2026/11/03 03:59',
+      'Disturbance Outbreak: 2026/09/30 10:00 - 2026/10/10 03:59',
+    ];
+    const [start, end] = findWalltimes({}, bullets);
+    expect(start).toEqual([2026, 9, 30, 10, 0]);
+    expect(end).toEqual([2026, 11, 3, 3, 59]);
+  });
+
+  it('ignores a trailing result-announcement bullet', () => {
+    const bullets = [
+      'Event Duration: 2026/10/11 22:00 ~ 2026/10/19 21:59 (UTC-4)',
+      'Result Announcement: 2026/10/19 22:00 ~ 2026/10/22 21:59 (UTC-4)',
+    ];
+    const [, end] = findWalltimes({}, bullets);
+    expect(end).toEqual([2026, 10, 19, 21, 59]);
+  });
+
+  it('prefers the labelled Event Duration bullet even when it is not first', () => {
+    const bullets = [
+      'Quest Completion Period: 2026/10/19 10:00 – 2026/10/29 04:00',
+      'Event Duration: 2026/10/19 10:00 – 2026/11/02 03:59',
+    ];
+    const [, end] = findWalltimes({}, bullets);
+    expect(end).toEqual([2026, 11, 2, 3, 59]);
+  });
+
   it('returns [null, null] when nothing is present', () => {
     expect(findWalltimes({}, [])).toEqual([null, null]);
   });
