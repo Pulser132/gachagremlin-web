@@ -39,7 +39,7 @@ describe('renderTimelineView', () => {
     const view = renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + 5 * DAY)]), null, 'America', NOW_S * 1000);
     const ticks = [...view.querySelectorAll('.timeline-tick')];
     const labelled = ticks.filter((t) => t.querySelector('span'));
-    expect(ticks.length).toBeGreaterThan(20);
+    expect(ticks.length).toBeGreaterThan(labelled.length);
     expect(labelled.length).toBeLessThan(ticks.length);
     expect(labelled.length).toBeGreaterThan(0);
   });

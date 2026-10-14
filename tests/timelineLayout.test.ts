@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layoutTimeline, MIN_BAR_PX, type TimelineInput } from '../src/ui/timelineLayout.ts';
+import { layoutTimeline, MIN_BAR_PX, TICK_LABEL_MIN_PX, type TimelineInput } from '../src/ui/timelineLayout.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, RegionUnix } from '../src/types.ts';
 
 const DAY = 86400;
@@ -69,14 +69,15 @@ describe('layoutTimeline span and now line', () => {
 
   it('thins labels at phone density but keeps every gridline', () => {
     const wide = layoutTimeline(input({ pxPerDay: 30 }));
-    const phone = layoutTimeline(input({ pxPerDay: 18 }));
+    const PHONE_PX = 18;
+    const phone = layoutTimeline(input({ pxPerDay: PHONE_PX }));
     expect(phone.ticks.length).toBe(wide.ticks.length);
     const labelled = phone.ticks.filter((t) => t.labelled);
     expect(labelled.length).toBeLessThan(phone.ticks.length);
     // Labelled ticks are evenly spaced and far enough apart to fit a "MM-DD".
     const gaps = labelled.slice(1).map((t, i) => (t.unix - labelled[i].unix) / DAY);
     expect(new Set(gaps).size).toBe(1);
-    expect(gaps[0] * 18).toBeGreaterThanOrEqual(48);
+    expect(gaps[0] * PHONE_PX).toBeGreaterThanOrEqual(TICK_LABEL_MIN_PX);
   });
 
   it('labels ticks with the date in the axis zone', () => {

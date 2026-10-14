@@ -279,7 +279,8 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     // midnight (found by a second pass) to get the real instant.
     const unix = wall - offsetAt(wall - offsetAt(wall));
     if (unix > spanEnd) break;
-    ticks.push({ unix, x: (unix - spanStart) / span, label: dayLabel(wall), labelled: ticks.length % labelEvery === 0 });
+    const index = ticks.length;
+    ticks.push({ unix, x: (unix - spanStart) / span, label: dayLabel(wall), labelled: index % labelEvery === 0 });
   }
 
   return { spanStart, spanEnd, spanDays, ticks, nowX: (now - spanStart) / span, nowLabel: clockLabel(now, offsetAt), lanes, tba };
