@@ -1605,6 +1605,8 @@ select {
   white-space: nowrap;
   font-family: var(--font-mono);
   font-size: 0.75rem;
+  /* Follows the bar's text colour, which art-derived colours override inline. */
+  color: inherit;
 }
 
 .timeline-cat-ingame { --cat-colour: #7fc4a0; }

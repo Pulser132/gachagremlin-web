@@ -270,4 +270,17 @@ describe('local time controls', () => {
     expect(btn.tagName).toBe('BUTTON');
     expect(btn.textContent).toBe('Jump to now');
   });
+
+  it('tints a bar from its art and leaves bars whose colour fails on the category colour', async () => {
+    const withArt = { ...ev('Art', NOW_S, NOW_S + 5 * DAY), imageUrl: 'https://img/art.png' };
+    const broken = { ...ev('Broken', NOW_S, NOW_S + 5 * DAY), imageUrl: 'https://img/bad.png' };
+    const colourSource = async (url: string | null) => (url === 'https://img/art.png' ? { bg: '#aa3333', text: '#ffffff' } : null);
+    const view = renderTimelineView('genshin', events([withArt, broken]), null, 'America', NOW_S * 1000, { colourSource });
+    await new Promise((r) => setTimeout(r, 0));
+    const byName = (n: string) =>
+      [...view.querySelectorAll<HTMLElement>('button.timeline-bar')].find((b) => b.textContent?.startsWith(n))!;
+    expect(byName('Art').style.backgroundColor).not.toBe('');
+    expect(byName('Art').style.color).not.toBe('');
+    expect(byName('Broken').style.backgroundColor).toBe('');
+  });
 });
