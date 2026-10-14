@@ -1,0 +1,65 @@
+{{Warp
+|name              = Excalibur Excelsior 2025-07-11
+|image             = Excalibur Excelsior 2025-07-11.png
+|type              = Character Collaboration
+|duration          = event
+|time_known        = yes
+|time_start        = 2025-07-11 12:00:00
+<!--|time_start_offset = GMT+8-->
+|time_end          = none
+<!--|time_end_offset   = GMT+8-->
+|preceding         = 
+|preceding2        = 
+|preceding3        = 
+|preceding4        = 
+|succeeding        = 
+|succeeding2       = 
+|succeeding3       = 
+|succeeding4       = 
+|alongside         = I Am the Bone of My Sword/2025-07-11
+|alongside2        = Birth of a King/2025-07-11
+|alongside3        = Red Radiance of Fuyuki/2025-07-11
+|alongside4        = The Gem Coursing in Red/2026-07-24
+|alongside5        = Of the Beginning, Enuma Elish/2026-07-24
+|alongside6        = Kaleidic Coruscation/2026-07-24
+|alongside7        = Age of Gods Golden Gate/2026-07-24
+<!--
+|previous          = {{subst:ROOTPAGENAME}}/YYYY-MM-DD
+|next              = {{subst:ROOTPAGENAME}}/YYYY-MM-DD
+-->
+|link              = https://www.hoyolab.com/article/39896770
+|earlyaccess       = <!--any domains with early access during the warp separated by semicolons-->
+|othertrial        = Along With Heroic Spirits
+}}
+'''Excalibur Excelsior''' is a [[Character Collaboration Warp]] in [[Version 3.4]].
+
+==Event Details==
+During the event, the drop rate of the limited 5{{star}} character {{Character Intro|Saber}} will be boosted.
+
+===Drop Rate Boost: 5{{star}} Character===
+* {{Character Intro|Saber}}
+
+==Notes==
+* Among the above characters, the limited character will not be available in the [[Stellar Warp]] event.
+* In the Character Collaboration Warp, obtainable 5-star characters include the featured 5-star characters and the custom-selected characters from "Celestial Invitation."
+* During the Collaboration Warp period, the limited 5-star collaboration character "Saber (Destruction: Wind)" can only be obtained from Character Collaboration Warp "Excalibur Excelsior."
+* "Excalibur Excelsior" and "I Am the Bone of My Sword" are considered Character Collaboration Warps, and share the same guaranteed drop counter. The cumulative Warp count for a guaranteed 5-star character in any "Character Collaboration Warp" will always be carried over to other "Character Collaboration Warps", but is independent of and unaffected by other types of Warps.
+* In this Character Collaboration Warp, there are no featured 4-star rate-up characters. The drop rates for all 4-star characters are equal.
+* This Collaboration Warp will be available for a long time, with no scheduled end date.
+{{For|additional information|Warp}}
+
+==Item Pool==
+{{Warp Pool
+|character_5_F = Saber
+|character_4_F = 
+|character_5   = Argenti; Bailu; Blade; Bronya; Clara; Fu Xuan; Gepard; Himeko; Seele; Silver Wolf; Welt; Yanqing; Yunli
+|character_4   = Arlan; Asta; Dan Heng; Gallagher; Guinaifen; Hanya; Herta; Hook; Luka; Lynx; March 7th (Preservation); Moze; Misha; Natasha; Pela; Qingque; Sampo; Serval; Sushang; Tingyun; Xueyi; Yukong
+|lightcone_4   = A Secret Vow; After the Charmony Fall; Boundless Choreo; Concert for Two; Dance! Dance! Dance!; Day One of My New Life; Dream's Montage; Eyes of the Prey; Geniuses' Greetings; Geniuses' Repose; Good Night and Sleep Well; Indelible Promise; Landau's Choice; Make the World Clamor; Memories of the Past; Only Silence Remains; Perfect Timing; Planetary Rendezvous; Poised to Bloom; Post-Op Conversation; Resolution Shines As Pearls of Sweat; Shadowed by Night; Shared Feeling; Subscribe for More!; Swordplay; The Birth of the Self; The Moles Welcome You; Trend of the Universal Market; Under the Blue Sky
+|lightcone_3   = Adversarial; Amber (Light Cone); Arrows; Chorus; Collapsing Sky; Cornucopia; Darting Arrow; Data Bank (Light Cone); Defense; Fine Fruit; Hidden Shadow; Loop; Mediation; Meshing Cogs; Multiplication; Mutual Demise; Passkey; Pioneering; Reminiscence; Sagacity; Shadowburn; Shattered Home; Void
+}}
+
+==Change History==
+{{Change History|3.4}}
+
+[[ru:Клятва священного меча/11-07-2025]]
+[[vi:Lời Thề Của Thánh Kiếm Rực Cháy/11-07-2025]]

@@ -68,8 +68,7 @@ export const GAME_CONFIGS: Record<GameKey, GameConfig> = {
     label: 'Honkai: Star Rail',
     host: 'honkai-star-rail.fandom.com',
     indexPage: 'Events',
-    // Banner listing not wired up yet (empty bannerIndexPages).
-    bannerIndexPages: [],
+    bannerIndexPages: ['Warp'],
     bannerIndexShape: 'table',
     bannerInfoboxTemplate: 'Warp',
     itemPool: {

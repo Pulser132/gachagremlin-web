@@ -34,14 +34,14 @@ export function renderBannersView(game: GameKey, banners: GameBanners | null, re
   }
 
   for (const section of banners.current) {
-    wrap.appendChild(renderCategorySection(section, region, 'h2'));
+    wrap.appendChild(renderCategorySection(section, game, region, 'h2'));
   }
 
   if (banners.upcoming.length > 0) {
     const upcomingWrap = el('div', { className: 'banners-upcoming' });
     upcomingWrap.appendChild(el('h2', { text: 'Upcoming' }));
     for (const section of banners.upcoming) {
-      upcomingWrap.appendChild(renderCategorySection(section, region, 'h3'));
+      upcomingWrap.appendChild(renderCategorySection(section, game, region, 'h3'));
     }
     wrap.appendChild(upcomingWrap);
   }
@@ -59,15 +59,16 @@ function renderUnsupportedPanel(game: GameKey): HTMLElement {
 
 function renderCategorySection(
   section: BannerCategorySection,
+  game: GameKey,
   region: Region,
   headingTag: 'h2' | 'h3',
 ): HTMLElement {
   const heading = el(headingTag, { text: section.label });
-  const cards = section.banners.map((banner) => renderBannerCard(banner, region));
+  const cards = section.banners.map((banner) => renderBannerCard(banner, game, region));
   return renderCardSection('event-section banner-category-section', heading, cards);
 }
 
-function renderBannerCard(banner: BannerInfo, region: Region): HTMLElement {
+function renderBannerCard(banner: BannerInfo, game: GameKey, region: Region): HTMLElement {
   const card = el('article', { className: `event-card banner-live-card status-${banner.status}` });
 
   if (banner.imageUrl) {
@@ -93,7 +94,7 @@ function renderBannerCard(banner: BannerInfo, region: Region): HTMLElement {
     p.appendChild(document.createTextNode(banner.featured5Star.join(', ')));
     card.appendChild(p);
   }
-  if (banner.featured4Star.length > 0) {
+  if (getGame(game).showFeaturedSecondTier && banner.featured4Star.length > 0) {
     const p = el('p', { className: 'banner-featured banner-featured-4' });
     p.appendChild(el('strong', { text: '★4 ' }));
     p.appendChild(document.createTextNode(banner.featured4Star.join(', ')));
