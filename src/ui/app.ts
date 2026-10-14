@@ -257,6 +257,7 @@ export function mountApp(root: HTMLElement): void {
   async function render(forceRefresh = false): Promise<void> {
     const myGen = ++renderGen;
     if (view !== 'timeline' || lastHide?.game !== game) lastHide = null;
+    if (view !== 'timeline') timelineRestore = null; // a render that never reached the Timeline must not leak its restore into a later one
     // Set on <html>, not #app: the per-game accent/geometry tokens it drives
     // (src/styles.css) need to reach the import dialog too, which is
     // appended to document.body (outside #app) so native <dialog> gets a

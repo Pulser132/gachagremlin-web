@@ -183,6 +183,15 @@ describe('hide status bar', () => {
     expect(region.textContent).toContain('Hid Ev (all reruns).');
   });
 
+  it('keeps focus in the view when nothing is left to draw', () => {
+    const view = renderTimelineView('genshin', events([]), null, 'America', NOW_S * 1000, { hideStatus: status() });
+    document.body.innerHTML = '';
+    document.body.appendChild(view);
+    expect(view.querySelector('.timeline-scroll')).toBeNull();
+    focusTimelineBar(view, null);
+    expect(view.contains(document.activeElement)).toBe(true);
+  });
+
   it('reports the hidden bar id on the hide request', () => {
     const { view, onHide } = mount([ev('Ev', NOW_S, NOW_S + 5 * DAY)]);
     bars(view)[0].click();
