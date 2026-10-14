@@ -1,0 +1,121 @@
+// @vitest-environment happy-dom
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { focusTimelineBar, renderTimelineView } from '../src/ui/timelineView.ts';
+import type { BannerInfo, EventInfo, GameBanners, GameEvents, RegionUnix } from '../src/types.ts';
+
+const DAY = 86400;
+const NOW_S = 100 * DAY;
+const all = (n: number): RegionUnix => ({ America: n, Europe: n, Asia: n, SAR: n });
+
+function ev(name: string, start: number | null, end: number | null): EventInfo {
+  return {
+    game: 'genshin', title: name, name, type: 'In-game', group: '', status: 'active', globalTime: false,
+    reward: '', rewardType: '', characters: [], description: '', hoyolabLinks: [], durationText: [],
+    requirements: [], imageUrl: null, startWalltime: null, endWalltime: null,
+    startUnix: start === null ? null : all(start), endUnix: end === null ? null : all(end),
+  };
+}
+
+const events = (current: EventInfo[]): GameEvents => ({ current, upcoming: [], fetchedAt: 0 });
+
+function banners(): GameBanners {
+  const b: BannerInfo = {
+    game: 'genshin', title: 'Luna/x', name: 'Luna', status: 'active', featured5Star: [], featured4Star: [],
+    imageUrl: null, startUnix: all(NOW_S), endUnix: all(NOW_S + 10 * DAY), wikiUrl: 'https://x',
+  };
+  return { current: [{ key: 'character', label: 'Character Event Wish', banners: [b] }], upcoming: [], fetchedAt: 0 };
+}
+
+const bars = (v: HTMLElement) => [...v.querySelectorAll<HTMLButtonElement>('button.timeline-bar')];
+const key = 'gachagremlin:eventPrefs:genshin';
+
+function mount(e: EventInfo[], onHide = vi.fn()) {
+  const view = renderTimelineView('genshin', events(e), banners(), 'America', NOW_S * 1000, { onHide });
+  document.body.innerHTML = '';
+  document.body.appendChild(view);
+  return { view, onHide };
+}
+
+afterEach(() => localStorage.clear());
+
+describe('timeline hide button', () => {
+  it('puts an Event hide button after Close, labelled for all reruns, and reports it', () => {
+    const { view, onHide } = mount([ev('Ev', NOW_S, NOW_S + 5 * DAY)]);
+    bars(view)[0].click();
+    const buttons = [...view.querySelectorAll<HTMLButtonElement>('.timeline-panel button')];
+    const hide = buttons.find((b) => b.classList.contains('timeline-panel-hide'))!;
+    expect(hide.textContent).toBe('Hide Ev — all reruns');
+    expect(buttons.indexOf(hide)).toBeGreaterThan(buttons.findIndex((b) => b.classList.contains('timeline-panel-close')));
+    hide.click();
+    expect(onHide).toHaveBeenCalledWith(expect.objectContaining({ kind: 'event', name: 'Ev' }));
+  });
+
+  it('labels a Banner hide as this run only, with the title in the accessible name', () => {
+    const { view, onHide } = mount([ev('Ev', NOW_S, NOW_S + 5 * DAY)]);
+    bars(view)[1].click();
+    const hide = view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!;
+    expect(hide.textContent).toBe('Hide this banner');
+    expect(hide.getAttribute('aria-label')).toBe('Hide Luna/x — this run only');
+    hide.click();
+    expect(onHide).toHaveBeenCalledWith(expect.objectContaining({ kind: 'banner', title: 'Luna/x' }));
+  });
+
+  it('has no hide button when no onHide is supplied', () => {
+    const view = renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + DAY)]), null, 'America', NOW_S * 1000);
+    bars(view)[0].click();
+    expect(view.querySelector('.timeline-panel-hide')).toBeNull();
+  });
+
+  it('closes the panel and names the next bar in start order, else null', () => {
+    const { view, onHide } = mount([ev('A', NOW_S, NOW_S + DAY), ev('B', NOW_S + DAY, NOW_S + 2 * DAY)]);
+    bars(view)[0].click();
+    view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
+    expect(view.querySelector('.timeline-panel')).toBeNull();
+    expect(onHide.mock.calls[0][0].nextBarId).toBe(bars(view)[1].dataset.barId);
+    bars(view)[2].click(); // the Banner, last in tab order
+    view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
+    expect(onHide.mock.calls[1][0].nextBarId).toBeNull();
+  });
+});
+
+describe('focusTimelineBar', () => {
+  it('focuses the bar by id, else the scroller', () => {
+    const { view } = mount([ev('A', NOW_S, NOW_S + DAY)]);
+    focusTimelineBar(view, bars(view)[0].dataset.barId!);
+    expect(document.activeElement).toBe(bars(view)[0]);
+    focusTimelineBar(view, null);
+    expect(document.activeElement).toBe(view.querySelector('.timeline-scroll'));
+    focusTimelineBar(view, 'gone');
+    expect(document.activeElement).toBe(view.querySelector('.timeline-scroll'));
+  });
+});
+
+describe('hidden-count note', () => {
+  it('is absent when nothing is hidden', () => {
+    const { view } = mount([ev('Ev', NOW_S, NOW_S + DAY)]);
+    expect(view.querySelector('.timeline-hidden-note')).toBeNull();
+  });
+
+  it('counts hidden bars and names the right tab', () => {
+    localStorage.setItem(key, JSON.stringify({ hiddenNames: ['ev'] }));
+    let { view } = mount([ev('Ev', NOW_S, NOW_S + DAY), ev('Keep', NOW_S, NOW_S + DAY)]);
+    expect(view.querySelector('.timeline-hidden-note')?.textContent).toBe(
+      '1 items hidden. Un-hide them from the Hidden list on the Events tab.',
+    );
+    localStorage.setItem(key, JSON.stringify({ hiddenBanners: ['luna/x'] }));
+    ({ view } = mount([ev('Keep', NOW_S, NOW_S + DAY)]));
+    expect(view.querySelector('.timeline-hidden-note')?.textContent).toContain('on the Banners tab.');
+    localStorage.setItem(key, JSON.stringify({ hiddenNames: ['ev'], hiddenBanners: ['luna/x'] }));
+    ({ view } = mount([ev('Ev', NOW_S, NOW_S + DAY)]));
+    expect(view.querySelector('.timeline-hidden-note')?.textContent).toBe(
+      '2 items hidden. Un-hide them from the Hidden list on the Events or Banners tab.',
+    );
+    expect(view.querySelector('[aria-live],[role=status]')).toBeNull();
+  });
+
+  it('does not count hidden items that would not have drawn (undated)', () => {
+    localStorage.setItem(key, JSON.stringify({ hiddenNames: ['mystery'] }));
+    const { view } = mount([ev('Mystery', null, null)]);
+    expect(view.querySelector('.timeline-hidden-note')).toBeNull();
+  });
+});

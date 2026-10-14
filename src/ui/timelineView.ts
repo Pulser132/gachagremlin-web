@@ -23,7 +23,18 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+/** What the player asked to hide from a bar's detail panel. */
+export type HideRequest = (
+  | { kind: 'event'; name: string }
+  | { kind: 'banner'; title: string }
+) & {
+  /** Bar to focus after the re-render (next in tab order), or null for the scroller. */
+  nextBarId: string | null;
+};
+
 export interface TimelineViewOptions {
+  /** Writes the hide rule and re-renders; without it the panel has no hide button. */
+  onHide?: (request: HideRequest) => void;
   /** Show gridlines and the now label in the visitor's timezone. */
   localTime?: boolean;
   /** IANA zone used in local mode; defaults to the browser's. */
@@ -95,6 +106,10 @@ export function renderTimelineView(
     pxPerDay,
   });
 
+  const hiddenKinds = hiddenBarKinds(allEvents, allBanners, layout, {
+    region, utcOffsetHours: offset, localTimeZone, now: Math.floor(nowMs / 1000), lookbackDays: LOOKBACK_DAYS, pxPerDay,
+  });
+
   const wrap = el('div', { className: 'timeline-view' });
   wrap.dataset.pxPerDay = String(pxPerDay);
 
@@ -119,6 +134,16 @@ export function renderTimelineView(
   toolbar.appendChild(nowBtn);
   wrap.appendChild(toolbar);
 
+  if (hiddenKinds.count > 0) {
+    const tabs = hiddenKinds.events && hiddenKinds.banners ? 'Events or Banners' : hiddenKinds.events ? 'Events' : 'Banners';
+    wrap.appendChild(
+      el('p', {
+        className: 'timeline-note timeline-hidden-note',
+        text: `${hiddenKinds.count} items hidden. Un-hide them from the Hidden list on the ${tabs} tab.`,
+      }),
+    );
+  }
+
   if (banners === null) {
     wrap.appendChild(el('p', { className: 'timeline-note', text: "Banners aren't available for this game yet" }));
   } else if (![...banners.current, ...banners.upcoming].some((s) => s.banners.length > 0)) {
@@ -129,7 +154,7 @@ export function renderTimelineView(
     wrap.appendChild(el('p', { className: 'empty', text: 'Nothing with known dates to show on the timeline.' }));
   } else {
     const panelHost = el('div', { className: 'timeline-panel-host' });
-    const panel = createDetailPanel(panelHost, region, offset, localTimeZone ?? undefined);
+    const panel = createDetailPanel(panelHost, region, offset, localTimeZone ?? undefined, opts.onHide);
     const skip = el('a', { className: 'timeline-skip', text: 'Skip timeline' });
     skip.href = '#timeline-end';
     skip.addEventListener('click', (e) => {
@@ -170,6 +195,32 @@ export function renderTimelineView(
   if (localTimeZone) wrap.dataset.localTimeZone = localTimeZone;
 
   return wrap;
+}
+
+/** Counts bars the hide rules removed (those that would otherwise be drawn) and which kinds. */
+function hiddenBarKinds(
+  allEvents: GameEvents,
+  allBanners: GameBanners | null,
+  visible: TimelineLayout,
+  input: Omit<Parameters<typeof layoutTimeline>[0], 'events' | 'banners'>,
+): { count: number; events: boolean; banners: boolean } {
+  const shown = new Set(visible.lanes.flatMap((l) => l.rows.flat().map((b) => b.id)));
+  const out = { count: 0, events: false, banners: false };
+  for (const lane of layoutTimeline({ ...input, events: allEvents, banners: allBanners }).lanes) {
+    for (const bar of lane.rows.flat()) {
+      if (shown.has(bar.id)) continue;
+      out.count++;
+      if (bar.kind === 'events') out.events = true;
+      else out.banners = true;
+    }
+  }
+  return out;
+}
+
+/** Focuses the bar with `barId`; falls back to the scroller, never `document.body`. */
+export function focusTimelineBar(view: HTMLElement, barId: string | null): void {
+  const bar = barId ? [...view.querySelectorAll<HTMLElement>('button.timeline-bar')].find((b) => b.dataset.barId === barId) : null;
+  (bar ?? view.querySelector<HTMLElement>('.timeline-scroll'))?.focus();
 }
 
 /** Moves the now line and rewrites its HH:MM label (only if the text changed).
@@ -283,6 +334,7 @@ function renderBar(
   btn.type = 'button';
   btn.style.left = left;
   btn.style.width = width;
+  btn.dataset.barId = b.id;
   btn.dataset.head = `${b.name}, ${kind}, ${b.category}`;
   btn.dataset.start = String(b.start);
   btn.dataset.end = String(b.end);
@@ -310,7 +362,13 @@ function renderBar(
  * and returns focus to the bar that opened it. Shows the real dates, never the
  * widened drawn width.
  */
-function createDetailPanel(host: HTMLElement, region: Region, offset: number, localTimeZone?: string) {
+function createDetailPanel(
+  host: HTMLElement,
+  region: Region,
+  offset: number,
+  localTimeZone?: string,
+  onHide?: (request: HideRequest) => void,
+) {
   let origin: HTMLElement | null = null;
   let panel: HTMLElement | null = null;
 
@@ -345,6 +403,31 @@ function createDetailPanel(host: HTMLElement, region: Region, offset: number, lo
     closeBtn.addEventListener('click', close);
     head.appendChild(closeBtn);
     p.appendChild(head);
+    if (onHide) {
+      const hideBtn = el('button', { className: 'timeline-panel-hide' });
+      hideBtn.type = 'button';
+      let request: { kind: 'event'; name: string } | { kind: 'banner'; title: string } | null = null;
+      if (bar.event) {
+        hideBtn.textContent = `Hide ${bar.name} — all reruns`;
+        request = { kind: 'event', name: bar.event.name };
+      } else if (bar.banner) {
+        hideBtn.textContent = 'Hide this banner';
+        hideBtn.setAttribute('aria-label', `Hide ${bar.banner.title} — this run only`);
+        request = { kind: 'banner', title: bar.banner.title };
+      }
+      if (request) {
+        const req = request;
+        hideBtn.addEventListener('click', () => {
+          const all = [...(host.parentElement?.querySelectorAll<HTMLElement>('button.timeline-bar') ?? [])];
+          const next = all[all.indexOf(btn) + 1];
+          panel?.remove();
+          panel = null;
+          origin = null;
+          onHide({ ...req, nextBarId: next?.dataset.barId ?? null } as HideRequest);
+        });
+        p.appendChild(hideBtn);
+      }
+    }
 
     const dl = el('dl', { className: 'timeline-panel-facts' });
     const fact = (term: string, value: string) => {
