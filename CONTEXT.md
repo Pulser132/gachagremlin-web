@@ -41,7 +41,8 @@ wiki-driven)
 
 **Featured item**:
 The character or weapon whose drop rate is boosted on a specific Banner — what a player is
-actually pulling for.
+actually pulling for. Featured items come in two tiers: **top tier** (5★; ZZZ's S-rank) and
+**second tier** (4★; ZZZ's A-rank, which is player-selected rather than a fixed rate-up).
 _Avoid_: Rate-up (in-game term, not used in this codebase), "5-star"/"4-star" alone (a
 rarity, not the same thing — the standard pool also has 5-stars and 4-stars)
 
@@ -49,6 +50,13 @@ rarity, not the same thing — the standard pool also has 5-stars and 4-stars)
 The permanent, non-featured items every Banner in a group can also drop, shared across all
 Banners in that group.
 _Avoid_: Fallback pool, base pool
+
+**Timeline**:
+A per-game view that lays current and upcoming Events and Banners out as dated bars on a
+shared time axis, so overlaps and end dates can be seen at a glance. Shows *when* things
+run; the Events and Banners tabs remain the place for *what* they contain. Items with no
+known start or end date are not bars (they are listed separately as dates-to-be-announced).
+_Avoid_: Calendar (implies a month grid), Schedule
 
 **Wishes tab** *(existing feature)*:
 The pull-history/pity tracker, keyed off a player's own imported pull data and the Banner
