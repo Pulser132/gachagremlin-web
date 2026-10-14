@@ -48,6 +48,13 @@ describe('pickColour', () => {
     }
   });
 
+  it('lets a dominant hue outvote one stray, slightly more vibrant pixel', () => {
+    const muted = [170, 60, 60, 255];
+    const stray = [30, 30, 255, 255];
+    const c = pickColour(px(...Array.from({ length: 20 }, () => muted), stray))!;
+    expect(chan(c.bg, 0)).toBeGreaterThan(chan(c.bg, 2));
+  });
+
   it('returns null (use the category colour) for empty, greyscale or transparent input', () => {
     expect(pickColour(new Uint8ClampedArray(0))).toBeNull();
     expect(pickColour(px([90, 90, 90, 255], [200, 200, 200, 255]))).toBeNull();

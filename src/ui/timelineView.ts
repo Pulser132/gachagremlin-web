@@ -1,6 +1,6 @@
 import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
-import { applyBarColours, sessionColourSource, type ColourSource } from './barColour.ts';
+import { applyBarColours, sessionColourSource, type ColourSource, type TintTarget } from './barColour.ts';
 import { renderCountdownRow } from './countdown.ts';
 import { renderEventCard } from './eventCard.ts';
 import { DAY, KIND_LABELS, axisOffset, clockLabel, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
@@ -136,14 +136,14 @@ export function renderTimelineView(
     });
     wrap.appendChild(skip);
     const nowSec = Math.floor(nowMs / 1000);
-    const tintable: { btn: HTMLElement; url: string | null }[] = [];
+    const tintTargets: TintTarget[] = [];
     wrap.appendChild(
       renderScroller(layout, pxPerDay, (bar, btn) => panel.open(bar, btn), (btn) =>
-        barLabel(btn, nowSec, offset, localTimeZone ?? undefined), tintable,
+        barLabel(btn, nowSec, offset, localTimeZone ?? undefined), tintTargets,
       ),
     );
     // Fire and forget: bars paint in their category colour first, then tint.
-    void applyBarColours(tintable, opts.colourSource ?? sessionColourSource);
+    void applyBarColours(tintTargets, opts.colourSource ?? sessionColourSource);
     wrap.appendChild(panelHost);
     const end = el('div', { className: 'timeline-end' });
     end.id = 'timeline-end';
@@ -207,7 +207,7 @@ function renderScroller(
   pxPerDay: number,
   onOpen: (bar: TimelineBar, btn: HTMLElement) => void,
   labelFor: (btn: HTMLElement) => string,
-  tintable: { btn: HTMLElement; url: string | null }[],
+  tintTargets: TintTarget[],
 ): HTMLElement {
   const scroller = el('div', { className: 'timeline-scroll' });
   scroller.tabIndex = 0;
@@ -248,7 +248,7 @@ function renderScroller(
     for (const { b, rowIndex } of placed) {
       const btn = renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx, onOpen, labelFor);
       btn.style.setProperty('--row', String(rowIndex));
-      tintable.push({ btn, url: b.imageUrl });
+      tintTargets.push({ btn, url: b.imageUrl });
       bars.appendChild(btn);
     }
     group.appendChild(bars);

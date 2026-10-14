@@ -17,6 +17,7 @@ const MIN_WEIGHT = 0.02;
 const WHITE = '#ffffff';
 const DARK = '#14141a';
 const SAMPLE_SIZE = 24;
+const HUE_BUCKETS = 12;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -60,23 +61,28 @@ export function contrastRatio(a: string, b: string): number {
 }
 
 /**
- * Picks the most vibrant opaque pixel (saturation weighted by closeness to
- * mid-lightness), clamps it into a readable range and chooses white or dark
- * text by contrast. Returns null for empty, transparent or greyscale input;
- * the caller then keeps the category colour.
+ * Finds the dominant hue (the 30-degree bucket with the most total vibrancy,
+ * so one stray bright pixel cannot outvote a whole region), then takes that
+ * bucket's most vibrant opaque pixel. Vibrancy is saturation weighted by
+ * closeness to mid-lightness. The pick is clamped into a readable range and
+ * text is white or dark by contrast. Returns null for empty, transparent or
+ * greyscale input; the caller then keeps the category colour.
  */
 export function pickColour(pixels: ArrayLike<number>): BarColour | null {
-  let best = MIN_WEIGHT;
-  let pick: [number, number, number] | null = null;
+  const totals = new Array<number>(HUE_BUCKETS).fill(0);
+  const bests = new Array<{ weight: number; hsl: [number, number, number] } | null>(HUE_BUCKETS).fill(null);
   for (let i = 0; i + 3 < pixels.length; i += 4) {
     if (pixels[i + 3] < 128) continue;
     const hsl = rgbToHsl(pixels[i], pixels[i + 1], pixels[i + 2]);
-    const weight = hsl[1] * (1 - Math.abs(2 * hsl[2] - 1));
-    if (weight > best) {
-      best = weight;
-      pick = hsl;
-    }
+    const [hue, sat, light] = hsl;
+    const weight = sat * (1 - Math.abs(2 * light - 1));
+    if (weight <= MIN_WEIGHT) continue;
+    const bucket = Math.floor(hue / (360 / HUE_BUCKETS)) % HUE_BUCKETS;
+    totals[bucket] += weight;
+    if (!bests[bucket] || weight > bests[bucket]!.weight) bests[bucket] = { weight, hsl };
   }
+  const top = totals.indexOf(Math.max(...totals));
+  const pick = bests[top]?.hsl;
   if (!pick) return null;
   const bg = hslToHex(pick[0], clamp(pick[1], SAT_MIN, SAT_MAX), clamp(pick[2], LIGHT_MIN, LIGHT_MAX));
   return { bg, text: contrastRatio(bg, WHITE) >= contrastRatio(bg, DARK) ? WHITE : DARK };
@@ -104,6 +110,12 @@ export const canvasPixelLoader: PixelLoader = (url) =>
     img.src = url;
   });
 
+/** A bar and the art URL its colour is read from. */
+export interface TintTarget {
+  btn: HTMLElement;
+  url: string | null;
+}
+
 export type ColourSource = (url: string | null) => Promise<BarColour | null>;
 
 /** Resolves a colour per image URL, cached for the session (failures too). Never rejects. */
@@ -127,7 +139,7 @@ export const sessionColourSource: ColourSource = createColourSource();
 
 /** Tints each bar once its colour resolves; a null result leaves the category colour. */
 export async function applyBarColours(
-  bars: { btn: HTMLElement; url: string | null }[],
+  bars: TintTarget[],
   source: ColourSource = sessionColourSource,
 ): Promise<void> {
   await Promise.all(
