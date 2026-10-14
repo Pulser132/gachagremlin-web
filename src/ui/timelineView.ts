@@ -10,8 +10,6 @@ const PX_PER_DAY_DESKTOP = 30;
 const PX_PER_DAY_PHONE = 18;
 /** Where the now line sits on initial scroll, as a fraction of the viewport. */
 const NOW_VIEWPORT_FRACTION = 0.15;
-/** Below this drawn width the remaining-time chip is hidden. */
-const CHIP_MIN_PX = 110;
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -246,10 +244,18 @@ function renderScroller(
     const placed = lane.rows.flatMap((row, rowIndex) => row.map((b) => ({ b, rowIndex })));
     placed.sort((a, c) => a.b.start - c.b.start || a.b.end - c.b.end || a.b.name.localeCompare(c.b.name));
     for (const { b, rowIndex } of placed) {
-      const btn = renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx, onOpen, labelFor);
+      const btn = renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), onOpen, labelFor);
       btn.style.setProperty('--row', String(rowIndex));
       tintTargets.push({ btn, url: b.imageUrl });
       bars.appendChild(btn);
+      // Sibling, not child: the time left sits to the right of the bar, outside it.
+      const chip = el('span', { className: 'timeline-bar-chip countdown' });
+      chip.setAttribute('aria-hidden', 'true'); // the bar's accessible name already says it
+      chip.style.left = `calc(${px(b.x + b.w)} + 0.375rem)`;
+      chip.style.setProperty('--row', String(rowIndex));
+      chip.dataset.deadline = String(b.upcoming ? b.start : b.end);
+      chip.dataset.countdownLabel = b.upcoming ? 'starts in' : '';
+      bars.appendChild(chip);
     }
     group.appendChild(bars);
     canvas.appendChild(group);
@@ -264,7 +270,6 @@ function renderBar(
   kind: string,
   left: string,
   width: string,
-  widthPx: number,
   onOpen: (bar: TimelineBar, btn: HTMLElement) => void,
   labelFor: (btn: HTMLElement) => string,
 ): HTMLElement {
@@ -293,12 +298,6 @@ function renderBar(
     btn.appendChild(art);
   }
   btn.appendChild(el('span', { className: 'timeline-bar-label', text: b.name }));
-  if (widthPx >= CHIP_MIN_PX) {
-    const chip = el('span', { className: 'timeline-bar-chip countdown' });
-    chip.dataset.deadline = String(b.upcoming ? b.start : b.end);
-    chip.dataset.countdownLabel = b.upcoming ? 'starts in' : '';
-    btn.appendChild(chip);
-  }
   return btn;
 }
 

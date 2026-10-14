@@ -18,6 +18,8 @@ export const MIN_BAR_PX = 44;
 export const TICK_LABEL_MIN_PX = 48;
 /** Breathing room kept between two bars sharing a lane. */
 const LANE_GAP_PX = 6;
+/** Room kept to the right of every bar for its remaining-time chip ("starts in 12d 04h 05m"). */
+export const CHIP_RESERVE_PX = 150;
 
 export type TimelineKind = 'events' | 'banners';
 
@@ -234,7 +236,9 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
   }
 
   const latestEnd = drawable.reduce((m, c) => Math.max(m, c.end), 0);
-  const spanEnd = Math.max(latestEnd, spanStart + MIN_SPAN_DAYS * DAY);
+  // The last bar's chip sits past its right edge, so the axis runs far enough to hold it.
+  const chipSeconds = (CHIP_RESERVE_PX / pxPerDay) * DAY;
+  const spanEnd = Math.max(latestEnd + chipSeconds, spanStart + MIN_SPAN_DAYS * DAY);
   const span = spanEnd - spanStart;
   const spanDays = span / DAY;
   const minW = MIN_BAR_PX / (spanDays * pxPerDay);
@@ -263,7 +267,7 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     };
   });
 
-  const gap = LANE_GAP_PX / (spanDays * pxPerDay);
+  const gap = (LANE_GAP_PX + CHIP_RESERVE_PX) / (spanDays * pxPerDay);
   const lanes: TimelineLane[] = [];
   for (const kind of ['events', 'banners'] as const) {
     const ofKind = bars.filter((b) => b.kind === kind);

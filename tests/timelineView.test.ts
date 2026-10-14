@@ -74,7 +74,7 @@ describe('renderTimelineView', () => {
     expect(view.querySelector('button.timeline-bar')?.classList.contains('is-clamped-left')).toBe(true);
   });
 
-  it('hides the remaining-time chip on narrow bars but keeps the label and widened cue', () => {
+  it('puts the remaining-time chip beside every bar, not inside it', () => {
     const view = renderTimelineView(
       'genshin',
       events([ev('Tiny', NOW_S, NOW_S + 3600), ev('Long', NOW_S, NOW_S + 10 * DAY)]),
@@ -83,10 +83,10 @@ describe('renderTimelineView', () => {
       NOW_S * 1000,
     );
     const [tiny, long] = [...view.querySelectorAll('button.timeline-bar')];
-    expect(tiny.querySelector('.timeline-bar-chip')).toBeNull();
+    expect(view.querySelectorAll('.timeline-bar-chip')).toHaveLength(2);
+    expect(view.querySelector('button.timeline-bar .timeline-bar-chip')).toBeNull();
     expect(tiny.querySelector('.timeline-bar-label')?.textContent).toBe('Tiny');
     expect(tiny.classList.contains('is-widened')).toBe(true);
-    expect(long.querySelector('.timeline-bar-chip')).not.toBeNull();
     expect(long.classList.contains('is-widened')).toBe(false);
   });
 

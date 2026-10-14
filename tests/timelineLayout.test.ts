@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { layoutTimeline, MIN_BAR_PX, TICK_LABEL_MIN_PX, type TimelineInput } from '../src/ui/timelineLayout.ts';
+import { CHIP_RESERVE_PX, layoutTimeline, MIN_BAR_PX, TICK_LABEL_MIN_PX, type TimelineInput } from '../src/ui/timelineLayout.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, RegionUnix } from '../src/types.ts';
 
 const DAY = 86400;
@@ -38,10 +38,11 @@ describe('layoutTimeline span and now line', () => {
     expect(out.nowX).toBeCloseTo(7 / 30);
   });
 
-  it('extends to the latest end when it is past the minimum', () => {
+  it('extends past the latest end by room for its time-left chip', () => {
     const out = layoutTimeline(input({ cur: [ev('A', NOW, NOW + 40 * DAY)] }));
-    expect(out.spanEnd).toBe(NOW + 40 * DAY);
-    expect(out.spanDays).toBe(47);
+    const chipDays = CHIP_RESERVE_PX / 30;
+    expect(out.spanEnd).toBe(NOW + 40 * DAY + chipDays * DAY);
+    expect(out.spanDays).toBeCloseTo(47 + chipDays);
   });
 
   it('puts gridlines on server midnight for the region offset', () => {
@@ -158,12 +159,18 @@ describe('layoutTimeline bars and lanes', () => {
         cur: [
           ev('A', NOW, NOW + 5 * DAY),
           ev('B', NOW + 2 * DAY, NOW + 8 * DAY),
-          ev('C', NOW + 6 * DAY, NOW + 9 * DAY),
+          ev('C', NOW + 11 * DAY, NOW + 14 * DAY),
         ],
       }),
     );
     const rows = out.lanes[0].rows.map((r) => r.map((b) => b.name));
     expect(rows).toEqual([['A', 'C'], ['B']]);
+  });
+
+  it('keeps room for the time-left chip when packing', () => {
+    // B starts 1 day after A ends: clear of the bar, but inside the ~5 day chip.
+    const out = layoutTimeline(input({ cur: [ev('A', NOW, NOW + 5 * DAY), ev('B', NOW + 6 * DAY, NOW + 9 * DAY)] }));
+    expect(out.lanes[0].rows).toHaveLength(2);
   });
 
   it('uses the drawn (widened) width when packing', () => {
