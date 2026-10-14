@@ -105,7 +105,7 @@ export function renderTimelineView(
   opts: TimelineViewOptions = {},
 ): HTMLElement {
   // Hide rules are read on every render so the Timeline tracks the Events tab.
-  const { events, banners } = applyHideRules(allEvents, allBanners, loadHidePrefs(game));
+  const { events, banners, hiddenCount } = applyHideRules(allEvents, allBanners, loadHidePrefs(game));
   const localTimeZone = opts.localTime ? (opts.localTimeZone ?? browserTimeZone()) : null;
   const pxPerDay = isPhone() ? PX_PER_DAY_PHONE : PX_PER_DAY_DESKTOP;
   const offset = getGame(game).servers[region] ?? 0;
@@ -120,9 +120,13 @@ export function renderTimelineView(
     pxPerDay,
   });
 
-  const hiddenKinds = hiddenBarKinds(allEvents, allBanners, layout, {
-    region, utcOffsetHours: offset, localTimeZone, now: Math.floor(nowMs / 1000), lookbackDays: LOOKBACK_DAYS, pxPerDay,
-  });
+  // The second layout pass only exists to count hidden bars; skip it when no rule removed anything.
+  const hiddenKinds =
+    hiddenCount === 0
+      ? { count: 0, events: false, banners: false }
+      : hiddenBarKinds(allEvents, allBanners, layout, {
+          region, utcOffsetHours: offset, localTimeZone, now: Math.floor(nowMs / 1000), lookbackDays: LOOKBACK_DAYS, pxPerDay,
+        });
 
   const wrap = el('div', { className: 'timeline-view' });
   wrap.dataset.pxPerDay = String(pxPerDay);
