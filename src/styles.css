@@ -1598,3 +1598,49 @@ select {
 .timeline-tba h2 {
   font-size: 1rem;
 }
+
+.timeline-panel {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+}
+
+.timeline-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.timeline-panel-head h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.timeline-panel-close {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.timeline-panel-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 0.75rem;
+  margin: 0.5rem 0;
+}
+
+.timeline-panel-facts dt { color: var(--text-muted); }
+.timeline-panel-facts dd { margin: 0; }
+
+.timeline-panel-wiki {
+  display: inline-block;
+  padding: 0.6rem 0;
+}

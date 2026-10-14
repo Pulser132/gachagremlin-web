@@ -1,5 +1,7 @@
 import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
+import { renderCountdownRow } from './countdown.ts';
+import { renderEventCard } from './eventCard.ts';
 import { KIND_LABELS, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
 
 const LOOKBACK_DAYS = 7;
@@ -69,7 +71,10 @@ export function renderTimelineView(
   if (layout.lanes.length === 0) {
     wrap.appendChild(el('p', { className: 'empty', text: 'Nothing with known dates to show on the timeline.' }));
   } else {
-    wrap.appendChild(renderScroller(layout, pxPerDay));
+    const panelHost = el('div', { className: 'timeline-panel-host' });
+    const panel = createDetailPanel(panelHost, region, offset);
+    wrap.appendChild(renderScroller(layout, pxPerDay, (bar, btn) => panel.open(bar, btn)));
+    wrap.appendChild(panelHost);
   }
 
   if (layout.tba.length > 0) {
@@ -96,7 +101,11 @@ export function scrollTimelineToNow(view: HTMLElement): void {
   scroller.scrollLeft = Math.max(0, nowPx - scroller.clientWidth * NOW_VIEWPORT_FRACTION);
 }
 
-function renderScroller(layout: TimelineLayout, pxPerDay: number): HTMLElement {
+function renderScroller(
+  layout: TimelineLayout,
+  pxPerDay: number,
+  onOpen: (bar: TimelineBar, btn: HTMLElement) => void,
+): HTMLElement {
   const scroller = el('div', { className: 'timeline-scroll' });
   scroller.tabIndex = 0;
   scroller.setAttribute('role', 'region');
@@ -129,7 +138,7 @@ function renderScroller(layout: TimelineLayout, pxPerDay: number): HTMLElement {
     group.appendChild(el('h2', { className: 'timeline-lane-header', text: lane.label }));
     for (const row of lane.rows) {
       const rowEl = el('div', { className: 'timeline-row' });
-      for (const b of row) rowEl.appendChild(renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx));
+      for (const b of row) rowEl.appendChild(renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx, onOpen));
       group.appendChild(rowEl);
     }
     canvas.appendChild(group);
@@ -143,7 +152,14 @@ function formatDay(unix: number): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(unix * 1000));
 }
 
-function renderBar(b: TimelineBar, kind: string, left: string, width: string, widthPx: number): HTMLElement {
+function renderBar(
+  b: TimelineBar,
+  kind: string,
+  left: string,
+  width: string,
+  widthPx: number,
+  onOpen: (bar: TimelineBar, btn: HTMLElement) => void,
+): HTMLElement {
   const btn = el('button', {
     className: `timeline-bar timeline-cat-${b.colourKey}${b.upcoming ? ' is-upcoming' : ''}${b.widened ? ' is-widened' : ''}${b.clampedLeft ? ' is-clamped-left' : ''}`,
   });
@@ -155,6 +171,7 @@ function renderBar(b: TimelineBar, kind: string, left: string, width: string, wi
     `${b.name}, ${kind}, ${b.category}, starts ${formatDay(b.start)}, ends ${formatDay(b.end)}`,
   );
 
+  btn.addEventListener('click', () => onOpen(b, btn));
   btn.appendChild(el('span', { className: 'timeline-bar-label', text: b.name }));
   if (widthPx >= CHIP_MIN_PX) {
     const chip = el('span', { className: 'timeline-bar-chip countdown' });
@@ -163,4 +180,83 @@ function renderBar(b: TimelineBar, kind: string, left: string, width: string, wi
     btn.appendChild(chip);
   }
   return btn;
+}
+
+/** Real start/end in the server's fixed-offset zone ("Oct 13, 2026, 4:00 AM"). */
+function formatInZone(unix: number, offsetHours: number): string {
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(
+    new Date((unix + offsetHours * 3600) * 1000),
+  );
+}
+
+/**
+ * The bar detail panel. Opening moves focus into it; Escape or Close hides it
+ * and returns focus to the bar that opened it. Shows the real dates, never the
+ * widened drawn width.
+ */
+function createDetailPanel(host: HTMLElement, region: Region, offset: number) {
+  let origin: HTMLElement | null = null;
+  let panel: HTMLElement | null = null;
+
+  function close(): void {
+    panel?.remove();
+    panel = null;
+    origin?.focus();
+    origin = null;
+  }
+
+  function open(bar: TimelineBar, btn: HTMLElement): void {
+    panel?.remove();
+    origin = btn;
+    const sign = offset < 0 ? '-' : '+';
+    const zone = `${region} server, UTC${sign}${Math.abs(offset)}`;
+
+    const p = el('section', { className: 'timeline-panel' });
+    p.tabIndex = -1;
+    p.setAttribute('role', 'region');
+    p.setAttribute('aria-label', `Details: ${bar.name}`);
+    p.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close();
+      }
+    });
+
+    const head = el('div', { className: 'timeline-panel-head' });
+    head.appendChild(el('h3', { text: bar.name }));
+    const closeBtn = el('button', { className: 'timeline-panel-close', text: 'Close' });
+    closeBtn.type = 'button';
+    closeBtn.addEventListener('click', close);
+    head.appendChild(closeBtn);
+    p.appendChild(head);
+
+    const dl = el('dl', { className: 'timeline-panel-facts' });
+    const fact = (term: string, value: string) => {
+      dl.appendChild(el('dt', { text: term }));
+      dl.appendChild(el('dd', { text: value }));
+    };
+    fact('Type', `${KIND_LABELS[bar.kind].singular}, ${bar.category}`);
+    fact('Starts', formatInZone(bar.start, offset));
+    fact('Ends', formatInZone(bar.end, offset));
+    fact('Times shown in', zone);
+    p.appendChild(dl);
+
+    p.appendChild(
+      bar.upcoming ? renderCountdownRow('starts in', bar.start) : renderCountdownRow('ends in', bar.end),
+    );
+
+    if (bar.event) p.appendChild(renderEventCard(bar.event, region));
+
+    const link = el('a', { className: 'timeline-panel-wiki', text: 'Wiki page ↗' });
+    link.href = bar.wikiUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    p.appendChild(link);
+
+    panel = p;
+    host.appendChild(p);
+    p.focus();
+  }
+
+  return { open };
 }

@@ -32,7 +32,7 @@ const BANNER_WIDTH = 500;
  * event-card splash-art convention BANNER_WIDTH is named after. */
 const WISH_ART_WIDTH = 500;
 
-function wikiPageUrl(host: string, title: string): string {
+export function wikiPageUrl(host: string, title: string): string {
   return `https://${host}/wiki/${encodeURI(title.replace(/ /g, '_'))}`;
 }
 

@@ -70,4 +70,57 @@ describe('renderTimelineView', () => {
     const view = renderTimelineView('zzz', events([ev('Ev', NOW_S, NOW_S + DAY)]), empty, 'America', NOW_S * 1000);
     expect(view.querySelector('.timeline-note')?.textContent).toBe('No banners are currently listed on the wiki.');
   });
+
+  describe('detail panel', () => {
+    function mount(e: EventInfo[] = [ev('Ev', NOW_S, NOW_S + 5 * DAY)]) {
+      const view = renderTimelineView('genshin', events(e), banners(), 'America', NOW_S * 1000);
+      document.body.innerHTML = '';
+      document.body.appendChild(view);
+      return view;
+    }
+    const bars = (v: HTMLElement) => [...v.querySelectorAll<HTMLButtonElement>('button.timeline-bar')];
+
+    it('opens on click with real dates, remaining time, category and wiki link', () => {
+      const view = mount([ev('Tiny', NOW_S, NOW_S + 3600)]); // 1h: drawn widened
+      bars(view)[0].click();
+      const panel = view.querySelector('.timeline-panel')!;
+      expect(panel.textContent).toContain('Tiny');
+      expect(panel.textContent).toContain('In Game');
+      expect(panel.querySelector('[data-deadline]')?.getAttribute('data-deadline')).toBe(String(NOW_S + 3600));
+      expect(panel.querySelector<HTMLAnchorElement>('a.timeline-panel-wiki')?.href).toContain('genshin-impact.fandom.com');
+      // Real window is 1h, not the widened drawn width.
+      const dd = [...panel.querySelectorAll('dd')].map((d) => d.textContent);
+      expect(dd[1]).not.toBe(dd[2]);
+    });
+
+    it('reaches the existing event card for Events but not Banners', () => {
+      const view = mount();
+      bars(view)[0].click();
+      expect(view.querySelector('.timeline-panel .event-card')).not.toBeNull();
+      bars(view)[1].click();
+      expect(view.querySelector('.timeline-panel .event-card')).toBeNull();
+      expect(view.querySelector<HTMLAnchorElement>('a.timeline-panel-wiki')?.href).toBe('https://x/');
+      expect(view.querySelectorAll('.timeline-panel')).toHaveLength(1);
+    });
+
+    it('moves focus into the panel and returns it to the bar on Escape', () => {
+      const view = mount();
+      const bar = bars(view)[0];
+      bar.focus();
+      bar.click();
+      const panel = view.querySelector<HTMLElement>('.timeline-panel')!;
+      expect(document.activeElement).toBe(panel);
+      panel.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      expect(view.querySelector('.timeline-panel')).toBeNull();
+      expect(document.activeElement).toBe(bar);
+    });
+
+    it('returns focus to the bar via the Close button', () => {
+      const view = mount();
+      const bar = bars(view)[0];
+      bar.click();
+      view.querySelector<HTMLButtonElement>('.timeline-panel-close')!.click();
+      expect(document.activeElement).toBe(bar);
+    });
+  });
 });

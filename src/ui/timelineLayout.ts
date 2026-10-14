@@ -3,6 +3,8 @@
  * dated bars out. No DOM and no clock — `now` is injected, and positions are
  * fractions of the axis span so the view alone decides pixels.
  */
+import { getGame } from '../data/wiki/games.ts';
+import { wikiPageUrl } from '../data/wiki/fetch.ts';
 import { categorizeEvent } from '../data/eventCategories.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, Region } from '../types.ts';
 import { resolveRegionUnix } from './eventCard.ts';
@@ -64,6 +66,9 @@ export interface TimelineBar {
   clampedLeft: boolean;
   imageUrl: string | null;
   upcoming: boolean;
+  wikiUrl: string;
+  /** The source Event, so the detail panel can reuse the existing event card. */
+  event: EventInfo | null;
 }
 
 export interface TimelineLane {
@@ -99,6 +104,8 @@ interface Candidate {
   colourKey: string;
   imageUrl: string | null;
   upcoming: boolean;
+  wikiUrl: string;
+  event: EventInfo | null;
   start: number | null;
   end: number | null;
   fetchedCurrent: boolean;
@@ -114,6 +121,8 @@ function eventCandidate(ev: EventInfo, fetchedCurrent: boolean, region: Region):
     colourKey: key,
     imageUrl: ev.imageUrl,
     upcoming: !fetchedCurrent,
+    wikiUrl: wikiPageUrl(getGame(ev.game).host, ev.title),
+    event: ev,
     start: resolveRegionUnix(ev.startUnix, region),
     end: resolveRegionUnix(ev.endUnix, region),
     fetchedCurrent,
@@ -129,6 +138,8 @@ function bannerCandidate(b: BannerInfo, label: string, fetchedCurrent: boolean, 
     colourKey: 'banner',
     imageUrl: b.imageUrl,
     upcoming: !fetchedCurrent,
+    wikiUrl: b.wikiUrl,
+    event: null,
     start: resolveRegionUnix(b.startUnix, region),
     end: resolveRegionUnix(b.endUnix, region),
     fetchedCurrent,
@@ -215,6 +226,8 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
       clampedLeft,
       imageUrl: c.imageUrl,
       upcoming: c.upcoming,
+      wikiUrl: c.wikiUrl,
+      event: c.event,
     };
   });
 
