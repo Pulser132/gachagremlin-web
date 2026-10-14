@@ -245,13 +245,17 @@ function renderHideStatus(status: HideStatus): HTMLElement {
 }
 
 /** The bar after `from` in start order that this hide leaves drawn (a hidden Event takes its reruns with it). */
-function nextSurvivingBar(view: ParentNode | null, from: HTMLElement): HTMLElement | undefined {
+export function nextSurvivingBar(view: ParentNode | null, from: HTMLElement): HTMLElement | undefined {
   const byStart = (a: HTMLElement, b: HTMLElement) =>
     Number(a.dataset.start) - Number(b.dataset.start) ||
     Number(a.dataset.end) - Number(b.dataset.end) ||
     (a.dataset.barId ?? '').localeCompare(b.dataset.barId ?? '');
   const sorted = [...(view?.querySelectorAll<HTMLElement>('button.timeline-bar') ?? [])].sort(byStart);
-  return sorted.slice(sorted.indexOf(from) + 1).find((b) => b.dataset.hideKey !== from.dataset.hideKey);
+  const at = sorted.indexOf(from);
+  if (at < 0) return undefined; // origin left the DOM; there is no "next" to measure from
+  const hidden = from.dataset.hideKey;
+  // A bar without a hide key cannot be removed by any hide, so it always survives.
+  return sorted.slice(at + 1).find((b) => hidden === undefined || b.dataset.hideKey !== hidden);
 }
 
 /** The hide rule a bar belongs to, shared by every rerun of one Event; undefined for neither. */
