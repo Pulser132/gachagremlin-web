@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { hideBanner, isBannerHidden } from '../src/data/eventPrefs.ts';
 import { renderBannersView } from '../src/ui/bannersView.ts';
 import type { BannerCategorySection, BannerInfo, GameBanners } from '../src/types.ts';
 
@@ -149,5 +150,50 @@ describe('renderBannersView second-tier Featured line', () => {
     const view = renderBannersView('zzz', makeGameBanners(), 'America');
     expect(view.querySelector('.banner-featured-4')).toBeNull();
     expect(view.querySelector('.banner-featured-5')?.textContent).toContain('Columbina');
+  });
+});
+
+describe('renderBannersView hide rules', () => {
+  const keep = makeBanner({ title: 'Keep/2026-07-21', name: 'Keep' });
+  const gone = makeBanner({ title: 'Gone/2026-07-21', name: 'Gone' });
+
+  beforeEach(() => localStorage.clear());
+
+  it('omits hidden banners and drops categories left empty', () => {
+    hideBanner('genshin', gone.title);
+    const view = renderBannersView(
+      'genshin',
+      makeGameBanners({
+        current: [makeSection({ banners: [keep, gone] }), makeSection({ label: 'Weapon', banners: [makeBanner({ title: gone.title })] })],
+      }),
+      'America',
+    );
+    expect(view.querySelectorAll('.banner-live-card')).toHaveLength(1);
+    expect(view.querySelectorAll('.banner-category-section')).toHaveLength(1);
+  });
+
+  it('shows an empty-state hint pointing at the Hidden list when everything is hidden', () => {
+    hideBanner('genshin', gone.title);
+    const view = renderBannersView('genshin', makeGameBanners({ current: [makeSection({ banners: [gone] })] }), 'America');
+    expect(view.querySelector('.empty')?.textContent).toContain('Hidden list');
+    expect(view.querySelector('.hidden-banners')).not.toBeNull();
+  });
+
+  it('renders no Hidden list when nothing is hidden', () => {
+    const view = renderBannersView('genshin', makeGameBanners(), 'America');
+    expect(view.querySelector('.hidden-banners')).toBeNull();
+  });
+
+  it('lists the stored title and Un-hide restores it and notifies', () => {
+    hideBanner('genshin', gone.title);
+    let notified = 0;
+    const view = renderBannersView('genshin', makeGameBanners({ current: [makeSection({ banners: [keep, gone] })] }), 'America', {
+      onUnhide: () => notified++,
+    });
+    expect(view.querySelector('summary')?.textContent).toBe('Hidden (1)');
+    expect(view.querySelector('.hidden-events-name')?.textContent).toBe('gone/2026-07-21');
+    (view.querySelector('.hidden-events-btn') as HTMLButtonElement).click();
+    expect(notified).toBe(1);
+    expect(isBannerHidden('genshin', gone.title)).toBe(false);
   });
 });

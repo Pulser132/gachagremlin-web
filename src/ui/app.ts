@@ -326,7 +326,15 @@ export function mountApp(root: HTMLElement): void {
       lastUpdated.textContent = `Last updated ${new Date(bannerData.fetchedAt).toLocaleTimeString()}`;
 
       main.innerHTML = '';
-      main.appendChild(renderBannersView(game, bannerData, region));
+      main.appendChild(
+        renderBannersView(game, bannerData, region, {
+          // Push over the cloud copy: a merge would union the hide back in.
+          onUnhide: () => {
+            scheduleSync('push-only');
+            render();
+          },
+        }),
+      );
       main.setAttribute('aria-busy', 'false');
       startCountdownTicker();
       return;

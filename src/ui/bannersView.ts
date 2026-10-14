@@ -1,3 +1,5 @@
+import { loadHidePrefs, unhideBanner } from '../data/eventPrefs.ts';
+import { applyHideRules } from '../data/hideRules.ts';
 import { getGame } from '../data/wiki/games.ts';
 import type { BannerCategorySection, BannerInfo, GameBanners, GameKey, Region } from '../types.ts';
 import { renderCardSection } from './cardSection.ts';
@@ -20,33 +22,77 @@ function el<K extends keyof HTMLElementTagNameMap>(
  * distinct from a wired game whose current/upcoming lists are simply empty,
  * which renders its own empty-state message instead.
  */
-export function renderBannersView(game: GameKey, banners: GameBanners | null, region: Region): HTMLElement {
+export function renderBannersView(
+  game: GameKey,
+  allBanners: GameBanners | null,
+  region: Region,
+  opts: { onUnhide?: () => void } = {},
+): HTMLElement {
   const wrap = el('div', { className: 'banners-view' });
+  const prefs = loadHidePrefs(game);
 
-  if (banners === null) {
+  if (allBanners === null) {
     wrap.appendChild(renderUnsupportedPanel(game));
     return wrap;
   }
 
-  if (banners.current.length === 0 && banners.upcoming.length === 0) {
+  if (allBanners.current.length === 0 && allBanners.upcoming.length === 0) {
     wrap.appendChild(el('p', { className: 'empty', text: 'No banners are currently listed on the wiki.' }));
     return wrap;
   }
 
-  for (const section of banners.current) {
+  // Wiki-listed banners that a Banner hide rule removes are omitted, and a
+  // category left with none drops out. The Wishes tab never goes through here.
+  const shown = applyHideRules({ current: [], upcoming: [], fetchedAt: 0 }, allBanners, prefs).banners!;
+  const current = shown.current.filter((s) => s.banners.length > 0);
+  const upcoming = shown.upcoming.filter((s) => s.banners.length > 0);
+
+  if (current.length === 0 && upcoming.length === 0) {
+    wrap.appendChild(
+      el('p', { className: 'empty', text: 'Every banner is hidden. Check the Hidden list below to bring some back.' }),
+    );
+  }
+
+  for (const section of current) {
     wrap.appendChild(renderCategorySection(section, game, region, 'h2'));
   }
 
-  if (banners.upcoming.length > 0) {
+  if (upcoming.length > 0) {
     const upcomingWrap = el('div', { className: 'banners-upcoming' });
     upcomingWrap.appendChild(el('h2', { text: 'Upcoming' }));
-    for (const section of banners.upcoming) {
+    for (const section of upcoming) {
       upcomingWrap.appendChild(renderCategorySection(section, game, region, 'h3'));
     }
     wrap.appendChild(upcomingWrap);
   }
 
+  const hiddenList = renderHiddenList(game, prefs.hiddenBanners, opts.onUnhide);
+  if (hiddenList) wrap.appendChild(hiddenList);
+
   return wrap;
+}
+
+/** Collapsed "Hidden (N)" list: one row per stored banner rule, with Un-hide. */
+function renderHiddenList(game: GameKey, rules: string[], onUnhide?: () => void): HTMLElement | null {
+  if (rules.length === 0) return null;
+  const details = el('details', { className: 'hidden-events hidden-banners' });
+  details.appendChild(el('summary', { text: `Hidden (${rules.length})` }));
+  const list = el('ul', { className: 'hidden-events-list' });
+  for (const rule of rules) {
+    const li = el('li');
+    li.appendChild(el('span', { className: 'hidden-events-name', text: rule }));
+    const btn = el('button', { className: 'hidden-events-btn', text: 'Un-hide' });
+    btn.type = 'button';
+    btn.setAttribute('aria-label', `Un-hide ${rule}`);
+    btn.addEventListener('click', () => {
+      unhideBanner(game, rule);
+      onUnhide?.();
+    });
+    li.appendChild(btn);
+    list.appendChild(li);
+  }
+  details.appendChild(list);
+  return details;
 }
 
 function renderUnsupportedPanel(game: GameKey): HTMLElement {
