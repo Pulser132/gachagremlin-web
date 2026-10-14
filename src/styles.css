@@ -1724,3 +1724,29 @@ select {
   line-height: 1.2;
   white-space: nowrap;
 }
+
+.timeline-hide-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.5rem 0;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.timeline-hide-status-text {
+  flex: 1 1 12rem;
+}
+
+.timeline-hide-undo,
+.timeline-hide-dismiss {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}

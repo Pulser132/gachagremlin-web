@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { focusTimelineBar, renderTimelineView } from '../src/ui/timelineView.ts';
+import { focusTimelineBar, renderTimelineView, type HideStatus } from '../src/ui/timelineView.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, RegionUnix } from '../src/types.ts';
 
 const DAY = 86400;
@@ -135,5 +135,58 @@ describe('hidden-count note', () => {
     localStorage.setItem(key, JSON.stringify({ hiddenNames: ['mystery'] }));
     const { view } = mount([ev('Mystery', null, null)]);
     expect(view.querySelector('.timeline-hidden-note')).toBeNull();
+  });
+});
+
+describe('hide status bar', () => {
+  const status = (over: Partial<HideStatus> = {}): HideStatus => ({
+    text: 'Hid Ev (all reruns).', announce: false, onUndo: vi.fn(), onDismiss: vi.fn(), ...over,
+  });
+  const mountWith = (hideStatus?: HideStatus) => {
+    const view = renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + DAY)]), banners(), 'America', NOW_S * 1000, { hideStatus });
+    document.body.innerHTML = '';
+    document.body.appendChild(view);
+    return view;
+  };
+
+  it('is absent with no status, and is the only live region when present', () => {
+    expect(mountWith().querySelector('[role=status]')).toBeNull();
+    const view = mountWith(status());
+    expect(view.querySelectorAll('[role=status], [aria-live]')).toHaveLength(1);
+    expect(view.querySelector('[role=status]')?.textContent).toContain('Hid Ev (all reruns).');
+  });
+
+  it('has keyboard-reachable Undo and Dismiss buttons that call back', () => {
+    const s = status();
+    const view = mountWith(s);
+    const [undo, dismiss] = [...view.querySelectorAll<HTMLButtonElement>('[role=status] button')];
+    expect([undo.textContent, dismiss.textContent]).toEqual(['Undo', 'Dismiss']);
+    expect(undo.type).toBe('button');
+    undo.click();
+    expect(s.onUndo).toHaveBeenCalled();
+    dismiss.click();
+    expect(s.onDismiss).toHaveBeenCalled();
+    expect(view.querySelector('[role=status]')).toBeNull();
+    expect(document.activeElement).toBe(view.querySelector('.timeline-scroll'));
+  });
+
+  it('offers no Undo when the hide added no rule', () => {
+    const view = mountWith(status({ onUndo: undefined }));
+    expect([...view.querySelectorAll('[role=status] button')].map((b) => b.textContent)).toEqual(['Dismiss']);
+  });
+
+  it('fills an announced region after it is attached, so it is spoken', async () => {
+    const view = mountWith(status({ announce: true }));
+    const region = view.querySelector('[role=status]')!;
+    expect(region.textContent).not.toContain('Hid Ev');
+    await Promise.resolve();
+    expect(region.textContent).toContain('Hid Ev (all reruns).');
+  });
+
+  it('reports the hidden bar id on the hide request', () => {
+    const { view, onHide } = mount([ev('Ev', NOW_S, NOW_S + 5 * DAY)]);
+    bars(view)[0].click();
+    view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
+    expect(onHide.mock.calls[0][0].barId).toBe(bars(view)[0].dataset.barId);
   });
 });
