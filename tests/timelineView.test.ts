@@ -150,6 +150,84 @@ describe('renderTimelineView', () => {
   });
 });
 
+describe('accessibility', () => {
+  const render = (e: EventInfo[], b: GameBanners | null = null, opts = {}) =>
+    renderTimelineView('genshin', events(e), b, 'America', NOW_S * 1000, opts);
+
+  it('names each bar with name, kind, category, date in the chosen zone and days left', () => {
+    const view = render([ev('Ev', NOW_S, NOW_S + 5 * DAY)]);
+    const label = view.querySelector('button.timeline-bar')!.getAttribute('aria-label')!;
+    expect(label).toMatch(/^Ev, Event, In Game, ends .+, 5 days left$/);
+    const tokyo = render([ev('Ev', NOW_S, NOW_S + 3 * 3600)], null, { localTime: true, localTimeZone: 'Asia/Tokyo' });
+    expect(tokyo.querySelector('button.timeline-bar')!.getAttribute('aria-label')).toContain('Apr 11, 1970');
+    const server = render([ev('Ev', NOW_S, NOW_S + 3 * 3600)]);
+    expect(server.querySelector('button.timeline-bar')!.getAttribute('aria-label')).toContain('Apr 10, 1970');
+  });
+
+  it('says "starts in" for upcoming bars', () => {
+    const view = render([ev('Soon', NOW_S + 3 * DAY, NOW_S + 8 * DAY)]);
+    expect(view.querySelector('button.timeline-bar')!.getAttribute('aria-label')).toMatch(/starts .+, starts in 3 days$/);
+  });
+
+  it('carries text cues for wider-than-real and continues-from-before', () => {
+    const view = render([ev('Tiny', NOW_S, NOW_S + 3600), ev('Old', NOW_S - 20 * DAY, NOW_S + 3 * DAY)]);
+    const [old, tiny] = [...view.querySelectorAll('button.timeline-bar')].sort((a) =>
+      a.getAttribute('aria-label')!.startsWith('Old') ? -1 : 1,
+    );
+    expect(tiny.getAttribute('aria-label')).toContain('drawn wider than its real length');
+    expect(old.getAttribute('aria-label')).toContain('began before the timeline window');
+    (tiny as HTMLElement).click();
+    expect(view.querySelector('.timeline-panel')!.textContent).toContain('Drawn wider than its real length');
+  });
+
+  it('orders bars within a lane by start time, with lanes in order', () => {
+    const view = render(
+      [ev('Late', NOW_S + 4 * DAY, NOW_S + 9 * DAY), ev('Early', NOW_S, NOW_S + 10 * DAY), ev('Mid', NOW_S + 2 * DAY, NOW_S + 3 * DAY)],
+      banners(),
+    );
+    const names = [...view.querySelectorAll('button.timeline-bar .timeline-bar-label')].map((n) => n.textContent);
+    expect(names).toEqual(['Early', 'Mid', 'Late', 'Luna']);
+  });
+
+  it('puts a skip link before the chart that moves focus past it', () => {
+    const view = render([ev('Ev', NOW_S, NOW_S + DAY)]);
+    document.body.innerHTML = '';
+    document.body.appendChild(view);
+    const skip = view.querySelector<HTMLAnchorElement>('a.timeline-skip')!;
+    expect(skip.compareDocumentPosition(view.querySelector('.timeline-scroll')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    skip.click();
+    expect(document.activeElement).toBe(view.querySelector('.timeline-end'));
+  });
+
+  it('labels each lane as a group and names the scroller', () => {
+    const view = render([ev('Ev', NOW_S, NOW_S + DAY)], banners());
+    const groups = [...view.querySelectorAll('[role="group"]')];
+    expect(groups.map((g) => g.getAttribute('aria-label'))).toEqual(['Events', 'Banners']);
+    expect(view.querySelector('.timeline-scroll')!.getAttribute('aria-label')).toBeTruthy();
+  });
+
+  it('rewrites a bar label on the tick only when its text changes', () => {
+    const view = render([ev('Ev', NOW_S, NOW_S + 5 * DAY)]);
+    const btn = view.querySelector('button.timeline-bar')!;
+    const original = btn.setAttribute.bind(btn);
+    let writes = 0;
+    btn.setAttribute = (name: string, value: string) => {
+      writes++;
+      original(name, value);
+    };
+    updateTimelineNow(view, (NOW_S + 60) * 1000);
+    expect(writes).toBe(0);
+    expect(btn.getAttribute('aria-label')).toMatch(/5 days left/);
+    updateTimelineNow(view, (NOW_S + DAY + 60) * 1000);
+    expect(btn.getAttribute('aria-label')).toMatch(/4 days left/);
+  });
+
+  it('renders Dates TBA as plain text', () => {
+    const view = render([ev('Mystery', null, null)]);
+    expect(view.querySelector('.timeline-tba button, .timeline-tba [tabindex]')).toBeNull();
+  });
+});
+
 describe('local time controls', () => {
   const render = (opts = {}) =>
     renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + 5 * DAY)]), null, 'America', NOW_S * 1000, opts);

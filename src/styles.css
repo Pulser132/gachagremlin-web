@@ -1518,16 +1518,37 @@ select {
   width: max-content;
 }
 
-.timeline-row {
+.timeline-lane-bars {
+  --row-pitch: 3.05rem;
   position: relative;
-  height: 2.75rem;
-  margin-bottom: 0.3rem;
+  height: calc(var(--rows) * var(--row-pitch));
+}
+
+.timeline-skip {
+  position: absolute;
+  left: -9999px;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--accent);
+  border-radius: 6px;
+  z-index: 10;
+}
+
+.timeline-skip:focus {
+  position: static;
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+
+.timeline-end:focus {
+  outline: none;
 }
 
 .timeline-bar {
   position: absolute;
-  top: 0;
-  height: 100%;
+  top: calc(var(--row, 0) * var(--row-pitch));
+  height: 2.75rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;

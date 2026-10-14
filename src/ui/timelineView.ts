@@ -34,6 +34,31 @@ function browserTimeZone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
 
+/** A date in the axis zone: the server's fixed offset, or the visitor's IANA zone. */
+function formatZoned(unix: number, offsetHours: number, localTimeZone: string | undefined, withTime: boolean): string {
+  const style = withTime ? ({ dateStyle: 'medium', timeStyle: 'short' } as const) : ({ dateStyle: 'medium' } as const);
+  if (localTimeZone) return new Intl.DateTimeFormat(undefined, { ...style, timeZone: localTimeZone }).format(new Date(unix * 1000));
+  return new Intl.DateTimeFormat(undefined, { ...style, timeZone: 'UTC' }).format(new Date((unix + offsetHours * 3600) * 1000));
+}
+
+/** Whole days left, rounded up so the text only changes once a day. */
+function daysLeftText(start: number, end: number, now: number): string {
+  if (now >= end) return 'ended';
+  const days = Math.ceil(((now < start ? start : end) - now) / DAY);
+  const unit = days === 1 ? 'day' : 'days';
+  return now < start ? `starts in ${days} ${unit}` : `${days} ${unit} left`;
+}
+
+/** The bar's accessible name; the tick rewrites it only if this string changes. */
+function barLabel(btn: HTMLElement, now: number, offset: number, localTimeZone: string | undefined): string {
+  const start = Number(btn.dataset.start);
+  const end = Number(btn.dataset.end);
+  const verb = now < start ? 'starts' : 'ends';
+  const date = formatZoned(now < start ? start : end, offset, localTimeZone, false);
+  const cues = btn.dataset.cues ? `, ${btn.dataset.cues}` : '';
+  return `${btn.dataset.head}, ${verb} ${date}, ${daysLeftText(start, end, now)}${cues}`;
+}
+
 function isPhone(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches;
 }
@@ -99,9 +124,25 @@ export function renderTimelineView(
     wrap.appendChild(el('p', { className: 'empty', text: 'Nothing with known dates to show on the timeline.' }));
   } else {
     const panelHost = el('div', { className: 'timeline-panel-host' });
-    const panel = createDetailPanel(panelHost, region, offset);
-    wrap.appendChild(renderScroller(layout, pxPerDay, (bar, btn) => panel.open(bar, btn)));
+    const panel = createDetailPanel(panelHost, region, offset, localTimeZone ?? undefined);
+    const skip = el('a', { className: 'timeline-skip', text: 'Skip timeline' });
+    skip.href = '#timeline-end';
+    skip.addEventListener('click', (e) => {
+      e.preventDefault();
+      wrap.querySelector<HTMLElement>('.timeline-end')?.focus();
+    });
+    wrap.appendChild(skip);
+    const nowSec = Math.floor(nowMs / 1000);
+    wrap.appendChild(
+      renderScroller(layout, pxPerDay, (bar, btn) => panel.open(bar, btn), (btn) =>
+        barLabel(btn, nowSec, offset, localTimeZone ?? undefined),
+      ),
+    );
     wrap.appendChild(panelHost);
+    const end = el('div', { className: 'timeline-end' });
+    end.id = 'timeline-end';
+    end.tabIndex = -1;
+    wrap.appendChild(end);
   }
 
   if (layout.tba.length > 0) {
@@ -135,6 +176,12 @@ export function updateTimelineNow(view: HTMLElement, nowMs: number): void {
   const label = nowLine.querySelector<HTMLElement>('.timeline-now-label');
   const text = clockLabel(now, offsetAt);
   if (label && label.textContent !== text) label.textContent = text;
+  const zone = view.dataset.localTimeZone;
+  const hours = Number(view.dataset.utcOffsetHours);
+  for (const btn of view.querySelectorAll<HTMLElement>('button.timeline-bar')) {
+    const next = barLabel(btn, now, hours, zone);
+    if (btn.getAttribute('aria-label') !== next) btn.setAttribute('aria-label', next);
+  }
 }
 
 /** Scrolls so the now line sits ~15% in from the left. Call once the view is
@@ -153,6 +200,7 @@ function renderScroller(
   layout: TimelineLayout,
   pxPerDay: number,
   onOpen: (bar: TimelineBar, btn: HTMLElement) => void,
+  labelFor: (btn: HTMLElement) => string,
 ): HTMLElement {
   const scroller = el('div', { className: 'timeline-scroll' });
   scroller.tabIndex = 0;
@@ -185,20 +233,22 @@ function renderScroller(
     group.setAttribute('role', 'group');
     group.setAttribute('aria-label', lane.label);
     group.appendChild(el('h2', { className: 'timeline-lane-header', text: lane.label }));
-    for (const row of lane.rows) {
-      const rowEl = el('div', { className: 'timeline-row' });
-      for (const b of row) rowEl.appendChild(renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx, onOpen));
-      group.appendChild(rowEl);
+    // One flat container so DOM (tab) order is start time, not packed row.
+    const bars = el('div', { className: 'timeline-lane-bars' });
+    bars.style.setProperty('--rows', String(lane.rows.length));
+    const placed = lane.rows.flatMap((row, rowIndex) => row.map((b) => ({ b, rowIndex })));
+    placed.sort((a, c) => a.b.start - c.b.start || a.b.end - c.b.end || a.b.name.localeCompare(c.b.name));
+    for (const { b, rowIndex } of placed) {
+      const btn = renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx, onOpen, labelFor);
+      btn.style.setProperty('--row', String(rowIndex));
+      bars.appendChild(btn);
     }
+    group.appendChild(bars);
     canvas.appendChild(group);
   }
 
   scroller.appendChild(canvas);
   return scroller;
-}
-
-function formatDay(unix: number): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(unix * 1000));
 }
 
 function renderBar(
@@ -208,6 +258,7 @@ function renderBar(
   width: string,
   widthPx: number,
   onOpen: (bar: TimelineBar, btn: HTMLElement) => void,
+  labelFor: (btn: HTMLElement) => string,
 ): HTMLElement {
   const btn = el('button', {
     className: `timeline-bar timeline-cat-${b.colourKey}${b.upcoming ? ' is-upcoming' : ''}${b.widened ? ' is-widened' : ''}${b.clampedLeft ? ' is-clamped-left' : ''}`,
@@ -215,10 +266,12 @@ function renderBar(
   btn.type = 'button';
   btn.style.left = left;
   btn.style.width = width;
-  btn.setAttribute(
-    'aria-label',
-    `${b.name}, ${kind}, ${b.category}, starts ${formatDay(b.start)}, ends ${formatDay(b.end)}`,
-  );
+  btn.dataset.head = `${b.name}, ${kind}, ${b.category}`;
+  btn.dataset.start = String(b.start);
+  btn.dataset.end = String(b.end);
+  const cues = [b.widened ? 'drawn wider than its real length' : '', b.clampedLeft ? 'began before the timeline window' : ''];
+  btn.dataset.cues = cues.filter(Boolean).join(', ');
+  btn.setAttribute('aria-label', labelFor(btn));
 
   btn.addEventListener('click', () => onOpen(b, btn));
   btn.appendChild(el('span', { className: 'timeline-bar-label', text: b.name }));
@@ -231,19 +284,12 @@ function renderBar(
   return btn;
 }
 
-/** Real start/end in the server's fixed-offset zone ("Oct 13, 2026, 4:00 AM"). */
-function formatInZone(unix: number, offsetHours: number): string {
-  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' }).format(
-    new Date((unix + offsetHours * 3600) * 1000),
-  );
-}
-
 /**
  * The bar detail panel. Opening moves focus into it; Escape or Close hides it
  * and returns focus to the bar that opened it. Shows the real dates, never the
  * widened drawn width.
  */
-function createDetailPanel(host: HTMLElement, region: Region, offset: number) {
+function createDetailPanel(host: HTMLElement, region: Region, offset: number, localTimeZone?: string) {
   let origin: HTMLElement | null = null;
   let panel: HTMLElement | null = null;
 
@@ -258,7 +304,7 @@ function createDetailPanel(host: HTMLElement, region: Region, offset: number) {
     panel?.remove();
     origin = btn;
     const sign = offset < 0 ? '-' : '+';
-    const zone = `${region} server, UTC${sign}${Math.abs(offset)}`;
+    const zone = localTimeZone ?? `${region} server, UTC${sign}${Math.abs(offset)}`;
 
     const p = el('section', { className: 'timeline-panel' });
     p.tabIndex = -1;
@@ -285,9 +331,11 @@ function createDetailPanel(host: HTMLElement, region: Region, offset: number) {
       dl.appendChild(el('dd', { text: value }));
     };
     fact('Type', `${KIND_LABELS[bar.kind].singular}, ${bar.category}`);
-    fact('Starts', formatInZone(bar.start, offset));
-    fact('Ends', formatInZone(bar.end, offset));
+    fact('Starts', formatZoned(bar.start, offset, localTimeZone, true));
+    fact('Ends', formatZoned(bar.end, offset, localTimeZone, true));
     fact('Times shown in', zone);
+    if (bar.widened) fact('Note', 'Drawn wider than its real length so it is easy to tap; the dates above are exact.');
+    if (bar.clampedLeft) fact('Note', 'Began before the start of the timeline window.');
     p.appendChild(dl);
 
     p.appendChild(
