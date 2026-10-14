@@ -95,6 +95,11 @@ function writePrefs(game: GameKey, prefs: EventPrefs): void {
   }
 }
 
+/** All hide rules for a game, read once — feed to `applyHideRules`. */
+export function loadHidePrefs(game: GameKey): EventPrefs {
+  return readPrefs(game);
+}
+
 export function listHiddenNames(game: GameKey): string[] {
   return readPrefs(game).hiddenNames;
 }

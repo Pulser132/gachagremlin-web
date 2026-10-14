@@ -1,3 +1,5 @@
+import { applyHideRules } from '../data/hideRules.ts';
+import { loadHidePrefs } from '../data/eventPrefs.ts';
 import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { applyBarColours, sessionColourSource, type ColourSource, type TintTarget } from './barColour.ts';
@@ -71,12 +73,14 @@ function isPhone(): boolean {
  */
 export function renderTimelineView(
   game: GameKey,
-  events: GameEvents,
-  banners: GameBanners | null,
+  allEvents: GameEvents,
+  allBanners: GameBanners | null,
   region: Region,
   nowMs: number = Date.now(),
   opts: TimelineViewOptions = {},
 ): HTMLElement {
+  // Hide rules are read on every render so the Timeline tracks the Events tab.
+  const { events, banners } = applyHideRules(allEvents, allBanners, loadHidePrefs(game));
   const localTimeZone = opts.localTime ? (opts.localTimeZone ?? browserTimeZone()) : null;
   const pxPerDay = isPhone() ? PX_PER_DAY_PHONE : PX_PER_DAY_DESKTOP;
   const offset = getGame(game).servers[region] ?? 0;

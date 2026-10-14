@@ -298,3 +298,40 @@ describe('local time controls', () => {
     expect(bars[0].querySelector('img')).toBeNull();
   });
 });
+
+describe('renderTimelineView hide rules', () => {
+  const labels = (view: HTMLElement) => [...view.querySelectorAll('.timeline-bar-label')].map((n) => n.textContent);
+
+  it('omits Events hidden by name rule and Banners hidden by banner rule', () => {
+    localStorage.setItem(
+      'gachagremlin:eventPrefs:genshin',
+      JSON.stringify({ hiddenNames: ['ev'], hiddenCategories: [], hiddenBanners: ['luna/x'] }),
+    );
+    try {
+      const view = renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + 5 * DAY), ev('Keep', NOW_S, NOW_S + 5 * DAY)]), banners(), 'America', NOW_S * 1000);
+      expect(labels(view)).toEqual(['Keep']);
+    } finally {
+      localStorage.clear();
+    }
+  });
+
+  it('omits hidden dateless Events from Dates TBA', () => {
+    localStorage.setItem('gachagremlin:eventPrefs:genshin', JSON.stringify({ hiddenNames: ['tbaev'] }));
+    try {
+      const view = renderTimelineView('genshin', events([ev('TbaEv', null, null)]), null, 'America', NOW_S * 1000);
+      expect(view.querySelector('.timeline-tba')).toBeNull();
+    } finally {
+      localStorage.clear();
+    }
+  });
+
+  it('hides events in a hidden section', () => {
+    localStorage.setItem('gachagremlin:eventPrefs:genshin', JSON.stringify({ hiddenCategories: ['ingame'] }));
+    try {
+      const view = renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + 5 * DAY)]), null, 'America', NOW_S * 1000);
+      expect(labels(view)).toEqual([]);
+    } finally {
+      localStorage.clear();
+    }
+  });
+});
