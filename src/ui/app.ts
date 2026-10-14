@@ -6,7 +6,6 @@ import { configureSync, getSyncState, onSyncStateChange, scheduleSync, setOnMerg
 import { categorizeEvent, EVENT_CATEGORIES, type EventCategory } from '../data/eventCategories.ts';
 import {
   eventHideKey,
-  hideBanner,
   hideEvent,
   listHiddenCategories,
   listHiddenNames,
@@ -19,7 +18,8 @@ import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
-import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest } from './timelineView.ts';
+import { applyTimelineHide, type LastHide } from './timelineHideUndo.ts';
+import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest, type HideStatus } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
@@ -213,19 +213,50 @@ export function mountApp(root: HTMLElement): void {
   // position and lands focus on the next bar (or the scroller).
   let timelineRestore: { scrollLeft: number; focusBarId: string | null } | null = null;
 
-  const onTimelineHide = (req: HideRequest) => {
-    if (req.kind === 'event') hideEvent(game, req.name);
-    else hideBanner(game, req.title);
-    scheduleSync('merge'); // hiding is additive — a union merge preserves it
+  // The most recent Timeline hide, for the status bar. Memory only; cleared by
+  // Dismiss, Undo, leaving the Timeline tab, or switching game.
+  let lastHide: { hide: LastHide; announce: boolean; game: GameKey } | null = null;
+
+  const keepTimelinePlace = (focusBarId: string | null) => {
     timelineRestore = {
       scrollLeft: document.querySelector<HTMLElement>('.timeline-scroll')?.scrollLeft ?? 0,
-      focusBarId: req.nextBarId,
+      focusBarId,
     };
+  };
+
+  /** The status bar for the last hide, spoken once: later re-renders show it silently. */
+  const timelineHideStatus = (): HideStatus | undefined => {
+    if (!lastHide) return undefined;
+    const { hide, announce } = lastHide;
+    lastHide.announce = false;
+    return {
+      text: hide.text,
+      announce,
+      onUndo: hide.undo ? onTimelineUndo : undefined,
+      onDismiss: () => { lastHide = null; },
+    };
+  };
+
+  const onTimelineHide = (req: HideRequest) => {
+    lastHide = { hide: applyTimelineHide(game, req), announce: true, game };
+    scheduleSync('merge'); // hiding is additive — a union merge preserves it
+    keepTimelinePlace(req.nextBarId);
+    void render();
+  };
+
+  const onTimelineUndo = () => {
+    const last = lastHide;
+    lastHide = null;
+    if (!last?.hide.undo) return;
+    last.hide.undo();
+    scheduleSync('push-only'); // un-hiding is destructive — a merge would bring the rule back
+    keepTimelinePlace(last.hide.barId);
     void render();
   };
 
   async function render(forceRefresh = false): Promise<void> {
     const myGen = ++renderGen;
+    if (view !== 'timeline' || lastHide?.game !== game) lastHide = null;
     // Set on <html>, not #app: the per-game accent/geometry tokens it drives
     // (src/styles.css) need to reach the import dialog too, which is
     // appended to document.body (outside #app) so native <dialog> gets a
@@ -289,6 +320,7 @@ export function mountApp(root: HTMLElement): void {
       const timeline = renderTimelineView(game, events, banners, region, Date.now(), {
         localTime: loadPref(TIMELINE_LOCAL_PREF_KEY) === '1',
         onHide: onTimelineHide,
+        hideStatus: timelineHideStatus(),
         onLocalTimeChange: (on) => {
           savePref(TIMELINE_LOCAL_PREF_KEY, on ? '1' : '0');
           void render().then(() => document.querySelector<HTMLInputElement>('.timeline-local-toggle input')?.focus());

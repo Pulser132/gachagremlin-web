@@ -30,11 +30,25 @@ export type HideRequest = (
 ) & {
   /** Bar to focus after the re-render (next in tab order), or null for the scroller. */
   nextBarId: string | null;
+  /** The bar being hidden, so an undo can focus it again. */
+  barId: string;
 };
+
+/** The status bar for the most recent hide; the caller keeps it in memory. */
+export interface HideStatus {
+  text: string;
+  /** Speak it: true only on the render straight after the hide. */
+  announce: boolean;
+  /** Absent when the hide added no rule, so there is nothing to undo. */
+  onUndo?: () => void;
+  onDismiss: () => void;
+}
 
 export interface TimelineViewOptions {
   /** Writes the hide rule and re-renders; without it the panel has no hide button. */
   onHide?: (request: HideRequest) => void;
+  /** The status bar above the chart; the Timeline's only live region. */
+  hideStatus?: HideStatus;
   /** Show gridlines and the now label in the visitor's timezone. */
   localTime?: boolean;
   /** IANA zone used in local mode; defaults to the browser's. */
@@ -134,6 +148,8 @@ export function renderTimelineView(
   toolbar.appendChild(nowBtn);
   wrap.appendChild(toolbar);
 
+  if (opts.hideStatus) wrap.appendChild(renderHideStatus(opts.hideStatus));
+
   if (hiddenKinds.count > 0) {
     const tabs = hiddenKinds.events && hiddenKinds.banners ? 'Events or Banners' : hiddenKinds.events ? 'Events' : 'Banners';
     wrap.appendChild(
@@ -195,6 +211,33 @@ export function renderTimelineView(
   if (localTimeZone) wrap.dataset.localTimeZone = localTimeZone;
 
   return wrap;
+}
+
+function renderHideStatus(status: HideStatus): HTMLElement {
+  const bar = el('div', { className: 'timeline-hide-status' });
+  bar.setAttribute('role', 'status');
+  const text = el('span', { className: 'timeline-hide-status-text' });
+  // A live region only speaks changes, so insert it empty and fill it once attached.
+  if (status.announce) queueMicrotask(() => { text.textContent = status.text; });
+  else text.textContent = status.text;
+  bar.appendChild(text);
+  if (status.onUndo) {
+    const undo = el('button', { className: 'timeline-hide-undo', text: 'Undo' });
+    undo.type = 'button';
+    undo.addEventListener('click', status.onUndo);
+    bar.appendChild(undo);
+  }
+  const dismiss = el('button', { className: 'timeline-hide-dismiss', text: 'Dismiss' });
+  dismiss.type = 'button';
+  dismiss.addEventListener('click', () => {
+    const view = bar.closest<HTMLElement>('.timeline-view');
+    status.onDismiss();
+    bar.remove();
+    // The focused button just left the DOM; keep focus inside the Timeline.
+    if (view) focusTimelineBar(view, null);
+  });
+  bar.appendChild(dismiss);
+  return bar;
 }
 
 /** The bar after `from` in start order that this hide leaves drawn (a hidden Event takes its reruns with it). */
@@ -443,7 +486,7 @@ function createDetailPanel(
           panel?.remove();
           panel = null;
           origin = null;
-          onHide({ ...req, nextBarId: next?.dataset.barId ?? null } as HideRequest);
+          onHide({ ...req, nextBarId: next?.dataset.barId ?? null, barId: bar.id } as HideRequest);
         });
         p.appendChild(hideBtn);
       }
