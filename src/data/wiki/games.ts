@@ -90,8 +90,7 @@ export const GAME_CONFIGS: Record<GameKey, GameConfig> = {
     label: 'Zenless Zone Zero',
     host: 'zenless-zone-zero.fandom.com',
     indexPage: 'Event',
-    // Banner listing not wired up yet (empty bannerIndexPages).
-    bannerIndexPages: [],
+    bannerIndexPages: ['Exclusive Channel', 'W-Engine Channel'],
     bannerIndexShape: 'channelPages',
     dropEndedCurrentBanners: false,
     bannerInfoboxTemplate: 'Signal Search Infobox',

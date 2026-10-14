@@ -29,8 +29,23 @@ const HSR_WIKITEXT_BY_TITLE: Record<string, string> = Object.fromEntries(
     .map((m) => [`${m[1].replace(/_/g, ' ')}/${m[2]}`, load(m[0])]),
 );
 
+const EXCLUSIVE_INDEX_HTML = load('zzz_exclusive_channel_index.html');
+const W_ENGINE_INDEX_HTML = load('zzz_w-engine_channel_index.html');
+// HAND-EDITED variant of the Exclusive Channel listing: the Upcoming run cut
+// down to a single Banner. A channel with exactly one concurrent Banner has
+// never been seen live, so this shape is synthetic.
+const EXCLUSIVE_SINGLE_UPCOMING_HTML = load('zzz_exclusive_channel_index_single_upcoming.html');
+
+const ZZZ_WIKITEXT_BY_TITLE: Record<string, string> = Object.fromEntries(
+  readdirSync(FIXTURES)
+    .map((f) => /^zzz_(.+)__(\d{4}-\d{2}-\d{2})\.wikitext$/.exec(f))
+    .filter((m): m is RegExpExecArray => m !== null)
+    .map((m) => [`${m[1].replace(/_/g, ' ')}/${m[2]}`, load(m[0])]),
+);
+
 const WIKITEXT_BY_TITLE: Record<string, string> = {
   ...HSR_WIKITEXT_BY_TITLE,
+  ...ZZZ_WIKITEXT_BY_TITLE,
   'Somnias a Luna/2026-07-21': load('genshin_Somnias_a_Luna__2026-07-21.wikitext'),
   'Reign of Serenity/2026-07-21': load('genshin_Reign_of_Serenity__2026-07-21.wikitext'),
   'Epitome Invocation/2026-07-21': load('genshin_Epitome_Invocation__2026-07-21.wikitext'),
@@ -44,6 +59,10 @@ function jsonResponse(body: unknown): Response {
 interface StubOptions {
   wishHtml?: string;
   warpHtml?: string;
+  exclusiveHtml?: string;
+  wEngineHtml?: string;
+  /** Listing pages (by `page` param) whose fetch fails outright. */
+  failingPages?: string[];
   /** Per-title overrides: a string replaces the default wikitext lookup, and
    * `null` simulates the wiki returning a parse error for that title. */
   wikitextOverrides?: Record<string, string | null>;
@@ -69,6 +88,16 @@ function stubWikiFetch(opts: StubOptions = {}) {
     }
     if (action === 'parse' && page === 'Warp' && prop === 'text') {
       return jsonResponse({ parse: { title: 'Warp', text: opts.warpHtml ?? WARP_INDEX_HTML } });
+    }
+
+    if (action === 'parse' && prop === 'text' && page && opts.failingPages?.includes(page)) {
+      return new Response('boom', { status: 500 });
+    }
+    if (action === 'parse' && page === 'Exclusive Channel' && prop === 'text') {
+      return jsonResponse({ parse: { title: page, text: opts.exclusiveHtml ?? EXCLUSIVE_INDEX_HTML } });
+    }
+    if (action === 'parse' && page === 'W-Engine Channel' && prop === 'text') {
+      return jsonResponse({ parse: { title: page, text: opts.wEngineHtml ?? W_ENGINE_INDEX_HTML } });
     }
 
     if (action === 'parse' && prop === 'wikitext' && page) {
@@ -246,11 +275,18 @@ describe('WikiSource.fetchBanners', () => {
   });
 
   it('returns empty sections with no network request for a game with no configured banner page', async () => {
-    const { fetchMock } = stubWikiFetch();
-    const banners = await new WikiSource().fetchBanners('zzz');
+    const zzz = GAME_CONFIGS.zzz;
+    const original = zzz.bannerIndexPages;
+    zzz.bannerIndexPages = [];
+    try {
+      const { fetchMock } = stubWikiFetch();
+      const banners = await new WikiSource().fetchBanners('zzz');
 
-    expect(banners).toMatchObject({ current: [], upcoming: [] });
-    expect(fetchMock).not.toHaveBeenCalled();
+      expect(banners).toMatchObject({ current: [], upcoming: [] });
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      zzz.bannerIndexPages = original;
+    }
   });
 });
 
@@ -371,5 +407,122 @@ describe('parseBannerIndex version-block filtering', () => {
   it('never filters Upcoming', () => {
     const html = page('', header('May 1, 2026 &#8212; June 12, 2026') + row('Character Event Warp', 'Old/2026-05-01'));
     expect(titles(parseBannerIndex(html, now).upcoming)).toEqual(['Old/2026-05-01']);
+  });
+});
+
+describe('WikiSource.fetchBanners (ZZZ)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T12:00:00Z'));
+  });
+
+  const titles = (sections: { banners: { title: string }[] }[]) => sections.map((s) => s.banners.map((b) => b.title));
+  const POOL_TEXT = ZZZ_WIKITEXT_BY_TITLE['Cindernight Respite/2026-09-30'];
+  const upcomingOverrides = Object.fromEntries(
+    [
+      'Answers in the Wind/2026-11-11',
+      'Graceful Gale/2026-10-21',
+      'Into the Flames of Life/2026-10-21',
+      'Outlier of Prodigies/2026-11-11',
+      'Chief Sidekick/2026-11-11',
+      'Incarcerating Grip/2026-11-11',
+      'Joyau Dore/2026-10-21',
+      'Plume of Rebirth/2026-10-21',
+    ].map((t) => [t, POOL_TEXT]),
+  );
+
+  it('fetches both channel pages and merges them, Exclusive then W-Engine', async () => {
+    const { calls } = stubWikiFetch({ wikitextOverrides: upcomingOverrides });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    const listingPages = calls
+      .filter((u) => u.searchParams.get('prop') === 'text')
+      .map((u) => u.searchParams.get('page'));
+    expect(listingPages).toEqual(['Exclusive Channel', 'W-Engine Channel']);
+
+    expect(banners.current.map((s) => s.label)).toEqual(['Exclusive Channel', 'W-Engine Channel']);
+    expect(titles(banners.current)).toEqual([
+      ['Cindernight Respite/2026-09-30', 'Cold Rain Wanes in the Night/2026-09-30'],
+      ['Crimson Moon Casket/2026-09-30', 'Frostfall Sickle/2026-09-30'],
+    ]);
+  });
+
+  it('gathers Upcoming across both channels, grouped by channel', async () => {
+    stubWikiFetch({ wikitextOverrides: upcomingOverrides });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    expect(banners.upcoming.map((s) => s.label)).toEqual(['Exclusive Channel', 'W-Engine Channel']);
+    expect(titles(banners.upcoming)[0]).toEqual([
+      'Answers in the Wind/2026-11-11',
+      'Graceful Gale/2026-10-21',
+      'Into the Flames of Life/2026-10-21',
+      'Outlier of Prodigies/2026-11-11',
+    ]);
+    expect(titles(banners.upcoming)[1]).toHaveLength(4);
+  });
+
+  it('reads top-tier agent and hyphenated W-Engine Featured fields, ignoring standard-pool and B-rank fields', async () => {
+    stubWikiFetch({ wikitextOverrides: upcomingOverrides });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    const agent = banners.current[0].banners[0];
+    expect(agent.featured5Star).toEqual(['Roxy Ifrita Pryce']);
+    expect(agent.featured4Star).toEqual(['Corin Wickes', 'Billy Kid']);
+
+    const wEngine = banners.current[1].banners[0];
+    expect(wEngine.featured5Star).toEqual(['Crimson Moon Casket']);
+    expect(wEngine.featured4Star).toEqual(['Housekeeper', 'Starlight Engine Replica']);
+  });
+
+  it('resolves art from the infobox filename (the listing has no thumbnail)', async () => {
+    stubWikiFetch({ wikitextOverrides: upcomingOverrides });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    expect(banners.current[0].banners[0].imageUrl).toBe(
+      'https://static.wikia.nocookie.net/resolved/Cindernight%20Respite%202026-09-30.png',
+    );
+  });
+
+  it('renders a Banner with no image when the art cannot be resolved', async () => {
+    stubWikiFetch({ imagesUnresolvable: true, wikitextOverrides: upcomingOverrides });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    const banner = banners.current[0].banners[0];
+    expect(banner.imageUrl).toBeNull();
+    expect(banner.name).toBe('Cindernight Respite');
+    expect(banner.endUnix).not.toBeNull();
+  });
+
+  it('parses a single concurrent Banner under a run label (hand-edited fixture)', async () => {
+    stubWikiFetch({ exclusiveHtml: EXCLUSIVE_SINGLE_UPCOMING_HTML, wikitextOverrides: upcomingOverrides });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    expect(titles(banners.upcoming)[0]).toEqual(['Answers in the Wind/2026-11-11']);
+    expect(titles(banners.current)[0]).toEqual([
+      'Cindernight Respite/2026-09-30',
+      'Cold Rain Wanes in the Night/2026-09-30',
+    ]);
+  });
+
+  it('keeps the other channel when one channel page fails to fetch', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.useFakeTimers({ toFake: ['Date', 'setTimeout'] });
+    vi.setSystemTime(new Date('2026-10-13T12:00:00Z'));
+    stubWikiFetch({ failingPages: ['Exclusive Channel'], wikitextOverrides: upcomingOverrides });
+    const pending = new WikiSource().fetchBanners('zzz');
+    await vi.runAllTimersAsync(); // client.ts retries once after a 1s delay
+    const banners = await pending;
+
+    expect(banners.current.map((s) => s.label)).toEqual(['W-Engine Channel']);
+    expect(banners.upcoming.map((s) => s.label)).toEqual(['W-Engine Channel']);
+  });
+
+  it('drops only a Banner whose detail fetch fails', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stubWikiFetch({ wikitextOverrides: { ...upcomingOverrides, 'Cindernight Respite/2026-09-30': null } });
+    const banners = await new WikiSource().fetchBanners('zzz');
+
+    expect(titles(banners.current)[0]).toEqual(['Cold Rain Wanes in the Night/2026-09-30']);
+    expect(titles(banners.current)[1]).toHaveLength(2);
   });
 });

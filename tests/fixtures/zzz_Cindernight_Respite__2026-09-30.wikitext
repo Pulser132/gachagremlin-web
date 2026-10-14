@@ -1,0 +1,39 @@
+{{Signal Search Infobox
+|name              = Cindernight Respite 2026-09-30
+|image             = Cindernight Respite 2026-09-30.png
+|type              = Exclusive Channel
+|duration          = event
+|time_known        = yes
+|time_start        = 2026-09-30 12:00:00
+|time_end          = 2026-10-20 14:59:59
+|preceding         = Bloodmoon Rising/2026-09-09
+|preceding2        = Axiom of Captivation/2026-09-09
+|alongside         = Cold Rain Wanes in the Night/2026-09-30
+|alongside2        = Crimson Moon Casket/2026-09-30
+|alongside3        = Frostfall Sickle/2026-09-30
+|succeeding        = Into the Flames of Life/2026-10-21
+|succeeding2       = Graceful Gale/2026-10-21
+|link              = https://www.hoyolab.com/article/46863847
+}}
+{{Lead/Signal Search|Cindernight Respite/2026-09-30}}
+
+==Signal Search Details==
+===Duration===
+* 2026/09/30 12:00 (server time) &ndash; 2026/10/20 14:59 (server time)
+
+===Summary===
+* During this event Signal Search, the limited S-Rank Agent {{Intro/Agent/Full|Roxy Ifrita Pryce}} and default A-Rank Agents {{Intro/Agent/Full|Corin Wickes}} & {{Intro/Agent/Full|Billy Kid}} will have significantly boosted reception rates!
+* For information about rates, see [[Signal Search]]es.
+
+===Item Pool===
+{{Signal Search Pool
+|agent_S_F    = Roxy Ifrita Pryce
+|agent_A_F    = Corin Wickes; Billy Kid
+|agent_S      = Alexandrina Sebastiane;Grace Howard;Koleda Belobog;Nekomiya Mana;Soldier 11;Von Lycaon;Caesar King;Zhu Yuan;Tsukishiro Yanagi
+|agent_A      = Anby Demara;Anton Ivanov;Ben Bigger;Komano Manato;Luciana de Montefio;Nicole Demara;Pan Yinhu;Piper Wheel;Pulchra Fellini;Seth Lowell;Soukaku
+|w-engine_A   = Bashful Demon; Big Cylinder; Box Cutter; Bunny Band; Catty Luck; Demara Battery Mark II; Drill Rig - Red Axis; Grill O'Wisp; Housekeeper; Kaboom the Cannon; Original Transmorpher; Peacekeeper - Specialized; Precious Fossilized Core; Puzzle Sphere; Rainforest Gourmet; Roaring Ride; Slice of Time; Starlight Engine Replica; Starlight Engine; Steam Oven; Street Superstar; The Vault; Tremor Trigram Vessel; Weeping Gemini
+|w-engine_B   = (Identity) Base;(Identity) Inflection;(Lunar) Decrescent;(Lunar) Noviluna;(Lunar) Pleniluna;(Lunar) Semiluna;(Magnetic Storm) Alpha;(Magnetic Storm) Bravo;(Magnetic Storm) Charlie;(Reverb) Mark I;(Reverb) Mark II;(Reverb) Mark III;(Vortex) Arrow;(Vortex) Hatchet;(Vortex) Revolver;(Cinder) Cobalt
+}}
+
+==Change History==
+{{Change History|3.2}}
