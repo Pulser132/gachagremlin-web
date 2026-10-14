@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { focusTimelineBar, renderTimelineView, type HideStatus } from '../src/ui/timelineView.ts';
+import { focusTimelineBar, nextSurvivingBar, renderTimelineView, type HideStatus } from '../src/ui/timelineView.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, RegionUnix } from '../src/types.ts';
 
 const DAY = 86400;
@@ -93,6 +93,46 @@ describe('next bar after a hide', () => {
     view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
     const next = bars(view).find((b) => b.dataset.barId === onHide.mock.calls[0][0].nextBarId)!;
     expect(next.textContent).toBe('Mid');
+  });
+});
+
+describe('nextSurvivingBar edge cases', () => {
+  const bar = (id: string, start: number, hideKey?: string) => {
+    const b = document.createElement('button');
+    b.className = 'timeline-bar';
+    b.dataset.barId = id;
+    b.dataset.start = String(start);
+    b.dataset.end = String(start + 1);
+    if (hideKey) b.dataset.hideKey = hideKey;
+    return b;
+  };
+  const host = (...bs: HTMLElement[]) => {
+    const div = document.createElement('div');
+    div.append(...bs);
+    return div;
+  };
+
+  it('keeps a bar with no hide key, since no hide can remove it', () => {
+    const a = bar('a', 1, 'event:a');
+    const keyless = bar('k', 2);
+    expect(nextSurvivingBar(host(a, keyless, bar('c', 3, 'event:c')), a)).toBe(keyless);
+  });
+
+  it('treats keyless bars as survivors when the origin has no key either', () => {
+    const a = bar('a', 1);
+    const b = bar('b', 2);
+    expect(nextSurvivingBar(host(a, b), a)).toBe(b);
+  });
+
+  it('still skips bars sharing the hidden bar key', () => {
+    const a = bar('a', 1, 'event:a');
+    const c = bar('c', 3, 'event:c');
+    expect(nextSurvivingBar(host(a, bar('a2', 2, 'event:a'), c), a)).toBe(c);
+  });
+
+  it('returns nothing when the origin bar is no longer in the view', () => {
+    const detached = bar('gone', 1, 'event:gone');
+    expect(nextSurvivingBar(host(bar('x', 2, 'event:x')), detached)).toBeUndefined();
   });
 });
 
