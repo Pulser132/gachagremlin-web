@@ -59,4 +59,15 @@ describe('renderTimelineView', () => {
     const view = renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + DAY)]), null, 'America', NOW_S * 1000);
     expect(view.querySelector('.timeline-scroll')?.getAttribute('tabindex')).toBe('0');
   });
+
+  it('flags a bar that began before the window as continuing from before', () => {
+    const view = renderTimelineView('genshin', events([ev('Old', NOW_S - 20 * DAY, NOW_S + 3 * DAY)]), null, 'America', NOW_S * 1000);
+    expect(view.querySelector('button.timeline-bar')?.classList.contains('is-clamped-left')).toBe(true);
+  });
+
+  it('notes an empty banner listing on a game that has banner data wired', () => {
+    const empty: GameBanners = { current: [], upcoming: [], fetchedAt: 0 };
+    const view = renderTimelineView('zzz', events([ev('Ev', NOW_S, NOW_S + DAY)]), empty, 'America', NOW_S * 1000);
+    expect(view.querySelector('.timeline-note')?.textContent).toBe('No banners are currently listed on the wiki.');
+  });
 });

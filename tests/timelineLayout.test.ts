@@ -56,6 +56,12 @@ describe('layoutTimeline span and now line', () => {
     expect(utc.ticks[0].x).toBeCloseTo((94 * DAY - utc.spanStart) / (30 * DAY));
   });
 
+  it('puts Europe (UTC+1) gridlines on its midnight and nowX is region-independent', () => {
+    const eu = layoutTimeline(input({ utcOffsetHours: 1 }));
+    expect(eu.ticks[0].unix).toBe(93 * DAY + 23 * 3600);
+    expect(eu.nowX).toBeCloseTo(7 / 30);
+  });
+
   it('labels ticks with the date in the axis zone', () => {
     const out = layoutTimeline(input({ utcOffsetHours: 8 }));
     // 93*86400 + 16h UTC is day 94 00:00 in UTC+8; day 94 of 1970 = April 5.

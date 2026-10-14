@@ -1,6 +1,6 @@
 import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
-import { layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
+import { KIND_LABELS, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
 
 const LOOKBACK_DAYS = 7;
 const PX_PER_DAY_DESKTOP = 30;
@@ -52,16 +52,18 @@ export function renderTimelineView(
   wrap.dataset.pxPerDay = String(pxPerDay);
 
   const sign = offset < 0 ? '-' : '+';
-  const bar = el('div', { className: 'timeline-toolbar' });
-  bar.appendChild(el('p', { className: 'timeline-zone', text: `Server time: ${region} (UTC${sign}${Math.abs(offset)})` }));
+  const toolbar = el('div', { className: 'timeline-toolbar' });
+  toolbar.appendChild(el('p', { className: 'timeline-zone', text: `Server time: ${region} (UTC${sign}${Math.abs(offset)})` }));
   const nowBtn = el('button', { className: 'timeline-now-btn', text: 'Jump to now' });
   nowBtn.type = 'button';
   nowBtn.addEventListener('click', () => scrollTimelineToNow(wrap));
-  bar.appendChild(nowBtn);
-  wrap.appendChild(bar);
+  toolbar.appendChild(nowBtn);
+  wrap.appendChild(toolbar);
 
   if (banners === null) {
     wrap.appendChild(el('p', { className: 'timeline-note', text: "Banners aren't available for this game yet" }));
+  } else if (![...banners.current, ...banners.upcoming].some((s) => s.banners.length > 0)) {
+    wrap.appendChild(el('p', { className: 'timeline-note', text: 'No banners are currently listed on the wiki.' }));
   }
 
   if (layout.lanes.length === 0) {
@@ -75,7 +77,7 @@ export function renderTimelineView(
     tba.appendChild(el('h2', { text: 'Dates TBA' }));
     const list = el('ul');
     for (const item of layout.tba) {
-      list.appendChild(el('li', { text: `${item.name} (${item.kind === 'events' ? 'Event' : 'Banner'}) — ${item.reason}` }));
+      list.appendChild(el('li', { text: `${item.name} (${KIND_LABELS[item.kind].singular}) — ${item.reason}` }));
     }
     tba.appendChild(list);
     wrap.appendChild(tba);
@@ -127,7 +129,7 @@ function renderScroller(layout: TimelineLayout, pxPerDay: number): HTMLElement {
     group.appendChild(el('h2', { className: 'timeline-lane-header', text: lane.label }));
     for (const row of lane.rows) {
       const rowEl = el('div', { className: 'timeline-row' });
-      for (const b of row) rowEl.appendChild(renderBar(b, lane.label, px(b.x), px(b.w), b.w * spanPx));
+      for (const b of row) rowEl.appendChild(renderBar(b, KIND_LABELS[lane.kind].singular, px(b.x), px(b.w), b.w * spanPx));
       group.appendChild(rowEl);
     }
     canvas.appendChild(group);
@@ -141,14 +143,13 @@ function formatDay(unix: number): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(unix * 1000));
 }
 
-function renderBar(b: TimelineBar, laneLabel: string, left: string, width: string, widthPx: number): HTMLElement {
+function renderBar(b: TimelineBar, kind: string, left: string, width: string, widthPx: number): HTMLElement {
   const btn = el('button', {
     className: `timeline-bar timeline-cat-${b.colourKey}${b.upcoming ? ' is-upcoming' : ''}${b.widened ? ' is-widened' : ''}${b.clampedLeft ? ' is-clamped-left' : ''}`,
   });
   btn.type = 'button';
   btn.style.left = left;
   btn.style.width = width;
-  const kind = laneLabel.replace(/s$/, '');
   btn.setAttribute(
     'aria-label',
     `${b.name}, ${kind}, ${b.category}, starts ${formatDay(b.start)}, ends ${formatDay(b.end)}`,

@@ -17,6 +17,12 @@ const LANE_GAP_PX = 6;
 
 export type TimelineKind = 'events' | 'banners';
 
+/** Display names per kind: plural for lane headers, singular for labels. */
+export const KIND_LABELS: Record<TimelineKind, { plural: string; singular: string }> = {
+  events: { plural: 'Events', singular: 'Event' },
+  banners: { plural: 'Banners', singular: 'Banner' },
+};
+
 export interface TimelineInput {
   events: GameEvents;
   /** `null` = this game has no banner data (the view shows a note). */
@@ -214,9 +220,9 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
 
   const gap = LANE_GAP_PX / (spanDays * pxPerDay);
   const lanes: TimelineLane[] = [];
-  for (const [kind, label] of [['events', 'Events'], ['banners', 'Banners']] as const) {
+  for (const kind of ['events', 'banners'] as const) {
     const ofKind = bars.filter((b) => b.kind === kind);
-    if (ofKind.length > 0) lanes.push({ kind, label, rows: packRows(ofKind, gap) });
+    if (ofKind.length > 0) lanes.push({ kind, label: KIND_LABELS[kind].plural, rows: packRows(ofKind, gap) });
   }
 
   // Day gridlines at the axis zone's midnight (not the 04:00 reset).
