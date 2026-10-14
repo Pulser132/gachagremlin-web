@@ -14,6 +14,7 @@ const LIGHT_MIN = 0.3;
 const LIGHT_MAX = 0.7;
 /** Below this weight a pixel is effectively grey and not worth picking. */
 const MIN_WEIGHT = 0.02;
+const MIN_TEXT_CONTRAST = 4.5;
 const WHITE = '#ffffff';
 const DARK = '#14141a';
 const SAMPLE_SIZE = 24;
@@ -64,7 +65,8 @@ export function contrastRatio(a: string, b: string): number {
  * Finds the dominant hue (the 30-degree bucket with the most total vibrancy,
  * so one stray bright pixel cannot outvote a whole region), then takes that
  * bucket's most vibrant opaque pixel. Vibrancy is saturation weighted by
- * closeness to mid-lightness. The pick is clamped into a readable range and
+ * closeness to mid-lightness. The pick is clamped into a readable range (then
+ * darkened if needed so text reaches 4.5:1) and
  * text is white or dark by contrast. Returns null for empty, transparent or
  * greyscale input; the caller then keeps the category colour.
  */
@@ -84,7 +86,15 @@ export function pickColour(pixels: ArrayLike<number>): BarColour | null {
   const top = totals.indexOf(Math.max(...totals));
   const pick = bests[top]?.hsl;
   if (!pick) return null;
-  const bg = hslToHex(pick[0], clamp(pick[1], SAT_MIN, SAT_MAX), clamp(pick[2], LIGHT_MIN, LIGHT_MAX));
+  const sat = clamp(pick[1], SAT_MIN, SAT_MAX);
+  let light = clamp(pick[2], LIGHT_MIN, LIGHT_MAX);
+  let bg = hslToHex(pick[0], sat, light);
+  // Mid-lightness hues can leave both white and dark text just under AA (1.4.3);
+  // darken until white text clears it.
+  while (Math.max(contrastRatio(bg, WHITE), contrastRatio(bg, DARK)) < MIN_TEXT_CONTRAST && light > 0.05) {
+    light -= 0.01;
+    bg = hslToHex(pick[0], sat, light);
+  }
   return { bg, text: contrastRatio(bg, WHITE) >= contrastRatio(bg, DARK) ? WHITE : DARK };
 }
 

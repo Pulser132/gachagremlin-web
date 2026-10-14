@@ -37,6 +37,20 @@ describe('pickColour', () => {
     }
   });
 
+  it('keeps label text at 4.5:1 or better for every hue and saturation (WCAG 1.4.3)', () => {
+    for (let h = 0; h < 360; h += 3) {
+      for (const [s, l] of [[1, 0.5], [0.8, 0.45], [0.6, 0.4], [0.5, 0.5], [1, 0.3], [1, 0.7]]) {
+        const a = s * Math.min(l, 1 - l);
+        const f = (n: number) => {
+          const k = (n + h / 30) % 12;
+          return Math.round(255 * (l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+        };
+        const c = pickColour(px([f(0), f(8), f(4), 255]));
+        if (c) expect(contrastRatio(c.bg, c.text), `h=${h} s=${s} l=${l} ${c.bg}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
   it('switches text to whichever of white/dark has higher contrast', () => {
     const light = pickColour(px([200, 200, 60, 255]))!;
     const dark = pickColour(px([30, 30, 200, 255]))!;
