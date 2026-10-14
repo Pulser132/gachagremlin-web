@@ -155,7 +155,7 @@ export function renderTimelineView(
     wrap.appendChild(
       el('p', {
         className: 'timeline-note timeline-hidden-note',
-        text: `${hiddenKinds.count} items hidden. Un-hide them from the Hidden list on the ${tabs} tab.`,
+        text: `${hiddenKinds.count} ${hiddenKinds.count === 1 ? 'item' : 'items'} hidden. Un-hide them from the Hidden list on the ${tabs} tab.`,
       }),
     );
   }
@@ -250,7 +250,14 @@ function nextSurvivingBar(view: ParentNode | null, from: HTMLElement): HTMLEleme
   return sorted.slice(sorted.indexOf(from) + 1).find((b) => b.dataset.hideKey !== from.dataset.hideKey);
 }
 
-/** Counts bars the hide rules removed (those that would otherwise be drawn) and which kinds. */
+/** The hide rule a bar belongs to, shared by every rerun of one Event; undefined for neither. */
+function barHideKey(b: TimelineBar): string | undefined {
+  if (b.event) return `event:${eventHideKey(b.event.name)}`;
+  if (b.banner) return `banner:${bannerHideKey(b.banner.title)}`;
+  return undefined;
+}
+
+/** Counts the hide rules that removed a bar (one per Hidden-list entry, however many reruns it took) and which kinds. */
 function hiddenBarKinds(
   allEvents: GameEvents,
   allBanners: GameBanners | null,
@@ -259,10 +266,15 @@ function hiddenBarKinds(
 ): { count: number; events: boolean; banners: boolean } {
   const shown = new Set(visible.lanes.flatMap((l) => l.rows.flat().map((b) => b.id)));
   const out = { count: 0, events: false, banners: false };
+  const rules = new Set<string>();
   for (const lane of layoutTimeline({ ...input, events: allEvents, banners: allBanners }).lanes) {
     for (const bar of lane.rows.flat()) {
       if (shown.has(bar.id)) continue;
-      out.count++;
+      const rule = barHideKey(bar) ?? bar.id;
+      if (!rules.has(rule)) {
+        rules.add(rule);
+        out.count++;
+      }
       if (bar.kind === 'events') out.events = true;
       else out.banners = true;
     }
@@ -401,8 +413,8 @@ function renderBar(
   btn.style.left = left;
   btn.style.width = width;
   btn.dataset.barId = b.id;
-  if (b.event) btn.dataset.hideKey = `event:${eventHideKey(b.event.name)}`;
-  else if (b.banner) btn.dataset.hideKey = `banner:${bannerHideKey(b.banner.title)}`;
+  const hideKey = barHideKey(b);
+  if (hideKey) btn.dataset.hideKey = hideKey;
   btn.dataset.head = `${b.name}, ${kind}, ${b.category}`;
   btn.dataset.start = String(b.start);
   btn.dataset.end = String(b.end);

@@ -114,11 +114,11 @@ describe('hidden-count note', () => {
     expect(view.querySelector('.timeline-hidden-note')).toBeNull();
   });
 
-  it('counts hidden bars and names the right tab', () => {
+  it('counts hidden rules, not bars, and names the right tab', () => {
     localStorage.setItem(key, JSON.stringify({ hiddenNames: ['ev'] }));
     let { view } = mount([ev('Ev', NOW_S, NOW_S + DAY), ev('Keep', NOW_S, NOW_S + DAY)]);
     expect(view.querySelector('.timeline-hidden-note')?.textContent).toBe(
-      '1 items hidden. Un-hide them from the Hidden list on the Events tab.',
+      '1 item hidden. Un-hide them from the Hidden list on the Events tab.',
     );
     localStorage.setItem(key, JSON.stringify({ hiddenBanners: ['luna/x'] }));
     ({ view } = mount([ev('Keep', NOW_S, NOW_S + DAY)]));
@@ -129,6 +129,12 @@ describe('hidden-count note', () => {
       '2 items hidden. Un-hide them from the Hidden list on the Events or Banners tab.',
     );
     expect(view.querySelector('[aria-live],[role=status]')).toBeNull();
+  });
+
+  it('counts one rule once when it hides several reruns', () => {
+    localStorage.setItem(key, JSON.stringify({ hiddenNames: ['ev'] }));
+    const { view } = mount([ev('Ev', NOW_S, NOW_S + DAY), ev('Ev', NOW_S + 3 * DAY, NOW_S + 4 * DAY), ev('Ev', NOW_S + 6 * DAY, NOW_S + 7 * DAY)]);
+    expect(view.querySelector('.timeline-hidden-note')?.textContent).toContain('1 item hidden.');
   });
 
   it('does not count hidden items that would not have drawn (undated)', () => {
