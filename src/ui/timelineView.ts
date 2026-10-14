@@ -230,7 +230,16 @@ function hiddenBarKinds(
 /** Focuses the bar with `barId`; falls back to the scroller, never `document.body`. */
 export function focusTimelineBar(view: HTMLElement, barId: string | null): void {
   const bar = barId ? [...view.querySelectorAll<HTMLElement>('button.timeline-bar')].find((b) => b.dataset.barId === barId) : null;
-  (bar ?? view.querySelector<HTMLElement>('.timeline-scroll'))?.focus();
+  const target = bar ?? view.querySelector<HTMLElement>('.timeline-scroll');
+  if (!target) return;
+  // Focus must not move the scroll position the caller just restored; only reveal the bar if it is off-screen.
+  target.focus({ preventScroll: true });
+  const scroller = view.querySelector<HTMLElement>('.timeline-scroll');
+  if (bar && scroller && scroller.clientWidth > 0) {
+    const s = scroller.getBoundingClientRect();
+    const r = bar.getBoundingClientRect();
+    if (r.right < s.left || r.left > s.right) bar.scrollIntoView({ inline: 'nearest', block: 'nearest' });
+  }
 }
 
 /** Moves the now line and rewrites its HH:MM label (only if the text changed).
