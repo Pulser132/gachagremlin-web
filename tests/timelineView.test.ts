@@ -65,6 +65,22 @@ describe('renderTimelineView', () => {
     expect(view.querySelector('button.timeline-bar')?.classList.contains('is-clamped-left')).toBe(true);
   });
 
+  it('hides the remaining-time chip on narrow bars but keeps the label and widened cue', () => {
+    const view = renderTimelineView(
+      'genshin',
+      events([ev('Tiny', NOW_S, NOW_S + 3600), ev('Long', NOW_S, NOW_S + 10 * DAY)]),
+      null,
+      'America',
+      NOW_S * 1000,
+    );
+    const [tiny, long] = [...view.querySelectorAll('button.timeline-bar')];
+    expect(tiny.querySelector('.timeline-bar-chip')).toBeNull();
+    expect(tiny.querySelector('.timeline-bar-label')?.textContent).toBe('Tiny');
+    expect(tiny.classList.contains('is-widened')).toBe(true);
+    expect(long.querySelector('.timeline-bar-chip')).not.toBeNull();
+    expect(long.classList.contains('is-widened')).toBe(false);
+  });
+
   it('notes an empty banner listing on a game that has banner data wired', () => {
     const empty: GameBanners = { current: [], upcoming: [], fetchedAt: 0 };
     const view = renderTimelineView('zzz', events([ev('Ev', NOW_S, NOW_S + DAY)]), empty, 'America', NOW_S * 1000);
