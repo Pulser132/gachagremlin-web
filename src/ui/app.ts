@@ -18,6 +18,7 @@ import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
+import { renderTimelineView, scrollTimelineToNow } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
@@ -39,11 +40,12 @@ const EVENT_SORT_OPTIONS: { value: EventSortOrder; label: string }[] = [
 ];
 const REGIONS: Region[] = ['America', 'Europe', 'Asia', 'SAR'];
 
-type ViewMode = 'events' | 'wishes' | 'banners';
+type ViewMode = 'events' | 'wishes' | 'banners' | 'timeline';
 const VIEWS: { key: ViewMode; label: string }[] = [
   { key: 'events', label: 'Events' },
   { key: 'wishes', label: 'Wishes' },
   { key: 'banners', label: 'Banners' },
+  { key: 'timeline', label: 'Timeline' },
 ];
 
 const wikiSource = new WikiSource();
@@ -218,6 +220,47 @@ export function mountApp(root: HTMLElement): void {
       main.innerHTML = '';
       main.appendChild(renderWishesView(game, () => render()));
       main.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    if (view === 'timeline') {
+      main.setAttribute('aria-busy', 'true');
+      main.innerHTML = '';
+      main.appendChild(buildSkeleton());
+
+      let events: GameEvents;
+      let banners: GameBanners | null = null;
+      try {
+        // Both sources serve from their TTL cache, so a region change re-lays
+        // out the same data rather than refetching.
+        const wantBanners = hasBannerIndexPage(game);
+        [events, banners] = await Promise.all([
+          forceRefresh ? eventSource.forceRefresh(game) : eventSource.fetch(game),
+          wantBanners ? (forceRefresh ? bannerSource.forceRefresh(game) : bannerSource.fetch(game)) : Promise.resolve(null),
+        ]);
+      } catch (e) {
+        if (myGen !== renderGen) return;
+        main.innerHTML = '';
+        status.hidden = false;
+        status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} timeline: ${(e as Error).message}. Try Refresh in a moment.`;
+        main.setAttribute('aria-busy', 'false');
+        return;
+      }
+      if (myGen !== renderGen) return;
+
+      const stale = events.stale || banners?.stale;
+      status.hidden = !stale;
+      if (stale) {
+        status.textContent = `The wiki couldn't be reached — showing cached data from ${new Date(events.fetchedAt).toLocaleString()}.`;
+      }
+      lastUpdated.textContent = `Last updated ${new Date(events.fetchedAt).toLocaleTimeString()}`;
+
+      main.innerHTML = '';
+      const timeline = renderTimelineView(game, events, banners, region);
+      main.appendChild(timeline);
+      scrollTimelineToNow(timeline);
+      main.setAttribute('aria-busy', 'false');
+      startCountdownTicker();
       return;
     }
 

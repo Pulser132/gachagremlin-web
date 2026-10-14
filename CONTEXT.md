@@ -55,7 +55,7 @@ _Avoid_: Fallback pool, base pool
 A per-game view that lays current and upcoming Events and Banners out as dated bars on a
 shared time axis, so overlaps and end dates can be seen at a glance. Shows *when* things
 run; the Events and Banners tabs remain the place for *what* they contain. Items with no
-known start or end date are not bars (they are listed separately as dates-to-be-announced).
+known start or end date, or with dates that can't be trusted (start not before end, or an end already past), are not bars (they are listed separately as dates-to-be-announced).
 _Avoid_: Calendar (implies a month grid), Schedule
 
 **Wishes tab** *(existing feature)*:
@@ -76,5 +76,5 @@ _Avoid_: Banners (see above — a different tab, a different data source)
 - `src/data/wishes/banners.ts` — per-game Banner group / pity config, the
   vocabulary Banner categories reuse (ADR-0003).
 - `src/ui/` — pure `data → DOM` render functions (`eventCard.ts`,
-  `wishesView.ts`, `bannersView.ts`) driven by `app.ts`, which owns fetching,
+  `wishesView.ts`, `bannersView.ts`, `timelineView.ts`) driven by `app.ts`, which owns fetching,
   caching, and view-switching state.

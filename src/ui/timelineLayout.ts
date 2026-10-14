@@ -1,0 +1,237 @@
+/**
+ * Pure layout for the Timeline tab: current + upcoming Events and Banners in,
+ * dated bars out. No DOM and no clock — `now` is injected, and positions are
+ * fractions of the axis span so the view alone decides pixels.
+ */
+import { categorizeEvent } from '../data/eventCategories.ts';
+import type { BannerInfo, EventInfo, GameBanners, GameEvents, Region } from '../types.ts';
+import { resolveRegionUnix } from './eventCard.ts';
+
+const DAY = 86400;
+/** Axis never spans fewer days than this, however little is scheduled. */
+export const MIN_SPAN_DAYS = 30;
+/** Every bar is drawn at least this wide so short items stay tappable. */
+export const MIN_BAR_PX = 44;
+/** Breathing room kept between two bars sharing a lane. */
+const LANE_GAP_PX = 6;
+
+export type TimelineKind = 'events' | 'banners';
+
+/** Display names per kind: plural for lane headers, singular for labels. */
+export const KIND_LABELS: Record<TimelineKind, { plural: string; singular: string }> = {
+  events: { plural: 'Events', singular: 'Event' },
+  banners: { plural: 'Banners', singular: 'Banner' },
+};
+
+export interface TimelineInput {
+  events: GameEvents;
+  /** `null` = this game has no banner data (the view shows a note). */
+  banners: GameBanners | null;
+  region: Region;
+  /** Fixed UTC offset (hours) of the selected server; sets the day gridlines. */
+  utcOffsetHours: number;
+  /** Unix seconds. */
+  now: number;
+  lookbackDays: number;
+  pxPerDay: number;
+}
+
+export interface TimelineTick {
+  unix: number;
+  /** Fraction of the span. */
+  x: number;
+  /** "MM-DD" in the axis zone. */
+  label: string;
+}
+
+export interface TimelineBar {
+  id: string;
+  kind: TimelineKind;
+  name: string;
+  /** Text category: event category label or banner category label. */
+  category: string;
+  /** Class-friendly colour key (`ingame` | `web` | `other` | `banner`). */
+  colourKey: string;
+  /** Real dates for the chosen region, never the widened ones. */
+  start: number;
+  end: number;
+  /** Fractions of the span. */
+  x: number;
+  w: number;
+  /** Drawn wider than the real window to reach the minimum width. */
+  widened: boolean;
+  /** Began before the left edge; the view draws a "continues from before" notch. */
+  clampedLeft: boolean;
+  imageUrl: string | null;
+  upcoming: boolean;
+}
+
+export interface TimelineLane {
+  kind: TimelineKind;
+  label: string;
+  /** Packed rows; bars within a row never overlap. */
+  rows: TimelineBar[][];
+}
+
+export interface TimelineTba {
+  kind: TimelineKind;
+  name: string;
+  reason: string;
+}
+
+export interface TimelineLayout {
+  spanStart: number;
+  spanEnd: number;
+  spanDays: number;
+  ticks: TimelineTick[];
+  nowX: number;
+  lanes: TimelineLane[];
+  tba: TimelineTba[];
+}
+
+const EVENT_CATEGORY_LABEL: Record<string, string> = { ingame: 'In Game', web: 'Web', other: 'Other' };
+
+interface Candidate {
+  kind: TimelineKind;
+  id: string;
+  name: string;
+  category: string;
+  colourKey: string;
+  imageUrl: string | null;
+  upcoming: boolean;
+  start: number | null;
+  end: number | null;
+  fetchedCurrent: boolean;
+}
+
+function eventCandidate(ev: EventInfo, fetchedCurrent: boolean, region: Region): Candidate {
+  const key = categorizeEvent(ev);
+  return {
+    kind: 'events',
+    id: `event:${ev.game}:${ev.title}`,
+    name: ev.name,
+    category: EVENT_CATEGORY_LABEL[key],
+    colourKey: key,
+    imageUrl: ev.imageUrl,
+    upcoming: !fetchedCurrent,
+    start: resolveRegionUnix(ev.startUnix, region),
+    end: resolveRegionUnix(ev.endUnix, region),
+    fetchedCurrent,
+  };
+}
+
+function bannerCandidate(b: BannerInfo, label: string, fetchedCurrent: boolean, region: Region): Candidate {
+  return {
+    kind: 'banners',
+    id: `banner:${b.game}:${b.title}`,
+    name: b.name,
+    category: label,
+    colourKey: 'banner',
+    imageUrl: b.imageUrl,
+    upcoming: !fetchedCurrent,
+    start: resolveRegionUnix(b.startUnix, region),
+    end: resolveRegionUnix(b.endUnix, region),
+    fetchedCurrent,
+  };
+}
+
+function collect(input: TimelineInput): Candidate[] {
+  const { events, banners, region } = input;
+  const out: Candidate[] = [];
+  for (const ev of events.current) out.push(eventCandidate(ev, true, region));
+  for (const ev of events.upcoming) out.push(eventCandidate(ev, false, region));
+  if (banners) {
+    for (const s of banners.current) for (const b of s.banners) out.push(bannerCandidate(b, s.label, true, region));
+    for (const s of banners.upcoming) for (const b of s.banners) out.push(bannerCandidate(b, s.label, false, region));
+  }
+  return out;
+}
+
+/** Why an item can't be drawn, or null when it can. */
+function tbaReason(c: Candidate, now: number): string | null {
+  if (c.start === null && c.end === null) return 'No dates announced';
+  if (c.start === null || c.end === null) return 'Only one date announced';
+  if (c.start >= c.end) return 'Dates look wrong';
+  if (c.end < now) return c.fetchedCurrent ? 'End date looks out of date' : 'Dates look wrong';
+  return null;
+}
+
+function dayLabel(unix: number, offsetHours: number): string {
+  const d = new Date((unix + offsetHours * 3600) * 1000);
+  return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+function packRows(bars: TimelineBar[], gapFraction: number): TimelineBar[][] {
+  const rows: TimelineBar[][] = [];
+  const rowEnds: number[] = [];
+  const sorted = [...bars].sort((a, b) => a.start - b.start || a.end - b.end || a.name.localeCompare(b.name));
+  for (const bar of sorted) {
+    let i = rowEnds.findIndex((end) => end + gapFraction <= bar.x);
+    if (i === -1) {
+      i = rows.length;
+      rows.push([]);
+      rowEnds.push(0);
+    }
+    rows[i].push(bar);
+    rowEnds[i] = bar.x + bar.w;
+  }
+  return rows;
+}
+
+export function layoutTimeline(input: TimelineInput): TimelineLayout {
+  const { now, lookbackDays, pxPerDay, utcOffsetHours } = input;
+  const spanStart = now - lookbackDays * DAY;
+
+  const drawable: (Candidate & { start: number; end: number })[] = [];
+  const tba: TimelineTba[] = [];
+  for (const c of collect(input)) {
+    const reason = tbaReason(c, now);
+    if (reason) tba.push({ kind: c.kind, name: c.name, reason });
+    else drawable.push(c as Candidate & { start: number; end: number });
+  }
+
+  const latestEnd = drawable.reduce((m, c) => Math.max(m, c.end), 0);
+  const spanEnd = Math.max(latestEnd, spanStart + MIN_SPAN_DAYS * DAY);
+  const span = spanEnd - spanStart;
+  const spanDays = span / DAY;
+  const minW = MIN_BAR_PX / (spanDays * pxPerDay);
+
+  const bars: TimelineBar[] = drawable.map((c) => {
+    const clampedLeft = c.start < spanStart;
+    const x = (Math.max(c.start, spanStart) - spanStart) / span;
+    const real = (c.end - Math.max(c.start, spanStart)) / span;
+    const widened = real < minW;
+    return {
+      id: c.id,
+      kind: c.kind,
+      name: c.name,
+      category: c.category,
+      colourKey: c.colourKey,
+      start: c.start,
+      end: c.end,
+      x,
+      w: widened ? minW : real,
+      widened,
+      clampedLeft,
+      imageUrl: c.imageUrl,
+      upcoming: c.upcoming,
+    };
+  });
+
+  const gap = LANE_GAP_PX / (spanDays * pxPerDay);
+  const lanes: TimelineLane[] = [];
+  for (const kind of ['events', 'banners'] as const) {
+    const ofKind = bars.filter((b) => b.kind === kind);
+    if (ofKind.length > 0) lanes.push({ kind, label: KIND_LABELS[kind].plural, rows: packRows(ofKind, gap) });
+  }
+
+  // Day gridlines at the axis zone's midnight (not the 04:00 reset).
+  const ticks: TimelineTick[] = [];
+  const shift = utcOffsetHours * 3600;
+  let t = Math.ceil((spanStart + shift) / DAY) * DAY - shift;
+  for (; t <= spanEnd; t += DAY) {
+    ticks.push({ unix: t, x: (t - spanStart) / span, label: dayLabel(t, utcOffsetHours) });
+  }
+
+  return { spanStart, spanEnd, spanDays, ticks, nowX: (now - spanStart) / span, lanes, tba };
+}
