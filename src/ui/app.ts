@@ -6,6 +6,7 @@ import { configureSync, getSyncState, onSyncStateChange, scheduleSync, setOnMerg
 import { categorizeEvent, EVENT_CATEGORIES, type EventCategory } from '../data/eventCategories.ts';
 import {
   eventHideKey,
+  hideBanner,
   hideEvent,
   listHiddenCategories,
   listHiddenNames,
@@ -18,7 +19,7 @@ import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
-import { renderTimelineView, scrollTimelineToNow, updateTimelineNow } from './timelineView.ts';
+import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
 import { startCountdownTicker } from './countdown.ts';
 import { renderEventCard, resolveRegionUnix } from './eventCard.ts';
@@ -208,6 +209,20 @@ export function mountApp(root: HTMLElement): void {
   // resolves) checks this after the await and bails instead of clobbering
   // whatever the newer render already put in `main`.
   let renderGen = 0;
+  // Set by a Timeline hide so the next Timeline render keeps the scroll
+  // position and lands focus on the next bar (or the scroller).
+  let timelineRestore: { scrollLeft: number; focusBarId: string | null } | null = null;
+
+  const onTimelineHide = (req: HideRequest) => {
+    if (req.kind === 'event') hideEvent(game, req.name);
+    else hideBanner(game, req.title);
+    scheduleSync('merge'); // hiding is additive — a union merge preserves it
+    timelineRestore = {
+      scrollLeft: document.querySelector<HTMLElement>('.timeline-scroll')?.scrollLeft ?? 0,
+      focusBarId: req.nextBarId,
+    };
+    void render();
+  };
 
   async function render(forceRefresh = false): Promise<void> {
     const myGen = ++renderGen;
@@ -273,13 +288,22 @@ export function mountApp(root: HTMLElement): void {
       main.innerHTML = '';
       const timeline = renderTimelineView(game, events, banners, region, Date.now(), {
         localTime: loadPref(TIMELINE_LOCAL_PREF_KEY) === '1',
+        onHide: onTimelineHide,
         onLocalTimeChange: (on) => {
           savePref(TIMELINE_LOCAL_PREF_KEY, on ? '1' : '0');
           void render().then(() => document.querySelector<HTMLInputElement>('.timeline-local-toggle input')?.focus());
         },
       });
       main.appendChild(timeline);
-      scrollTimelineToNow(timeline);
+      const restore = timelineRestore;
+      timelineRestore = null;
+      if (restore) {
+        const scroller = timeline.querySelector<HTMLElement>('.timeline-scroll');
+        if (scroller) scroller.scrollLeft = restore.scrollLeft;
+        focusTimelineBar(timeline, restore.focusBarId);
+      } else {
+        scrollTimelineToNow(timeline);
+      }
       startTimelineNowTicker(timeline);
       main.setAttribute('aria-busy', 'false');
       startCountdownTicker();

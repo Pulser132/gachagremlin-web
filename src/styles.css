@@ -1679,6 +1679,17 @@ select {
   cursor: pointer;
 }
 
+.timeline-panel-hide {
+  min-height: 44px;
+  margin-top: 0.5rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
 .timeline-panel-facts {
   display: grid;
   grid-template-columns: max-content 1fr;

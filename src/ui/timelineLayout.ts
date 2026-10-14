@@ -78,6 +78,8 @@ export interface TimelineBar {
   wikiUrl: string;
   /** The source Event, so the detail panel can reuse the existing event card. */
   event: EventInfo | null;
+  /** The source Banner, so the detail panel can hide that dated run. */
+  banner: BannerInfo | null;
 }
 
 export interface TimelineLane {
@@ -117,6 +119,7 @@ interface Candidate {
   upcoming: boolean;
   wikiUrl: string;
   event: EventInfo | null;
+  banner: BannerInfo | null;
   start: number | null;
   end: number | null;
   fetchedCurrent: boolean;
@@ -134,6 +137,7 @@ function eventCandidate(ev: EventInfo, fetchedCurrent: boolean, region: Region):
     upcoming: !fetchedCurrent,
     wikiUrl: wikiPageUrl(getGame(ev.game).host, ev.title),
     event: ev,
+    banner: null,
     start: resolveRegionUnix(ev.startUnix, region),
     end: resolveRegionUnix(ev.endUnix, region),
     fetchedCurrent,
@@ -151,6 +155,7 @@ function bannerCandidate(b: BannerInfo, label: string, fetchedCurrent: boolean, 
     upcoming: !fetchedCurrent,
     wikiUrl: b.wikiUrl,
     event: null,
+    banner: b,
     start: resolveRegionUnix(b.startUnix, region),
     end: resolveRegionUnix(b.endUnix, region),
     fetchedCurrent,
@@ -264,6 +269,7 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
       upcoming: c.upcoming,
       wikiUrl: c.wikiUrl,
       event: c.event,
+      banner: c.banner,
     };
   });
 
