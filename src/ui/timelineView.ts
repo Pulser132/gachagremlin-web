@@ -2,7 +2,7 @@ import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderCountdownRow } from './countdown.ts';
 import { renderEventCard } from './eventCard.ts';
-import { KIND_LABELS, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
+import { KIND_LABELS, axisOffset, clockLabel, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
 
 const LOOKBACK_DAYS = 7;
 const PX_PER_DAY_DESKTOP = 30;
@@ -22,6 +22,27 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+export interface TimelineViewOptions {
+  /** Show gridlines and the now label in the visitor's timezone. */
+  localTime?: boolean;
+  /** IANA zone used in local mode; defaults to the browser's. */
+  localTimeZone?: string;
+  onLocalTimeChange?: (on: boolean) => void;
+}
+
+const MINUTE_MS = 60_000;
+const SECONDS_PER_DAY = 86400;
+/** Repositions the now line and relabels it for a new instant. */
+const nowUpdaters = new WeakMap<HTMLElement, (nowMs: number) => void>();
+
+function browserTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function prefersReducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 function isPhone(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 640px)').matches;
 }
@@ -37,7 +58,9 @@ export function renderTimelineView(
   banners: GameBanners | null,
   region: Region,
   nowMs: number = Date.now(),
+  opts: TimelineViewOptions = {},
 ): HTMLElement {
+  const localTimeZone = opts.localTime ? (opts.localTimeZone ?? browserTimeZone()) : null;
   const pxPerDay = isPhone() ? PX_PER_DAY_PHONE : PX_PER_DAY_DESKTOP;
   const offset = getGame(game).servers[region] ?? 0;
   const layout = layoutTimeline({
@@ -45,6 +68,7 @@ export function renderTimelineView(
     banners,
     region,
     utcOffsetHours: offset,
+    localTimeZone,
     now: Math.floor(nowMs / 1000),
     lookbackDays: LOOKBACK_DAYS,
     pxPerDay,
@@ -55,10 +79,22 @@ export function renderTimelineView(
 
   const sign = offset < 0 ? '-' : '+';
   const toolbar = el('div', { className: 'timeline-toolbar' });
-  toolbar.appendChild(el('p', { className: 'timeline-zone', text: `Server time: ${region} (UTC${sign}${Math.abs(offset)})` }));
+  const toggle = el('label', { className: 'timeline-local-toggle' });
+  const box = el('input');
+  box.type = 'checkbox';
+  box.checked = !!opts.localTime;
+  box.addEventListener('change', () => opts.onLocalTimeChange?.(box.checked));
+  toggle.append(box, ' Show as local time');
+  toolbar.appendChild(toggle);
+  toolbar.appendChild(
+    el('p', {
+      className: 'timeline-zone',
+      text: localTimeZone ? `Local time: ${localTimeZone}` : `Server time: ${region} (UTC${sign}${Math.abs(offset)})`,
+    }),
+  );
   const nowBtn = el('button', { className: 'timeline-now-btn', text: 'Jump to now' });
   nowBtn.type = 'button';
-  nowBtn.addEventListener('click', () => scrollTimelineToNow(wrap));
+  nowBtn.addEventListener('click', () => scrollTimelineToNow(wrap, !prefersReducedMotion()));
   toolbar.appendChild(nowBtn);
   wrap.appendChild(toolbar);
 
@@ -88,17 +124,43 @@ export function renderTimelineView(
     wrap.appendChild(tba);
   }
 
+  const nowLine = wrap.querySelector<HTMLElement>('.timeline-now');
+  if (nowLine) {
+    const offsetAt = axisOffset(offset, localTimeZone);
+    const label = nowLine.querySelector<HTMLElement>('.timeline-now-label');
+    nowUpdaters.set(wrap, (ms) => {
+      const now = Math.floor(ms / 1000);
+      nowLine.style.left = `${((now - layout.spanStart) / SECONDS_PER_DAY) * pxPerDay}px`;
+      const text = clockLabel(now, offsetAt);
+      if (label && label.textContent !== text) label.textContent = text;
+    });
+        let attached = false;
+    const timer = setInterval(() => {
+      if (wrap.isConnected) attached = true;
+      else if (attached) return clearInterval(timer);
+      updateTimelineNow(wrap, Date.now());
+    }, MINUTE_MS);
+  }
+
   return wrap;
+}
+
+/** Moves the now line and rewrites its HH:MM label (only if the text changed).
+ * Driven once a minute; deliberately not an aria-live region. */
+export function updateTimelineNow(view: HTMLElement, nowMs: number): void {
+  nowUpdaters.get(view)?.(nowMs);
 }
 
 /** Scrolls so the now line sits ~15% in from the left. Call once the view is
  * attached; happy-dom/no-layout environments have zero widths and are no-ops. */
-export function scrollTimelineToNow(view: HTMLElement): void {
+export function scrollTimelineToNow(view: HTMLElement, smooth = false): void {
   const scroller = view.querySelector<HTMLElement>('.timeline-scroll');
   const nowLine = view.querySelector<HTMLElement>('.timeline-now');
   if (!scroller || !nowLine) return;
   const nowPx = parseFloat(nowLine.style.left);
-  scroller.scrollLeft = Math.max(0, nowPx - scroller.clientWidth * NOW_VIEWPORT_FRACTION);
+  const left = Math.max(0, nowPx - scroller.clientWidth * NOW_VIEWPORT_FRACTION);
+  if (smooth && typeof scroller.scrollTo === 'function') scroller.scrollTo({ left, behavior: 'smooth' });
+  else scroller.scrollLeft = left;
 }
 
 function renderScroller(
@@ -129,6 +191,7 @@ function renderScroller(
   const nowLine = el('div', { className: 'timeline-now' });
   nowLine.style.left = px(layout.nowX);
   nowLine.setAttribute('aria-hidden', 'true');
+  nowLine.appendChild(el('span', { className: 'timeline-now-label', text: layout.nowLabel }));
   canvas.appendChild(nowLine);
 
   for (const lane of layout.lanes) {

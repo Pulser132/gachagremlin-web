@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { renderTimelineView } from '../src/ui/timelineView.ts';
+import { renderTimelineView, updateTimelineNow } from '../src/ui/timelineView.ts';
 import type { BannerInfo, EventInfo, GameBanners, GameEvents, RegionUnix } from '../src/types.ts';
 
 const DAY = 86400;
@@ -138,5 +138,48 @@ describe('renderTimelineView', () => {
       view.querySelector<HTMLButtonElement>('.timeline-panel-close')!.click();
       expect(document.activeElement).toBe(bar);
     });
+  });
+});
+
+describe('local time controls', () => {
+  const render = (opts = {}) =>
+    renderTimelineView('genshin', events([ev('Ev', NOW_S, NOW_S + 5 * DAY)]), null, 'America', NOW_S * 1000, opts);
+
+  it('defaults to server time with the toggle off', () => {
+    const view = render();
+    expect(view.querySelector<HTMLInputElement>('.timeline-local-toggle input')!.checked).toBe(false);
+    expect(view.querySelector('.timeline-zone')?.textContent).toBe('Server time: America (UTC-5)');
+  });
+
+  it('names the browser zone in local mode and calls back on toggle', () => {
+    let got: boolean | null = null;
+    const view = render({ localTime: true, localTimeZone: 'Asia/Tokyo', onLocalTimeChange: (v: boolean) => (got = v) });
+    expect(view.querySelector('.timeline-zone')?.textContent).toBe('Local time: Asia/Tokyo');
+    const box = view.querySelector<HTMLInputElement>('.timeline-local-toggle input')!;
+    expect(box.checked).toBe(true);
+    box.checked = false;
+    box.dispatchEvent(new Event('change'));
+    expect(got).toBe(false);
+  });
+
+  it('labels the now line in the active zone and moves it on the minute tick', () => {
+    const view = render({ localTime: true, localTimeZone: 'Asia/Tokyo' });
+    const line = view.querySelector<HTMLElement>('.timeline-now')!;
+    expect(line.querySelector('.timeline-now-label')?.textContent).toBe('09:00');
+    const before = parseFloat(line.style.left);
+    updateTimelineNow(view, (NOW_S + 3600) * 1000);
+    expect(line.querySelector('.timeline-now-label')?.textContent).toBe('10:00');
+    expect(parseFloat(line.style.left)).toBeGreaterThan(before);
+  });
+
+  it('keeps the tick out of any live region', () => {
+    const view = render();
+    expect(view.querySelector('[aria-live], [role="status"], [role="alert"]')).toBeNull();
+  });
+
+  it('has a keyboard-reachable Jump to now button', () => {
+    const btn = render().querySelector<HTMLButtonElement>('.timeline-now-btn')!;
+    expect(btn.tagName).toBe('BUTTON');
+    expect(btn.textContent).toBe('Jump to now');
   });
 });

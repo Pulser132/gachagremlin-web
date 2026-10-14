@@ -32,6 +32,7 @@ const GAME_PREF_KEY = 'gachagremlin:selectedGame';
 const REGION_PREF_KEY = 'gachagremlin:selectedRegion';
 const VIEW_PREF_KEY = 'gachagremlin:selectedView';
 const EVENT_SORT_PREF_KEY = 'gachagremlin:eventSort';
+const TIMELINE_LOCAL_PREF_KEY = 'gachagremlin:timelineLocalTime';
 
 const EVENT_SORT_OPTIONS: { value: EventSortOrder; label: string }[] = [
   { value: 'wiki', label: 'Wiki order' },
@@ -256,7 +257,13 @@ export function mountApp(root: HTMLElement): void {
       lastUpdated.textContent = `Last updated ${new Date(events.fetchedAt).toLocaleTimeString()}`;
 
       main.innerHTML = '';
-      const timeline = renderTimelineView(game, events, banners, region);
+      const timeline = renderTimelineView(game, events, banners, region, Date.now(), {
+        localTime: loadPref(TIMELINE_LOCAL_PREF_KEY) === '1',
+        onLocalTimeChange: (on) => {
+          savePref(TIMELINE_LOCAL_PREF_KEY, on ? '1' : '0');
+          void render();
+        },
+      });
       main.appendChild(timeline);
       scrollTimelineToNow(timeline);
       main.setAttribute('aria-busy', 'false');

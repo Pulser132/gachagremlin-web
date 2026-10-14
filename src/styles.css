@@ -1644,3 +1644,23 @@ select {
   display: inline-block;
   padding: 0.6rem 0;
 }
+
+.timeline-local-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.timeline-now-label {
+  position: absolute;
+  top: 0;
+  left: 4px;
+  padding: 0 0.3rem;
+  border-radius: 3px;
+  background: var(--accent);
+  color: var(--bg, #fff);
+  font-size: 0.75rem;
+  line-height: 1.2;
+  white-space: nowrap;
+}

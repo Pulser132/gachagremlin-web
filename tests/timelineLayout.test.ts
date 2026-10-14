@@ -159,3 +159,35 @@ describe('layoutTimeline bars and lanes', () => {
     expect(out.lanes[0].rows[0][0].upcoming).toBe(true);
   });
 });
+
+describe('layoutTimeline local mode', () => {
+  it('puts gridlines on the injected zone midnight instead of the server one', () => {
+    // Asia/Tokyo is UTC+9: midnight is 15:00 UTC the previous day.
+    const out = layoutTimeline(input({ utcOffsetHours: -5, localTimeZone: 'Asia/Tokyo' }));
+    expect(out.ticks[0].unix).toBe(93 * DAY + 15 * 3600);
+    expect(out.ticks[1].unix - out.ticks[0].unix).toBe(DAY);
+  });
+
+  it('follows DST for a real zone', () => {
+    // 2026-03-08 is the US spring-forward day: that local day is 23h long.
+    const now = Date.UTC(2026, 2, 7, 12) / 1000;
+    const out = layoutTimeline(input({ now, localTimeZone: 'America/New_York' }));
+    const gaps = out.ticks.slice(1).map((t, i) => t.unix - out.ticks[i].unix);
+    expect(gaps).toContain(23 * 3600);
+  });
+
+  it('labels the now line HH:MM in the axis zone', () => {
+    // NOW is 10:00 UTC.
+    expect(layoutTimeline(input({ utcOffsetHours: 0 })).nowLabel).toBe('10:00');
+    expect(layoutTimeline(input({ utcOffsetHours: -5 })).nowLabel).toBe('05:00');
+    expect(layoutTimeline(input({ localTimeZone: 'Asia/Tokyo' })).nowLabel).toBe('19:00');
+  });
+
+  it('leaves bar positions unchanged by the zone', () => {
+    const e = ev('A', NOW + DAY, NOW + 3 * DAY);
+    const a = layoutTimeline(input({ cur: [e] })).lanes[0].rows[0][0];
+    const b = layoutTimeline(input({ cur: [e], localTimeZone: 'Asia/Tokyo' })).lanes[0].rows[0][0];
+    expect(b.x).toBe(a.x);
+    expect(b.start).toBe(a.start);
+  });
+});

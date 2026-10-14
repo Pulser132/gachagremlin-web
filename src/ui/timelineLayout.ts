@@ -32,6 +32,9 @@ export interface TimelineInput {
   region: Region;
   /** Fixed UTC offset (hours) of the selected server; sets the day gridlines. */
   utcOffsetHours: number;
+  /** IANA zone of the visitor. When set, gridlines and the now label use it
+   * instead of the server offset; bar instants are unaffected. */
+  localTimeZone?: string | null;
   /** Unix seconds. */
   now: number;
   lookbackDays: number;
@@ -90,6 +93,8 @@ export interface TimelineLayout {
   spanDays: number;
   ticks: TimelineTick[];
   nowX: number;
+  /** "HH:MM" of `now` in the axis zone. */
+  nowLabel: string;
   lanes: TimelineLane[];
   tba: TimelineTba[];
 }
@@ -167,8 +172,30 @@ function tbaReason(c: Candidate, now: number): string | null {
   return null;
 }
 
-function dayLabel(unix: number, offsetHours: number): string {
-  const d = new Date((unix + offsetHours * 3600) * 1000);
+/** Seconds the IANA zone is ahead of UTC at `unix` (DST-aware). */
+function zoneOffsetSeconds(timeZone: string, unix: number): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: 'numeric', minute: 'numeric', second: 'numeric',
+  }).formatToParts(new Date(unix * 1000));
+  const n = (type: string) => Number(parts.find((p) => p.type === type)?.value);
+  const asUtc = Date.UTC(n('year'), n('month') - 1, n('day'), n('hour'), n('minute'), n('second')) / 1000;
+  return asUtc - Math.floor(unix);
+}
+
+/** Offset resolver for the axis zone: the local zone when given, else the fixed server offset. */
+export function axisOffset(utcOffsetHours: number, localTimeZone?: string | null): (unix: number) => number {
+  return localTimeZone ? (unix) => zoneOffsetSeconds(localTimeZone, unix) : () => utcOffsetHours * 3600;
+}
+
+/** "HH:MM" of `unix` in the axis zone. */
+export function clockLabel(unix: number, offsetAt: (unix: number) => number): string {
+  const d = new Date((unix + offsetAt(unix)) * 1000);
+  return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+}
+
+function dayLabel(wallUnix: number): string {
+  const d = new Date(wallUnix * 1000);
   return `${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
 }
 
@@ -190,7 +217,8 @@ function packRows(bars: TimelineBar[], gapFraction: number): TimelineBar[][] {
 }
 
 export function layoutTimeline(input: TimelineInput): TimelineLayout {
-  const { now, lookbackDays, pxPerDay, utcOffsetHours } = input;
+  const { now, lookbackDays, pxPerDay, utcOffsetHours, localTimeZone } = input;
+  const offsetAt = axisOffset(utcOffsetHours, localTimeZone);
   const spanStart = now - lookbackDays * DAY;
 
   const drawable: (Candidate & { start: number; end: number })[] = [];
@@ -238,13 +266,14 @@ export function layoutTimeline(input: TimelineInput): TimelineLayout {
     if (ofKind.length > 0) lanes.push({ kind, label: KIND_LABELS[kind].plural, rows: packRows(ofKind, gap) });
   }
 
-  // Day gridlines at the axis zone's midnight (not the 04:00 reset).
+  // Day gridlines at the axis zone's midnight (not the 04:00 reset). Walk
+  // wall-clock days so DST-length days stay correct in a local zone.
   const ticks: TimelineTick[] = [];
-  const shift = utcOffsetHours * 3600;
-  let t = Math.ceil((spanStart + shift) / DAY) * DAY - shift;
-  for (; t <= spanEnd; t += DAY) {
-    ticks.push({ unix: t, x: (t - spanStart) / span, label: dayLabel(t, utcOffsetHours) });
+  for (let wall = Math.ceil((spanStart + offsetAt(spanStart)) / DAY) * DAY; ; wall += DAY) {
+    const unix = wall - offsetAt(wall - offsetAt(wall));
+    if (unix > spanEnd) break;
+    ticks.push({ unix, x: (unix - spanStart) / span, label: dayLabel(wall) });
   }
 
-  return { spanStart, spanEnd, spanDays, ticks, nowX: (now - spanStart) / span, lanes, tba };
+  return { spanStart, spanEnd, spanDays, ticks, nowX: (now - spanStart) / span, nowLabel: clockLabel(now, offsetAt), lanes, tba };
 }
