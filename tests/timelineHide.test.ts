@@ -68,13 +68,31 @@ describe('timeline hide button', () => {
 
   it('closes the panel and names the next bar in start order, else null', () => {
     const { view, onHide } = mount([ev('A', NOW_S, NOW_S + DAY), ev('B', NOW_S + DAY, NOW_S + 2 * DAY)]);
-    bars(view)[0].click();
+    const byName = (n: string) => bars(view).find((b) => b.textContent === n)!;
+    byName('A').click();
     view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
     expect(view.querySelector('.timeline-panel')).toBeNull();
-    expect(onHide.mock.calls[0][0].nextBarId).toBe(bars(view)[1].dataset.barId);
-    bars(view)[2].click(); // the Banner, last in tab order
+    // Start order: A and the Luna banner both start now (A ends first), then B.
+    expect(onHide.mock.calls[0][0].nextBarId).toBe(byName('Luna').dataset.barId);
+    byName('B').click(); // last in start order
     view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
     expect(onHide.mock.calls[1][0].nextBarId).toBeNull();
+  });
+});
+
+describe('next bar after a hide', () => {
+  it('follows start order and skips reruns the hide removes', () => {
+    const { view, onHide } = mount([
+      ev('Late', NOW_S + 14 * DAY, NOW_S + 15 * DAY),
+      ev('Rerun', NOW_S + 11 * DAY, NOW_S + 12 * DAY),
+      ev('Rerun', NOW_S + 12 * DAY, NOW_S + 13 * DAY),
+      ev('Mid', NOW_S + 13 * DAY, NOW_S + 14 * DAY),
+    ].map((e, i) => ({ ...e, title: `${e.name} ${i}` })));
+    const first = bars(view).find((b) => b.dataset.start === String(NOW_S + 11 * DAY) && b.textContent === 'Rerun')!;
+    first.click();
+    view.querySelector<HTMLButtonElement>('.timeline-panel-hide')!.click();
+    const next = bars(view).find((b) => b.dataset.barId === onHide.mock.calls[0][0].nextBarId)!;
+    expect(next.textContent).toBe('Mid');
   });
 });
 
