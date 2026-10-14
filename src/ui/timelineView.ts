@@ -1,5 +1,5 @@
 import { applyHideRules } from '../data/hideRules.ts';
-import { loadHidePrefs } from '../data/eventPrefs.ts';
+import { bannerHideKey, eventHideKey, loadHidePrefs } from '../data/eventPrefs.ts';
 import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { applyBarColours, sessionColourSource, type ColourSource, type TintTarget } from './barColour.ts';
@@ -197,6 +197,16 @@ export function renderTimelineView(
   return wrap;
 }
 
+/** The bar after `from` in start order that this hide leaves drawn (a hidden Event takes its reruns with it). */
+function nextSurvivingBar(view: ParentNode | null, from: HTMLElement): HTMLElement | undefined {
+  const byStart = (a: HTMLElement, b: HTMLElement) =>
+    Number(a.dataset.start) - Number(b.dataset.start) ||
+    Number(a.dataset.end) - Number(b.dataset.end) ||
+    (a.dataset.barId ?? '').localeCompare(b.dataset.barId ?? '');
+  const sorted = [...(view?.querySelectorAll<HTMLElement>('button.timeline-bar') ?? [])].sort(byStart);
+  return sorted.slice(sorted.indexOf(from) + 1).find((b) => b.dataset.hideKey !== from.dataset.hideKey);
+}
+
 /** Counts bars the hide rules removed (those that would otherwise be drawn) and which kinds. */
 function hiddenBarKinds(
   allEvents: GameEvents,
@@ -335,6 +345,8 @@ function renderBar(
   btn.style.left = left;
   btn.style.width = width;
   btn.dataset.barId = b.id;
+  if (b.event) btn.dataset.hideKey = `event:${eventHideKey(b.event.name)}`;
+  else if (b.banner) btn.dataset.hideKey = `banner:${bannerHideKey(b.banner.title)}`;
   btn.dataset.head = `${b.name}, ${kind}, ${b.category}`;
   btn.dataset.start = String(b.start);
   btn.dataset.end = String(b.end);
@@ -418,8 +430,7 @@ function createDetailPanel(
       if (request) {
         const req = request;
         hideBtn.addEventListener('click', () => {
-          const all = [...(host.parentElement?.querySelectorAll<HTMLElement>('button.timeline-bar') ?? [])];
-          const next = all[all.indexOf(btn) + 1];
+          const next = nextSurvivingBar(host.parentElement, btn);
           panel?.remove();
           panel = null;
           origin = null;
