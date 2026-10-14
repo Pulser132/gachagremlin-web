@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
-import { normalizeNewlines } from '../src/data/wiki/parser.ts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { normalizeNewlines, parseBannerIndex } from '../src/data/wiki/parser.ts';
 import { GAME_CONFIGS } from '../src/data/wiki/games.ts';
 import { WikiSource } from '../src/data/wiki/wikiSource.ts';
 import type { GameBanners } from '../src/types.ts';
@@ -255,6 +255,13 @@ describe('WikiSource.fetchBanners', () => {
 });
 
 describe('WikiSource.fetchBanners (HSR)', () => {
+  beforeEach(() => {
+    // The fixture's version blocks run to Oct 21 / Nov 10 2026; ended-block
+    // dropping is judged against this day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-13T12:00:00'));
+  });
+
   it('groups Warp Banners by the category from the wiki, in wiki order, with Banners nested', async () => {
     stubWikiFetch();
     const banners = await new WikiSource().fetchBanners('hsr');
@@ -273,6 +280,15 @@ describe('WikiSource.fetchBanners (HSR)', () => {
       'Brilliant Fixation/2026-09-28',
       'Bygone Reminiscence/2026-09-28',
     ]);
+  });
+
+  it('drops rows from a version block whose date range has passed, keeping open-ended collabs', async () => {
+    stubWikiFetch();
+    vi.setSystemTime(new Date('2026-10-25T12:00:00')); // after the Sep 28 - Oct 21 block ended
+    const banners = await new WikiSource().fetchBanners('hsr');
+
+    expect(banners.current[0].banners.map((b) => b.title)).toEqual(['An Ocean in a Pearl/2026-09-28']);
+    expect(banners.current.map((s) => s.label)).toContain('Character Collaboration Warp');
   });
 
   it('requests the Warp listing page and nothing outside api.php', async () => {
@@ -326,5 +342,34 @@ describe('WikiSource.fetchBanners (HSR)', () => {
     expect(blade.title).toBe('Now I Am Become Blade/2026-10-21');
     expect(blade.featured5Star).toEqual(['Mortenax Blade']);
     expect(blade.imageUrl).toBeNull();
+  });
+});
+
+describe('parseBannerIndex version-block filtering', () => {
+  const row = (label: string, title: string) =>
+    `<tr><td><a href="/wiki/${label}" title="${label}">${label}</a></td><td><div><a href="/wiki/${title}" title="${title}">${title}</a></div></td></tr>`;
+  const header = (text: string) => `<tr><th colspan="2"><a href="/wiki/Version/1" title="Version/1">Version 1</a>: ${text}</th></tr>`;
+  const page = (current: string, upcoming = '') =>
+    `<h3 id="Current_Event_Warps">Current</h3><table><tbody>${current}</tbody></table>` +
+    `<h3 id="Upcoming_Event_Warps">Upcoming</h3><table><tbody>${upcoming}</tbody></table>`;
+  const now = new Date('2026-10-13T12:00:00');
+  const titles = (cats: { banners: { title: string }[] }[]) => cats.flatMap((c) => c.banners.map((b) => b.title));
+
+  it('returns only the current version block, not an older ended one', () => {
+    const html = page(
+      header('September 28, 2026 &#8212; November 10, 2026') + row('Character Event Warp', 'Now/2026-09-28') +
+        header('May 1, 2026 &#8212; June 12, 2026') + row('Character Event Warp', 'Old/2026-05-01'),
+    );
+    expect(titles(parseBannerIndex(html, now).current)).toEqual(['Now/2026-09-28']);
+  });
+
+  it('keeps rows under a header whose dates do not parse', () => {
+    const html = page(header('Since July 11, 2025 (Indefinite)') + row('Character Collaboration Warp', 'Collab/2025-07-11'));
+    expect(titles(parseBannerIndex(html, now).current)).toEqual(['Collab/2025-07-11']);
+  });
+
+  it('never filters Upcoming', () => {
+    const html = page('', header('May 1, 2026 &#8212; June 12, 2026') + row('Character Event Warp', 'Old/2026-05-01'));
+    expect(titles(parseBannerIndex(html, now).upcoming)).toEqual(['Old/2026-05-01']);
   });
 });

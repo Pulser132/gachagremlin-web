@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { getGame } from '../src/data/wiki/games.ts';
 import { normalizeNewlines, parseInfobox, sectionBullets } from '../src/data/wiki/parser.ts';
 import {
+  dayRangeContains,
   findWalltimes,
   isGlobalTime,
   normalizeGlobalRegionUnix,
@@ -133,5 +134,28 @@ describe('statusOf', () => {
 
   it('is unknown with no end info', () => {
     expect(statusOf(start, null, 100)).toBe('unknown');
+  });
+});
+
+describe('dayRangeContains', () => {
+  const now = (iso: string) => new Date(`${iso}T12:00:00`);
+  const range = 'August 26, 2026 — September 12, 2026';
+
+  it('is inclusive of both the start and the end day', () => {
+    expect(dayRangeContains(range, now('2026-08-26'))).toBe(true);
+    expect(dayRangeContains(range, now('2026-09-12'))).toBe(true);
+    expect(dayRangeContains(range, now('2026-08-25'))).toBe(false);
+    expect(dayRangeContains(range, now('2026-09-13'))).toBe(false);
+  });
+
+  it('accepts en dash, hyphen and extra whitespace', () => {
+    expect(dayRangeContains('August 26, 2026 – September 12, 2026', now('2026-09-01'))).toBe(true);
+    expect(dayRangeContains(' August  26, 2026 - September 12,  2026 ', now('2026-09-01'))).toBe(true);
+  });
+
+  it('returns null for text that is not a start-end range', () => {
+    expect(dayRangeContains('Since July 24, 2026 (Indefinite)', now('2026-09-01'))).toBeNull();
+    expect(dayRangeContains('Smarch 26, 2026 — September 12, 2026', now('2026-09-01'))).toBeNull();
+    expect(dayRangeContains('', now('2026-09-01'))).toBeNull();
   });
 });

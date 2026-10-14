@@ -34,6 +34,10 @@ export interface GameConfig {
    * one page per category rendered as a sequence of divs. Dispatched on
    * declaratively rather than by game key. */
   bannerIndexShape: 'table' | 'channelPages';
+  /** The listing's Current section also carries rows from long-finished
+   * versions (HSR), so Current rows under a version header whose date range
+   * has passed are dropped. Off where Current is already only what's live. */
+  dropEndedCurrentBanners: boolean;
   /** The per-Banner infobox template `parseInfobox` is called with. */
   bannerInfoboxTemplate: string;
   /** The per-Banner item-pool template and which of its fields hold the
@@ -54,6 +58,7 @@ export const GAME_CONFIGS: Record<GameKey, GameConfig> = {
     indexPage: 'Event',
     bannerIndexPages: ['Wish'],
     bannerIndexShape: 'table',
+    dropEndedCurrentBanners: false,
     bannerInfoboxTemplate: 'Wish',
     itemPool: {
       templateName: 'Wish Pool',
@@ -70,6 +75,7 @@ export const GAME_CONFIGS: Record<GameKey, GameConfig> = {
     indexPage: 'Events',
     bannerIndexPages: ['Warp'],
     bannerIndexShape: 'table',
+    dropEndedCurrentBanners: true,
     bannerInfoboxTemplate: 'Warp',
     itemPool: {
       templateName: 'Warp Pool',
@@ -87,6 +93,7 @@ export const GAME_CONFIGS: Record<GameKey, GameConfig> = {
     // Banner listing not wired up yet (empty bannerIndexPages).
     bannerIndexPages: [],
     bannerIndexShape: 'channelPages',
+    dropEndedCurrentBanners: false,
     bannerInfoboxTemplate: 'Signal Search Infobox',
     itemPool: {
       templateName: 'Signal Search Pool',
