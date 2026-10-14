@@ -58,6 +58,15 @@ run; the Events and Banners tabs remain the place for *what* they contain. Items
 known start or end date, or with dates that can't be trusted (start not before end, or an end already past), are not bars (they are listed separately as dates-to-be-announced).
 _Avoid_: Calendar (implies a month grid), Schedule
 
+**Hide rule**:
+A player's standing choice to stop seeing something, kept per game and shared by every view
+that lists it. Hiding an Event by name hides every rerun of it, not just the one on screen;
+the Hidden list shows the stored rule so its breadth is visible. The Timeline obeys the same
+rules as the Events tab: an item hidden in one is hidden in the other.
+A Banner's rule is narrower than an Event's: it hides that one dated run, not the series, so
+a rerun of the same series appears again and must be hidden afresh.
+_Avoid_: Filter (a view-local, temporary narrowing such as "show ended events"), Block
+
 **Wishes tab** *(existing feature)*:
 The pull-history/pity tracker, keyed off a player's own imported pull data and the Banner
 group definitions. Distinct from the Banners tab: Wishes answers "where do I stand on
