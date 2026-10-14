@@ -13,6 +13,7 @@ import {
   getDescription,
   normalizeNewlines,
   parseBannerIndex,
+  parseChannelPage,
   parseIndex,
   parseInfobox,
   parseItemPool,
@@ -115,12 +116,24 @@ export async function showEvent(gameKey: GameKey, title: string, userAgent?: str
 export async function listBanners(gameKey: GameKey, userAgent?: string, now: Date = new Date()): Promise<BannerIndexSections> {
   const game = getGame(gameKey);
   if (game.bannerIndexPages.length === 0) return { current: [], upcoming: [] };
-  // One API call per listing page, merged in config order. Only the 'table'
-  // shape has a walker so far; 'channelPages' arrives with ZZZ.
+  // One API call per listing page, merged in config order. A page that fails
+  // to fetch contributes nothing when there are several (ZZZ's channels), so
+  // one bad page never blanks the others; a lone page keeps throwing so the
+  // caller surfaces the error as before.
+  const several = game.bannerIndexPages.length > 1;
   const pages = await Promise.all(
-    game.bannerIndexPages.map(async (page) => {
-      const data = await api(game.host, { action: 'parse', page, prop: 'text' }, userAgent);
-      return parseBannerIndex(normalizeNewlines(data.parse.text), game.dropEndedCurrentBanners ? now : undefined);
+    game.bannerIndexPages.map(async (page): Promise<BannerIndexSections> => {
+      try {
+        const data = await api(game.host, { action: 'parse', page, prop: 'text' }, userAgent);
+        const html = normalizeNewlines(data.parse.text);
+        return game.bannerIndexShape === 'channelPages'
+          ? parseChannelPage(html, page)
+          : parseBannerIndex(html, game.dropEndedCurrentBanners ? now : undefined);
+      } catch (e) {
+        if (!several) throw e;
+        console.warn(`gachagremlin-web: failed to fetch ${gameKey} listing page ${JSON.stringify(page)}:`, e);
+        return { current: [], upcoming: [] };
+      }
     }),
   );
   return {

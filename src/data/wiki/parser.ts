@@ -193,6 +193,42 @@ export function parseBannerIndex(pageHtml: string, dropEndedAsOf?: Date): Banner
 }
 
 /**
+ * Extract one channel page's Banners from ZZZ's rendered `Current & Upcoming
+ * Signal Searches` section (`'channelPages'` listing shape).
+ *
+ * The section is a flat sequence of divs, not a table: a `<b>Current Event
+ * Run</b>` label, then one `Main article: <a title="<dated page title>">`
+ * block per concurrent Banner, then (after an `<hr/>`) the `Upcoming Event
+ * Run` label and its blocks. Anchored on the two run labels rather than the
+ * `<hr/>` so the split doesn't depend on how a single concurrent Banner
+ * renders. The adjacent countdown blocks are ignored — times come from the
+ * per-Banner infobox — and the listing embeds no image, so `thumbUrl` is
+ * always null. The category label is the page title (`categoryLabel`).
+ */
+export function parseChannelPage(pageHtml: string, categoryLabel: string): BannerIndexSections {
+  const heads = collectHeadingPositions(pageHtml);
+  // The heading id carries a literal `&` (HTML-escaped in the attribute).
+  const segment = sliceSection(pageHtml, heads, (id) => /^Current_(?:&amp;|&|\.26)_Upcoming/.test(id));
+  const labelRe = /<b>\s*(Current|Upcoming) Event Run\s*<\/b>/g;
+  const labels = [...segment.matchAll(labelRe)];
+
+  function run(kind: 'Current' | 'Upcoming'): BannerListingCategory[] {
+    const banners: BannerListingEntry[] = [];
+    labels.forEach((m, i) => {
+      if (m[1] !== kind) return;
+      const body = segment.slice(m.index + m[0].length, i + 1 < labels.length ? labels[i + 1].index : segment.length);
+      for (const link of body.matchAll(/Main article:\s*<a[^>]*\btitle="([^"]+)"/g)) {
+        const title = decodeHtmlEntities(link[1]);
+        if (!banners.some((b) => b.title === title)) banners.push({ title, thumbUrl: null });
+      }
+    });
+    return banners.length > 0 ? [{ label: categoryLabel, banners }] : [];
+  }
+
+  return { current: run('Current'), upcoming: run('Upcoming') };
+}
+
+/**
  * Scan a `{{TemplateName|...}}` invocation's `|field = value` lines into a
  * flat map, starting right after `headerRe`'s match. Shared by `parseInfobox`
  * (Event/Wish infoboxes) and `parseItemPool` (the item-pool template) — the field-scanning

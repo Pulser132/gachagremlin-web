@@ -1,0 +1,39 @@
+{{Signal Search Infobox
+|name              = Frostfall Sickle 2026-09-30
+|image             = Frostfall Sickle 2026-09-30.png
+|type              = W-Engine Channel
+|duration          = event
+|time_known        = yes
+|time_start        = 2026-09-30 12:00:00
+|time_end          = 2026-10-20 14:59:59
+|preceding         = Crimson Thirst/2026-09-09
+|preceding2        = Neon Fantasies/2026-09-09
+|alongside         = Crimson Moon Casket/2026-09-30
+|alongside2        = Cindernight Respite/2026-09-30
+|alongside3        = Cold Rain Wanes in the Night/2026-09-30
+|succeeding        = Plume of Rebirth/2026-10-21
+|succeeding2       = Joyau Dore/2026-10-21
+|link              = https://www.hoyolab.com/article/46863847
+}}
+{{Lead/Signal Search|Frostfall Sickle/2026-09-30}}
+
+==Signal Search Details==
+===Duration===
+* 2026/09/30 12:00 (server time) &ndash; 2026/10/20 14:59 (server time)
+
+===Summary===
+* During this event Signal Search, the limited S-Rank W-Engine {{Intro/W-Engine/Full|Frostfall Sickle}} and default A-Rank W-Engines {{Intro/W-Engine/Full|Housekeeer}} & {{Intro/W-Engine/Full|Starlight Engine Replica}} will have significantly boosted reception rates!
+* For information about rates, see [[Signal Search]]es.
+
+===Item Pool===
+{{Signal Search Pool
+|w-engine_S_F = Frostfall Sickle
+|w-engine_A_F = Housekeeper; Starlight Engine Replica
+|agent_A      = Anby Demara;Anton Ivanov;Ben Bigger;Billy Kid;Corin Wickes;Komano Manato;Luciana de Montefio;Nicole Demara;Pan Yinhu;Piper Wheel;Pulchra Fellini;Seth Lowell;Soukaku
+|w-engine_S   = Fusion Compiler;Hellfire Gears;Steel Cushion;The Brimstone;The Restrained;Weeping Cradle;Tusks of Fury;Riot Suppressor Mark VI;Timeweaver
+|w-engine_A   = Bashful Demon; Big Cylinder; Box Cutter; Bunny Band; Catty Luck; Demara Battery Mark II; Drill Rig - Red Axis; Grill O'Wisp; Kaboom the Cannon; Original Transmorpher; Peacekeeper - Specialized; Precious Fossilized Core; Puzzle Sphere; Rainforest Gourmet; Roaring Ride; Slice of Time; Starlight Engine; Steam Oven; Street Superstar; The Vault; Tremor Trigram Vessel; Weeping Gemini
+|w-engine_B   = (Identity) Base;(Identity) Inflection;(Lunar) Decrescent;(Lunar) Noviluna;(Lunar) Pleniluna;(Lunar) Semiluna;(Magnetic Storm) Alpha;(Magnetic Storm) Bravo;(Magnetic Storm) Charlie;(Reverb) Mark I;(Reverb) Mark II;(Reverb) Mark III;(Vortex) Arrow;(Vortex) Hatchet;(Vortex) Revolver;(Cinder) Cobalt
+}}
+
+==Change History==
+{{Change History|3.2}}
