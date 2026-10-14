@@ -112,7 +112,7 @@ export async function showEvent(gameKey: GameKey, title: string, userAgent?: str
  * "absence is the switch" contract `WikiSource.fetchBanners` relies on for
  * the unwired-game placeholder panel.
  */
-export async function listBanners(gameKey: GameKey, userAgent?: string): Promise<BannerIndexSections> {
+export async function listBanners(gameKey: GameKey, userAgent?: string, now: Date = new Date()): Promise<BannerIndexSections> {
   const game = getGame(gameKey);
   if (game.bannerIndexPages.length === 0) return { current: [], upcoming: [] };
   // One API call per listing page, merged in config order. Only the 'table'
@@ -120,7 +120,7 @@ export async function listBanners(gameKey: GameKey, userAgent?: string): Promise
   const pages = await Promise.all(
     game.bannerIndexPages.map(async (page) => {
       const data = await api(game.host, { action: 'parse', page, prop: 'text' }, userAgent);
-      return parseBannerIndex(normalizeNewlines(data.parse.text));
+      return parseBannerIndex(normalizeNewlines(data.parse.text), game.dropEndedCurrentBanners ? now : undefined);
     }),
   );
   return {

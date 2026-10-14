@@ -7,6 +7,7 @@
  * fixtures (tests/fixtures/, copied verbatim from the bot repo).
  */
 import { decodeHtmlEntities } from './entities.ts';
+import { dayRangeContains } from './times.ts';
 import type { ItemPoolSpec } from './games.ts';
 
 function escapeRegExp(s: string): string {
@@ -133,15 +134,31 @@ export interface BannerIndexSections {
  *
  * Slices by heading id exactly like `parseIndex` does, rather than an extra
  * `prop=sections` round-trip to resolve a section number first.
+ *
+ * Some listings (HSR) interleave `<th colspan="2">Version X: <range></th>`
+ * header rows with the category rows, and Current keeps long-finished
+ * versions around. When `dropEndedAsOf` is given, a Current row under a
+ * header whose range doesn't contain that day (inclusive) is dropped; a header that doesn't parse
+ * (e.g. "Since July 24, 2026 (Indefinite)") keeps its rows. Upcoming is
+ * never filtered.
  */
-export function parseBannerIndex(pageHtml: string): BannerIndexSections {
+export function parseBannerIndex(pageHtml: string, dropEndedAsOf?: Date): BannerIndexSections {
   const heads = collectHeadingPositions(pageHtml);
 
-  function categories(idPrefix: string): BannerListingCategory[] {
+  function categories(idPrefix: string, dropEnded: boolean): BannerListingCategory[] {
     const segment = sliceSection(pageHtml, heads, (id) => id.startsWith(idPrefix));
     const out: BannerListingCategory[] = [];
+    const versionHeaders = [...segment.matchAll(/<th colspan="2">([\s\S]*?)<\/th>/g)].map((h) => ({
+      pos: h.index,
+      // "Version 4.6: <range>" -> "<range>"; header text without a colon stays whole.
+      range: decodeHtmlEntities(h[1].replace(/<[^>]*>/g, '')).replace(/^[^:]*:/, ''),
+    }));
     const rowRe = /<tr>\s*<td>\s*<a[^>]*\btitle="([^"]+)"[^>]*>[\s\S]*?<\/a>\s*<\/td>\s*<td>([\s\S]*?)<\/td>\s*<\/tr>/g;
     for (const rowMatch of segment.matchAll(rowRe)) {
+      if (dropEnded && dropEndedAsOf) {
+        const header = versionHeaders.findLast((h) => h.pos < rowMatch.index);
+        if (header && dayRangeContains(header.range, dropEndedAsOf) === false) continue;
+      }
       const label = decodeHtmlEntities(rowMatch[1]);
       const cell = rowMatch[2];
       // Each Banner block links its icon and its name to the same dated
@@ -172,7 +189,7 @@ export function parseBannerIndex(pageHtml: string): BannerIndexSections {
     return out;
   }
 
-  return { current: categories('Current'), upcoming: categories('Upcoming') };
+  return { current: categories('Current', true), upcoming: categories('Upcoming', false) };
 }
 
 /**

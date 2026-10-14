@@ -129,3 +129,29 @@ export function statusOf(
   }
   return 'active';
 }
+
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+
+const DAY_RANGE_RE = /^\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s*[—–-]\s*([A-Za-z]+)\s+(\d{1,2}),\s*(\d{4})\s*$/;
+
+/** A calendar day as a sortable YYYYMMDD number, or null for a bad month. */
+function dayKey(month: string, day: string, year: string): number | null {
+  const m = MONTHS.indexOf(month.toLowerCase());
+  return m === -1 ? null : Number(year) * 10000 + (m + 1) * 100 + Number(day);
+}
+
+/**
+ * Whether `now` falls inside a day-level date range such as
+ * "August 26, 2026 — September 12, 2026" (long month names, em/en dash or
+ * hyphen, any whitespace), start and end both inclusive. Returns null when
+ * the text isn't that shape, so callers can fail open.
+ */
+export function dayRangeContains(text: string, now: Date): boolean | null {
+  const m = DAY_RANGE_RE.exec(text.replace(/\s+/g, ' '));
+  if (!m) return null;
+  const start = dayKey(m[1], m[2], m[3]);
+  const end = dayKey(m[4], m[5], m[6]);
+  if (start === null || end === null) return null;
+  const today = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+  return start <= today && today <= end;
+}
