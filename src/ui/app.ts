@@ -3,7 +3,7 @@ import { cachedSource } from '../data/cache.ts';
 import { connect, disconnect, getToken, isConnected } from '../data/cloud/auth.ts';
 import { isCloudConfigured } from '../data/cloud/config.ts';
 import { configureSync, getSyncState, onSyncStateChange, scheduleSync, setOnMerged, syncNow } from '../data/cloud/sync.ts';
-import { beginSignIn, completeSignIn, getSession, isDiscordConfigured, parseCallback, signOut } from '../data/discord/auth.ts';
+import { beginSignIn, clearSession, completeSignIn, getSession, getSessionToken, isDiscordConfigured, parseCallback, signOut } from '../data/discord/auth.ts';
 import { categorizeEvent, EVENT_CATEGORIES, type EventCategory } from '../data/eventCategories.ts';
 import {
   eventHideKey,
@@ -14,6 +14,8 @@ import {
   unhideEvent,
 } from '../data/eventPrefs.ts';
 import { DEFAULT_EVENT_SORT, isEventSortOrder, sortEvents, type EventSortOrder, type SortableEvent } from '../data/eventSort.ts';
+import { createReminderApi, REMINDER_API_BASE_URL } from '../data/reminderApi.ts';
+import { createReminderSync } from '../data/reminderSync.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
@@ -808,7 +810,7 @@ function buildCloudControls(): HTMLElement {
  * Renders nothing while `isDiscordConfigured()` is false (no Discord client ID
  * or reminder API URL at build time).
  */
-function buildDiscordControls(): HTMLElement {
+function buildDiscordControls(onRemindersMerged: () => void): HTMLElement {
   const wrap = document.createElement('span');
   wrap.className = 'discord-controls';
   if (!isDiscordConfigured()) return wrap;
@@ -816,6 +818,15 @@ function buildDiscordControls(): HTMLElement {
   const status = document.createElement('span');
   status.className = 'data-footer-message';
   let error: string | null = null;
+
+  const reminderStatus = document.createElement('span');
+  reminderStatus.className = 'data-footer-message reminder-sync-status';
+
+  const reminderSync = createReminderSync({
+    getUserId: () => getSession()?.user.id ?? null,
+    api: createReminderApi({ baseUrl: REMINDER_API_BASE_URL, getToken: () => getSessionToken(), onUnauthorized: clearSession }),
+    onMerged: onRemindersMerged,
+  });
 
   const signInBtn = document.createElement('button');
   signInBtn.type = 'button';
@@ -841,6 +852,7 @@ function buildDiscordControls(): HTMLElement {
     signOutBtn.disabled = true;
     try {
       await signOut();
+      reminderSync.handleSignedOut();
       error = null;
     } catch (e) {
       error = (e as Error).message;
@@ -856,6 +868,22 @@ function buildDiscordControls(): HTMLElement {
     signOutBtn.hidden = session === null;
     status.classList.toggle('error', error !== null);
     status.textContent = error ?? (session ? `Signed in to Discord as ${session.user.username || session.user.id}` : '');
+    paintReminderStatus();
+  }
+
+  function paintReminderStatus(): void {
+    const { status: s, pending, error: err } = reminderSync.getState();
+    reminderStatus.classList.toggle('error', s === 'error');
+    reminderStatus.textContent =
+      s === 'syncing'
+        ? 'Syncing reminders…'
+        : s === 'synced'
+          ? 'Reminders synced'
+          : s === 'offline'
+            ? `Reminders offline${pending ? ` — ${pending} change${pending === 1 ? '' : 's'} pending` : ''}`
+            : s === 'error'
+              ? (err ?? 'Reminder sync failed.')
+              : 'Reminders are local only';
   }
 
   // Returning from Discord: verify state, exchange the code, and strip the
@@ -867,6 +895,7 @@ function buildDiscordControls(): HTMLElement {
       () => {
         error = null;
         update();
+        void reminderSync.request();
       },
       (e: Error) => {
         error = e.message;
@@ -884,8 +913,12 @@ function buildDiscordControls(): HTMLElement {
     }
   });
 
+  reminderSync.subscribe(() => update());
+  reminderSync.attach(window);
+  void reminderSync.request(); // pull on load
+
   update();
-  wrap.append(signInBtn, signOutBtn, status);
+  wrap.append(signInBtn, signOutBtn, status, reminderStatus);
   return wrap;
 }
 
@@ -951,7 +984,7 @@ function buildDataFooter(onRestored: () => void): HTMLElement {
     }
   });
 
-  footer.append(importBtn, importInput, message, buildCloudControls(), buildDiscordControls());
+  footer.append(importBtn, importInput, message, buildCloudControls(), buildDiscordControls(onRestored));
   return footer;
 }
 

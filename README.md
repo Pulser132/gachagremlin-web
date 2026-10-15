@@ -164,6 +164,13 @@ The sign-in row is hidden unless both build-time variables are set:
 - `VITE_DISCORD_CLIENT_ID` — the Discord application's client ID (public).
 - `VITE_REMINDER_API_URL` — the bot's public API origin.
 
+Once signed in, reminders sync both ways with the bot: pulled on page load and when the tab regains
+focus, pushed on every bell/un-bell or backup restore, and queued while offline (flushed on
+reconnect). The footer shows `Reminders synced`, `Reminders offline — N changes pending`, an error, or
+`Reminders are local only` when signed out. On first sign-in every live local reminder is sent up
+(stamped now) so nothing local is lost, then the server's state is adopted; removals made on Discord
+appear as un-belled after the next pull. Signing out keeps your local bells but stops syncing.
+
 **Maintainer setup (manual).** In the [Discord Developer Portal](https://discord.com/developers/applications)
 create/open the application, then under OAuth2 → Redirects register these exact URIs (the base path
 and trailing slash are part of the match):

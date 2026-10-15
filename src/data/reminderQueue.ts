@@ -79,6 +79,16 @@ function setCursor(game: GameKey, serverTime: number): void {
   }
 }
 
+/** Forgets the queue and every pull cursor — used when a different user signs in. */
+export function resetSyncState(games: readonly GameKey[]): void {
+  writeQueue([]);
+  try {
+    for (const g of games) localStorage.removeItem(`${CURSOR_PREFIX}${g}`);
+  } catch {
+    // nothing to clear
+  }
+}
+
 /** Merges server records into local storage, per game, by the shared merge rule. */
 function adopt(items: ApiReminder[]): void {
   const byGame = new Map<GameKey, ApiReminder[]>();

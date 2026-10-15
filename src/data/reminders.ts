@@ -116,6 +116,27 @@ export function isReminded(game: GameKey, key: string): boolean {
   return listReminders(game).includes(key);
 }
 
+type ChangeListener = (game: GameKey, records: ReminderRecord[]) => void;
+const changeListeners = new Set<ChangeListener>();
+
+/** Subscribes to local user-driven changes (toggle, backup restore) with the
+ * records that changed. Sync-driven writes (`setReminderRecords`) don't fire,
+ * so adopting server state can't echo back. Returns an unsubscribe function. */
+export function onReminderChange(cb: ChangeListener): () => void {
+  changeListeners.add(cb);
+  return () => void changeListeners.delete(cb);
+}
+
+function emitChange(game: GameKey, records: ReminderRecord[]): void {
+  for (const cb of changeListeners) {
+    try {
+      cb(game, records);
+    } catch {
+      // a misbehaving listener must not break the local toggle
+    }
+  }
+}
+
 /** Toggles a reminder subscription and returns the new state (true = belled).
  * Un-belling leaves a tombstone. */
 export function toggleReminder(game: GameKey, key: string): boolean {
@@ -128,6 +149,7 @@ export function toggleReminder(game: GameKey, key: string): boolean {
   if (existing) Object.assign(existing, next);
   else records.push(next);
   writeRecords(game, records);
+  emitChange(game, [{ ...next }]);
   return belled;
 }
 
@@ -136,12 +158,15 @@ export function toggleReminder(game: GameKey, key: string): boolean {
 export function setReminders(game: GameKey, keys: string[]): void {
   const records = listReminderRecords(game);
   const now = Date.now();
+  const changed: ReminderRecord[] = [];
   for (const key of keys) {
     const existing = records.find((r) => r.eventKey === key);
     // Strictly newer than any local change, so a restore revives a tombstone.
     const updatedAt = existing ? Math.max(now, existing.updatedAt + 1) : now;
     if (existing) Object.assign(existing, { updatedAt, deleted: false });
     else records.push({ eventKey: key, updatedAt, deleted: false });
+    changed.push({ eventKey: key, updatedAt, deleted: false });
   }
   writeRecords(game, records);
+  if (changed.length) emitChange(game, changed);
 }
