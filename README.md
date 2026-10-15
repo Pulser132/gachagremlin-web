@@ -149,6 +149,31 @@ and no cloud UI appears at all — or point it at your own Cloud project, regist
 origins as *Authorized JavaScript origins* (the token client uses a popup, so the redirect-URI list
 stays empty) and enabling the Drive API on it.
 
+### Sign in with Discord (reminder sync)
+
+Optional. Signing in with Discord attaches your reminders to your Discord user so the GachaGremlin
+bot can DM you; signed out, reminders stay in this browser exactly as before. It is the OAuth2
+authorization-code flow with PKCE (S256), scope `identify` only. The site never holds a client
+secret: it sends the code and PKCE verifier to the bot (`POST /v1/auth/discord`), which does the
+Discord exchange and returns a session token. The token, its expiry and your user ID are stored
+under `gachagremlin:reminders:session`; "Sign out" revokes the token and clears it.
+Contract: [`docs/api/reminders.md`](https://github.com/Pulser132/GachaGremlin/blob/bbfdbcc/docs/api/reminders.md).
+
+The sign-in row is hidden unless both build-time variables are set:
+
+- `VITE_DISCORD_CLIENT_ID` — the Discord application's client ID (public).
+- `VITE_REMINDER_API_URL` — the bot's public API origin.
+
+**Maintainer setup (manual).** In the [Discord Developer Portal](https://discord.com/developers/applications)
+create/open the application, then under OAuth2 → Redirects register these exact URIs (the base path
+and trailing slash are part of the match):
+
+- `https://pulser132.github.io/gachagremlin-web/` (production)
+- `http://localhost:5173/gachagremlin-web/` (dev)
+
+Set the same client ID as `DISCORD_CLIENT_ID` (and the secret as `DISCORD_CLIENT_SECRET`) in the bot's
+`.env`, and add the site origins to the bot's `CORS_ORIGINS`.
+
 ## Local development
 
 Requires Node 22+.

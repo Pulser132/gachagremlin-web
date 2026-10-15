@@ -3,6 +3,7 @@ import { cachedSource } from '../data/cache.ts';
 import { connect, disconnect, getToken, isConnected } from '../data/cloud/auth.ts';
 import { isCloudConfigured } from '../data/cloud/config.ts';
 import { configureSync, getSyncState, onSyncStateChange, scheduleSync, setOnMerged, syncNow } from '../data/cloud/sync.ts';
+import { beginSignIn, completeSignIn, getSession, isDiscordConfigured, parseCallback, signOut } from '../data/discord/auth.ts';
 import { categorizeEvent, EVENT_CATEGORIES, type EventCategory } from '../data/eventCategories.ts';
 import {
   eventHideKey,
@@ -800,6 +801,95 @@ function buildCloudControls(): HTMLElement {
 }
 
 /**
+ * Optional "Sign in with Discord" for reminder sync. Signed out, nothing
+ * changes; signed in, shows who you are plus Sign out. Also finishes the
+ * sign-in when the page loads as Discord's redirect target.
+ *
+ * Renders nothing while `isDiscordConfigured()` is false (no Discord client ID
+ * or reminder API URL at build time).
+ */
+function buildDiscordControls(): HTMLElement {
+  const wrap = document.createElement('span');
+  wrap.className = 'discord-controls';
+  if (!isDiscordConfigured()) return wrap;
+
+  const status = document.createElement('span');
+  status.className = 'data-footer-message';
+  let error: string | null = null;
+
+  const signInBtn = document.createElement('button');
+  signInBtn.type = 'button';
+  signInBtn.className = 'data-footer-btn';
+  signInBtn.textContent = 'Sign in with Discord';
+  signInBtn.addEventListener('click', async () => {
+    signInBtn.disabled = true;
+    error = null;
+    try {
+      location.assign(await beginSignIn());
+    } catch (e) {
+      error = (e as Error).message;
+      signInBtn.disabled = false;
+      update();
+    }
+  });
+
+  const signOutBtn = document.createElement('button');
+  signOutBtn.type = 'button';
+  signOutBtn.className = 'data-footer-btn';
+  signOutBtn.textContent = 'Sign out';
+  signOutBtn.addEventListener('click', async () => {
+    signOutBtn.disabled = true;
+    try {
+      await signOut();
+      error = null;
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      signOutBtn.disabled = false;
+      update();
+    }
+  });
+
+  function update(): void {
+    const session = getSession();
+    signInBtn.hidden = session !== null;
+    signOutBtn.hidden = session === null;
+    status.classList.toggle('error', error !== null);
+    status.textContent = error ?? (session ? `Signed in to Discord as ${session.user.username || session.user.id}` : '');
+  }
+
+  // Returning from Discord: verify state, exchange the code, and strip the
+  // one-time params so a reload doesn't replay them.
+  if (parseCallback(location.search).kind !== 'none') {
+    const search = location.search;
+    history.replaceState(null, '', location.pathname + location.hash);
+    void completeSignIn(search).then(
+      () => {
+        error = null;
+        update();
+      },
+      (e: Error) => {
+        error = e.message;
+        update();
+      },
+    );
+  }
+
+  // Back from Discord's authorize page can restore this DOM from bfcache
+  // with the button still disabled.
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) {
+      signInBtn.disabled = false;
+      update();
+    }
+  });
+
+  update();
+  wrap.append(signInBtn, signOutBtn, status);
+  return wrap;
+}
+
+/**
  * Manual backup / restore of all local data to a single JSON file — the guard
  * against a cleared cache, and the same payload cloud sync moves. Restore
  * merges (never overwrites), so re-importing can't lose pulls. `onRestored`
@@ -861,7 +951,7 @@ function buildDataFooter(onRestored: () => void): HTMLElement {
     }
   });
 
-  footer.append(importBtn, importInput, message, buildCloudControls());
+  footer.append(importBtn, importInput, message, buildCloudControls(), buildDiscordControls());
   return footer;
 }
 
