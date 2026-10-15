@@ -1,0 +1,17 @@
+{{Event
+|name              = Ley Line Overflow 2026-09-07
+|type              = In-Game
+|group             = Ley Line
+|time_known        = yes
+|time_start        = 2026-09-07 04:00:00
+|time_start_offset = GMT+8
+|time_end          = 2026-09-14 03:59:59
+}}
+'''Ley Line Overflow''' is an [[Event]] that doubles Ley Line rewards.
+
+==Event Details==
+===Duration===
+* 2026/09/07 04:00 – 2026/09/14 03:59
+
+==Rewards==
+* [[Mora]]

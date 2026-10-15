@@ -40,6 +40,44 @@
       }
     },
     {
+      "game": "genshin",
+      "title": "Ley Line Overflow/2026-07-27",
+      "eventKey": "genshin:in-game:ley line overflow",
+      "status": "upcoming",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1785142800,
+        "Europe": 1785121200,
+        "Asia": 1785096000,
+        "SAR": 1785096000
+      },
+      "endUnix": {
+        "America": 1785747540,
+        "Europe": 1785725940,
+        "Asia": 1785700740,
+        "SAR": 1785700740
+      }
+    },
+    {
+      "game": "genshin",
+      "title": "Ley Line Overflow/2026-09-07",
+      "eventKey": "genshin:in-game:ley line overflow",
+      "status": "upcoming",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1788771600,
+        "Europe": 1788750000,
+        "Asia": 1788724800,
+        "SAR": 1788724800
+      },
+      "endUnix": {
+        "America": 1789376340,
+        "Europe": 1789354740,
+        "Asia": 1789329540,
+        "SAR": 1789329540
+      }
+    },
+    {
       "game": "hsr",
       "title": "Aptitude Showcase/2026-06-24",
       "eventKey": "hsr:in-game:aptitude showcase - cyrene, phainon, march 7th (preservation), arlan, yukong",

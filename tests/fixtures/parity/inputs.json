@@ -4,6 +4,8 @@
   "events": [
     { "game": "genshin", "title": "Sunny Summer Fontinalia (Event)", "fixture": "genshin_Sunny_Summer_Fontinalia__Event.wikitext" },
     { "game": "genshin", "title": "When We Look Up at the Moon", "fixture": "genshin_When_We_Look_Up_at_the_Moon.wikitext" },
+    { "game": "genshin", "title": "Ley Line Overflow/2026-07-27", "fixture": "parity/genshin_Rerun_Event__2026-07-27.wikitext" },
+    { "game": "genshin", "title": "Ley Line Overflow/2026-09-07", "fixture": "parity/genshin_Rerun_Event__2026-09-07.wikitext" },
     { "game": "hsr", "title": "Aptitude Showcase/2026-06-24", "fixture": "hsr_Aptitude_Showcase_2026_06_24.wikitext" },
     { "game": "hsr", "title": "Fate Contract/Renewal", "fixture": "hsr_Fate_Contract__Renewal.wikitext" },
     { "game": "zzz", "title": "ChaPanda x Zenless Zone Zero", "fixture": "zzz_ChaPanda_x_Zenless_Zone_Zero.wikitext" },

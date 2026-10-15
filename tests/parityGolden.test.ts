@@ -17,6 +17,8 @@ describe('events parity golden', () => {
     expect(new Set(events.map((e) => e.game))).toEqual(new Set(['genshin', 'hsr', 'zzz']));
     expect(events.some((e) => e.globalTime)).toBe(true);
     expect(events.some((e) => e.endUnix === null)).toBe(true);
+    const keys = events.map((e) => e.eventKey);
+    expect(new Set(keys).size).toBeLessThan(keys.length); // a rerun: two pages, one eventKey
     expect(new Set(events.map((e) => e.status)).size).toBeGreaterThan(1);
   });
 });
