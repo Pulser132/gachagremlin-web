@@ -109,7 +109,7 @@ export interface TimelineLayout {
 
 const EVENT_CATEGORY_LABEL: Record<string, string> = { ingame: 'In Game', web: 'Web', other: 'Other' };
 
-interface Candidate {
+export interface Candidate {
   kind: TimelineKind;
   id: string;
   name: string;
@@ -162,7 +162,8 @@ function bannerCandidate(b: BannerInfo, label: string, fetchedCurrent: boolean, 
   };
 }
 
-function collect(input: TimelineInput): Candidate[] {
+/** Every Event and Banner as a Candidate, drawable or not. */
+export function collect(input: TimelineInput): Candidate[] {
   const { events, banners, region } = input;
   const out: Candidate[] = [];
   for (const ev of events.current) out.push(eventCandidate(ev, true, region));
@@ -175,7 +176,7 @@ function collect(input: TimelineInput): Candidate[] {
 }
 
 /** Why an item can't be drawn, or null when it can. */
-function tbaReason(c: Candidate, now: number): string | null {
+export function tbaReason(c: Candidate, now: number): string | null {
   if (c.start === null && c.end === null) return 'No dates announced';
   if (c.start === null || c.end === null) return 'Only one date announced';
   if (c.start >= c.end) return 'Dates look wrong';
