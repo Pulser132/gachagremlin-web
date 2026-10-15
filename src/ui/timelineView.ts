@@ -1,11 +1,11 @@
-import { applyHideRules } from '../data/hideRules.ts';
+import { applyHideRules, isBannerHiddenBy, isEventHiddenBy, type HidePrefs } from '../data/hideRules.ts';
 import { bannerHideKey, eventHideKey, loadHidePrefs } from '../data/eventPrefs.ts';
 import { getGame } from '../data/wiki/games.ts';
 import type { GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { applyBarColours, sessionColourSource, type ColourSource, type TintTarget } from './barColour.ts';
 import { renderCountdownRow } from './countdown.ts';
 import { renderEventCard } from './eventCard.ts';
-import { DAY, KIND_LABELS, axisOffset, clockLabel, layoutTimeline, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
+import { DAY, KIND_LABELS, axisOffset, clockLabel, collect, layoutTimeline, tbaReason, type TimelineBar, type TimelineLayout } from './timelineLayout.ts';
 
 const LOOKBACK_DAYS = 7;
 const PX_PER_DAY_DESKTOP = 30;
@@ -105,7 +105,8 @@ export function renderTimelineView(
   opts: TimelineViewOptions = {},
 ): HTMLElement {
   // Hide rules are read on every render so the Timeline tracks the Events tab.
-  const { events, banners, hiddenCount } = applyHideRules(allEvents, allBanners, loadHidePrefs(game));
+  const prefs = loadHidePrefs(game);
+  const { events, banners, hiddenCount } = applyHideRules(allEvents, allBanners, prefs);
   const localTimeZone = opts.localTime ? (opts.localTimeZone ?? browserTimeZone()) : null;
   const pxPerDay = isPhone() ? PX_PER_DAY_PHONE : PX_PER_DAY_DESKTOP;
   const offset = getGame(game).servers[region] ?? 0;
@@ -124,7 +125,7 @@ export function renderTimelineView(
   const hiddenKinds =
     hiddenCount === 0
       ? { count: 0, events: false, banners: false }
-      : hiddenBarKinds(allEvents, allBanners, layout, {
+      : hiddenBarKinds(allEvents, allBanners, prefs, {
           region, utcOffsetHours: offset, localTimeZone, now: Math.floor(nowMs / 1000), lookbackDays: LOOKBACK_DAYS, pxPerDay,
         });
 
@@ -265,28 +266,24 @@ function barHideKey(b: TimelineBar): string | undefined {
   return undefined;
 }
 
-/** Counts the hide rules that removed a bar (one per Hidden-list entry, however many reruns it took) and which kinds. */
+/** Counts the hide rules that removed a drawable bar (one per Hidden-list entry, however many reruns) and which kinds.
+ * Works on the source items, so it needs no second layout pass; undated items are skipped as they would not have drawn. */
 function hiddenBarKinds(
   allEvents: GameEvents,
   allBanners: GameBanners | null,
-  visible: TimelineLayout,
+  prefs: HidePrefs,
   input: Omit<Parameters<typeof layoutTimeline>[0], 'events' | 'banners'>,
 ): { count: number; events: boolean; banners: boolean } {
-  const shown = new Set(visible.lanes.flatMap((l) => l.rows.flat().map((b) => b.id)));
   const out = { count: 0, events: false, banners: false };
   const rules = new Set<string>();
-  for (const lane of layoutTimeline({ ...input, events: allEvents, banners: allBanners }).lanes) {
-    for (const bar of lane.rows.flat()) {
-      if (shown.has(bar.id)) continue;
-      const rule = barHideKey(bar) ?? bar.id;
-      if (!rules.has(rule)) {
-        rules.add(rule);
-        out.count++;
-      }
-      if (bar.kind === 'events') out.events = true;
-      else out.banners = true;
-    }
+  for (const c of collect({ ...input, events: allEvents, banners: allBanners })) {
+    const hidden = c.event ? isEventHiddenBy(prefs, c.event) : c.banner ? isBannerHiddenBy(prefs, c.banner) : false;
+    if (!hidden || tbaReason(c, input.now) !== null) continue;
+    rules.add(c.event ? `event:${eventHideKey(c.event.name)}` : `banner:${bannerHideKey(c.banner!.title)}`);
+    if (c.kind === 'events') out.events = true;
+    else out.banners = true;
   }
+  out.count = rules.size;
   return out;
 }
 
