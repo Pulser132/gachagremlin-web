@@ -78,7 +78,13 @@ export function listReminderRecords(game: GameKey): ReminderRecord[] {
       writeRecords(game, migrated);
       return migrated;
     }
-    return parsed.filter(isRecord);
+    const byKey = new Map<string, ReminderRecord>();
+    for (const v of parsed) {
+      if (!isRecord(v)) continue;
+      const prev = byKey.get(v.eventKey);
+      byKey.set(v.eventKey, prev ? mergeReminderRecords(prev, v) : v);
+    }
+    return [...byKey.values()];
   } catch {
     return [];
   }
@@ -114,7 +120,9 @@ export function toggleReminder(game: GameKey, key: string): boolean {
   const records = listReminderRecords(game);
   const existing = records.find((r) => r.eventKey === key);
   const belled = !(existing && !existing.deleted);
-  const next: ReminderRecord = { eventKey: key, updatedAt: Date.now(), deleted: !belled };
+  // Strictly newer than the existing record even if the local clock is behind.
+  const updatedAt = existing ? Math.max(Date.now(), existing.updatedAt + 1) : Date.now();
+  const next: ReminderRecord = { eventKey: key, updatedAt, deleted: !belled };
   if (existing) Object.assign(existing, next);
   else records.push(next);
   writeRecords(game, records);
