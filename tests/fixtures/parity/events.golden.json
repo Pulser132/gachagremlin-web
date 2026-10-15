@@ -1,0 +1,107 @@
+{
+  "now": 1784073600,
+  "events": [
+    {
+      "game": "genshin",
+      "title": "Sunny Summer Fontinalia (Event)",
+      "eventKey": "genshin:in-game:sunny summer fontinalia",
+      "status": "active",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1782921600,
+        "Europe": 1782900000,
+        "Asia": 1782874800,
+        "SAR": 1782874800
+      },
+      "endUnix": {
+        "America": 1786438740,
+        "Europe": 1786417140,
+        "Asia": 1786391940,
+        "SAR": 1786391940
+      }
+    },
+    {
+      "game": "genshin",
+      "title": "When We Look Up at the Moon",
+      "eventKey": "genshin:in-game:when we look up at the moon",
+      "status": "active",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1782921600,
+        "Europe": 1782900000,
+        "Asia": 1782874800,
+        "SAR": 1782874800
+      },
+      "endUnix": {
+        "America": 1790107140,
+        "Europe": 1790085540,
+        "Asia": 1790060340,
+        "SAR": 1790060340
+      }
+    },
+    {
+      "game": "hsr",
+      "title": "Aptitude Showcase/2026-06-24",
+      "eventKey": "hsr:in-game:aptitude showcase - cyrene, phainon, march 7th (preservation), arlan, yukong",
+      "status": "ended",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1782320400,
+        "Europe": 1782298800,
+        "Asia": 1782273600
+      },
+      "endUnix": {
+        "America": 1784059200,
+        "Europe": 1784037600,
+        "Asia": 1784012400
+      }
+    },
+    {
+      "game": "hsr",
+      "title": "Fate Contract/Renewal",
+      "eventKey": "hsr:in-game:fate contract/renewal",
+      "status": "upcoming",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1784912400,
+        "Europe": 1784890800,
+        "Asia": 1784865600
+      },
+      "endUnix": {
+        "America": 1784912400,
+        "Europe": 1784890800,
+        "Asia": 1784865600
+      }
+    },
+    {
+      "game": "zzz",
+      "title": "ChaPanda x Zenless Zone Zero",
+      "eventKey": "zzz:collaboration:chapanda × zenless zone zero",
+      "status": "unknown",
+      "globalTime": false,
+      "startUnix": {
+        "America": 1758898800,
+        "Europe": 1758877200,
+        "Asia": 1758852000
+      },
+      "endUnix": null
+    },
+    {
+      "game": "zzz",
+      "title": "Return to Ridu: Together in a New Chapter",
+      "eventKey": "zzz:web:return to ridu: together in a new chapter",
+      "status": "active",
+      "globalTime": true,
+      "startUnix": {
+        "America": 1780747200,
+        "Europe": 1780747200,
+        "Asia": 1780747200
+      },
+      "endUnix": {
+        "America": 1784231940,
+        "Europe": 1784231940,
+        "Asia": 1784231940
+      }
+    }
+  ]
+}

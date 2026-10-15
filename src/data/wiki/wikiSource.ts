@@ -10,7 +10,6 @@ import type { BannerCategorySection, BannerInfo, EventInfo, GameBanners, GameEve
 import type { BannerListingCategory, BannerListingEntry } from './parser.ts';
 import { listBanners, listEvents, showBanner, showEvent } from './fetch.ts';
 import { getGame } from './games.ts';
-import { normalizeGlobalRegionUnix } from './times.ts';
 
 const CONCURRENCY = 4;
 
@@ -42,12 +41,7 @@ export class WikiSource implements EventSource, BannerSource {
     // listing (same failure posture as the bot's poller).
     const fetchDetail = async (title: string): Promise<EventInfo | null> => {
       try {
-        const ev = await showEvent(game, title);
-        if (ev.globalTime) {
-          ev.startUnix = normalizeGlobalRegionUnix(ev.startUnix);
-          ev.endUnix = normalizeGlobalRegionUnix(ev.endUnix);
-        }
-        return ev;
+        return await showEvent(game, title);
       } catch (e) {
         console.warn(`gachagremlin-web: failed to fetch ${game} event ${JSON.stringify(title)}:`, e);
         return null;

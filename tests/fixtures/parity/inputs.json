@@ -1,0 +1,12 @@
+{
+  "now": 1784073600,
+  "nowNote": "2026-07-15T00:00:00Z, fixed so statuses are deterministic",
+  "events": [
+    { "game": "genshin", "title": "Sunny Summer Fontinalia (Event)", "fixture": "genshin_Sunny_Summer_Fontinalia__Event.wikitext" },
+    { "game": "genshin", "title": "When We Look Up at the Moon", "fixture": "genshin_When_We_Look_Up_at_the_Moon.wikitext" },
+    { "game": "hsr", "title": "Aptitude Showcase/2026-06-24", "fixture": "hsr_Aptitude_Showcase_2026_06_24.wikitext" },
+    { "game": "hsr", "title": "Fate Contract/Renewal", "fixture": "hsr_Fate_Contract__Renewal.wikitext" },
+    { "game": "zzz", "title": "ChaPanda x Zenless Zone Zero", "fixture": "zzz_ChaPanda_x_Zenless_Zone_Zero.wikitext" },
+    { "game": "zzz", "title": "Return to Ridu: Together in a New Chapter", "fixture": "zzz_Return_to_Ridu__Together_in_a_New_Chapter.wikitext" }
+  ]
+}
