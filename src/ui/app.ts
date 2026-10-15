@@ -836,7 +836,7 @@ function buildDiscordControls(onRemindersMerged: () => void): HTMLElement {
     signInBtn.disabled = true;
     error = null;
     try {
-      location.assign(await beginSignIn());
+      location.assign(beginSignIn());
     } catch (e) {
       error = (e as Error).message;
       signInBtn.disabled = false;

@@ -2,7 +2,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   beginSignIn,
-  codeChallenge,
   completeSignIn,
   DiscordAuthError,
   getSession,
@@ -35,8 +34,8 @@ const GOOD = {
 };
 
 async function startedFlow() {
-  const url = new URL(await beginSignIn('cid', REDIRECT));
-  const pending = JSON.parse(sessionStorage.getItem(PENDING_KEY)!) as { state: string; verifier: string };
+  const url = new URL(beginSignIn('cid', REDIRECT));
+  const pending = JSON.parse(sessionStorage.getItem(PENDING_KEY)!) as { state: string };
   return { url, ...pending };
 }
 
@@ -52,30 +51,24 @@ describe('redirectUri', () => {
   });
 });
 
-describe('PKCE', () => {
-  it('computes the RFC 7636 S256 challenge', async () => {
-    expect(await codeChallenge('dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk')).toBe('E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM');
-  });
-
-  it('builds a code+PKCE authorize URL and remembers state and verifier', async () => {
-    const { url, state, verifier } = await startedFlow();
+describe('beginSignIn', () => {
+  it('builds a code authorize URL and remembers state', async () => {
+    const { url, state } = await startedFlow();
     expect(url.origin + url.pathname).toBe('https://discord.com/oauth2/authorize');
     const q = url.searchParams;
     expect(q.get('client_id')).toBe('cid');
     expect(q.get('response_type')).toBe('code');
     expect(q.get('scope')).toBe('identify');
     expect(q.get('redirect_uri')).toBe(REDIRECT);
-    expect(q.get('code_challenge_method')).toBe('S256');
     expect(q.get('state')).toBe(state);
-    expect(q.get('code_challenge')).toBe(await codeChallenge(verifier));
-    expect(verifier.length).toBeGreaterThanOrEqual(43);
+    expect(q.has('code_challenge')).toBe(false);
+    expect(q.has('code_challenge_method')).toBe(false);
   });
 
-  it('uses a fresh state and verifier each time', async () => {
+  it('uses a fresh state each time', async () => {
     const a = await startedFlow();
     const b = await startedFlow();
     expect(a.state).not.toBe(b.state);
-    expect(a.verifier).not.toBe(b.verifier);
   });
 });
 
@@ -95,14 +88,14 @@ describe('parseCallback', () => {
 });
 
 describe('completeSignIn', () => {
-  it('posts code, redirectUri and verifier, then stores the session', async () => {
-    const { state, verifier } = await startedFlow();
+  it('posts code and redirectUri, then stores the session', async () => {
+    const { state } = await startedFlow();
     const f = fakeFetch(() => ({ status: 200, body: GOOD }));
     const session = await completeSignIn(`?code=abc&state=${state}`, { fetchImpl: f.impl, baseUrl: BASE, redirect: REDIRECT });
     expect(f.calls).toHaveLength(1);
     expect(f.calls[0]!.url).toBe(`${BASE}/v1/auth/discord`);
     expect(f.calls[0]!.method).toBe('POST');
-    expect(f.calls[0]!.body).toEqual({ code: 'abc', redirectUri: REDIRECT, codeVerifier: verifier });
+    expect(f.calls[0]!.body).toEqual({ code: 'abc', redirectUri: REDIRECT });
     expect(session.user.id).toBe('123456789012345678');
     expect(getSession()).toEqual(GOOD);
     expect(sessionStorage.getItem(PENDING_KEY)).toBeNull();

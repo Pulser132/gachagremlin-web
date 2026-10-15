@@ -153,11 +153,11 @@ stays empty) and enabling the Drive API on it.
 
 Optional. Signing in with Discord attaches your reminders to your Discord user so the GachaGremlin
 bot can DM you; signed out, reminders stay in this browser exactly as before. It is the OAuth2
-authorization-code flow with PKCE (S256), scope `identify` only. The site never holds a client
-secret: it sends the code and PKCE verifier to the bot (`POST /v1/auth/discord`), which does the
+authorization-code flow, scope `identify` only. The site never holds a client
+secret: it sends the code and redirect URI to the bot (`POST /v1/auth/discord`), which does the
 Discord exchange and returns a session token. The token, its expiry and your user ID are stored
 under `gachagremlin:reminders:session`; "Sign out" revokes the token and clears it.
-Contract: [`docs/api/reminders.md`](https://github.com/Pulser132/GachaGremlin/blob/8b83447/docs/api/reminders.md).
+Contract: [`docs/api/reminders.md`](https://github.com/Pulser132/GachaGremlin/blob/e5544c3/docs/api/reminders.md).
 
 The sign-in row is hidden unless both build-time variables are set:
 

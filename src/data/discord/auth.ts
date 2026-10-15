@@ -1,10 +1,10 @@
 /**
- * "Sign in with Discord" for reminder sync: OAuth2 authorization-code flow
- * with PKCE (S256), scope `identify`. Optional — signed out, reminders stay
+ * "Sign in with Discord" for reminder sync: OAuth2 authorization-code flow,
+ * scope `identify`. Optional — signed out, reminders stay
  * local-only exactly as before.
- * Contract: https://github.com/Pulser132/GachaGremlin/blob/8b83447/docs/api/reminders.md
+ * Contract: https://github.com/Pulser132/GachaGremlin/blob/e5544c3/docs/api/reminders.md
  *
- * The site never sees a client secret: it sends the code and PKCE verifier to
+ * The site never sees a client secret: it sends the code and redirect URI to
  * the bot (`POST /v1/auth/discord`), which exchanges them with Discord and
  * returns an opaque session token. Only that token, its expiry and the user
  * (string ID — Discord IDs exceed 2^53) are stored, under their own key.
@@ -55,27 +55,17 @@ export function redirectUri(origin: string = location.origin, basePath: string =
   return `${origin}${basePath}`;
 }
 
-// ---- PKCE ------------------------------------------------------------------
+// ---- Sign-in ---------------------------------------------------------------
 
-function base64Url(bytes: Uint8Array): string {
+function randomToken(byteLength = 32): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
   let bin = '';
   for (const b of bytes) bin += String.fromCharCode(b);
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-function randomToken(byteLength = 32): string {
-  return base64Url(crypto.getRandomValues(new Uint8Array(byteLength)));
-}
-
-/** S256 code challenge: base64url(SHA-256(verifier)). */
-export async function codeChallenge(verifier: string): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-  return base64Url(new Uint8Array(digest));
-}
-
 interface Pending {
   state: string;
-  verifier: string;
 }
 
 function savePending(p: Pending): void {
@@ -93,27 +83,24 @@ function takePending(): Pending | null {
     sessionStorage.removeItem(PENDING_KEY);
     if (!raw) return null;
     const p = JSON.parse(raw) as Partial<Pending> | null;
-    if (typeof p?.state !== 'string' || typeof p.verifier !== 'string' || !p.state || !p.verifier) return null;
-    return { state: p.state, verifier: p.verifier };
+    if (typeof p?.state !== 'string' || !p.state) return null;
+    return { state: p.state };
   } catch {
     return null;
   }
 }
 
-/** Builds the Discord authorize URL and stashes `state` + verifier for the
+/** Builds the Discord authorize URL and stashes `state` for the
  * return trip. The caller navigates to the result. */
-export async function beginSignIn(clientId: string = DISCORD_CLIENT_ID, redirect: string = redirectUri()): Promise<string> {
+export function beginSignIn(clientId: string = DISCORD_CLIENT_ID, redirect: string = redirectUri()): string {
   const state = randomToken();
-  const verifier = randomToken();
-  savePending({ state, verifier });
+  savePending({ state });
   const params = new URLSearchParams({
     client_id: clientId,
     response_type: 'code',
     scope: 'identify',
     redirect_uri: redirect,
     state,
-    code_challenge: await codeChallenge(verifier),
-    code_challenge_method: 'S256',
   });
   return `${AUTHORIZE_URL}?${params}`;
 }
@@ -165,7 +152,7 @@ export async function completeSignIn(
     response = await fetchImpl(`${base}/v1/auth/discord`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: parsed.code, redirectUri: opts.redirect ?? redirectUri(), codeVerifier: pending.verifier }),
+      body: JSON.stringify({ code: parsed.code, redirectUri: opts.redirect ?? redirectUri() }),
     });
   } catch (e) {
     throw new DiscordAuthError(`Couldn't reach the reminder service: ${(e as Error).message}`);

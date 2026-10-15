@@ -1,6 +1,6 @@
 /**
  * Typed client for the reminder sync API hosted by the GachaGremlin bot.
- * Contract: https://github.com/Pulser132/GachaGremlin/blob/8b83447/docs/api/reminders.md
+ * Contract: https://github.com/Pulser132/GachaGremlin/blob/e5544c3/docs/api/reminders.md
  *
  * Mirrors the shape of src/data/cloud/drive.ts: `fetchImpl` is injected so
  * tests pass a stub, and every failure is a typed `ReminderApiError`. The
