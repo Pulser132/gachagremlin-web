@@ -2,7 +2,9 @@
  * localStorage persistence for opt-in event reminders.
  *
  * One entry per game: `gachagremlin:reminders:<game>` holds a JSON array of
- * event keys the player has belled. Wiki events carry no stable id, so we
+ * `ReminderRecord`s (`{eventKey, updatedAt, deleted}`). Un-belling writes a
+ * tombstone rather than removing the entry so a future sync can propagate the
+ * deletion. A legacy bare `string[]` is migrated on first read. Wiki events carry no stable id, so we
  * derive one from game+type+name (see `eventKey`) — the same key a future
  * Discord bot would match on to deliver background reminders. All reads/writes
  * are wrapped in try/catch so private-browsing / quota failures degrade
@@ -28,44 +30,108 @@ export function eventKey(ev: Pick<EventInfo, 'game' | 'type' | 'name'>): string 
   return `${ev.game}:${norm(ev.type)}:${norm(ev.name)}`;
 }
 
-export function listReminders(game: GameKey): string[] {
+/** One reminder subscription. `deleted: true` is a tombstone (un-belled). */
+export interface ReminderRecord {
+  eventKey: string;
+  /** Unix milliseconds of the last change. */
+  updatedAt: number;
+  deleted: boolean;
+}
+
+/**
+ * Merge rule shared with the reminder sync API: the greater `updatedAt` wins,
+ * and on a tie the tombstone wins.
+ */
+export function mergeReminderRecords(a: ReminderRecord, b: ReminderRecord): ReminderRecord {
+  if (a.updatedAt !== b.updatedAt) return a.updatedAt > b.updatedAt ? a : b;
+  if (a.deleted !== b.deleted) return a.deleted ? a : b;
+  return a;
+}
+
+function isRecord(v: unknown): v is ReminderRecord {
+  if (!v || typeof v !== 'object') return false;
+  const r = v as Record<string, unknown>;
+  return typeof r.eventKey === 'string' && typeof r.updatedAt === 'number' && Number.isFinite(r.updatedAt) && typeof r.deleted === 'boolean';
+}
+
+/** Every stored record for a game, tombstones included. Migrates the legacy
+ * `string[]` shape (treated as live, stamped with the migration time). */
+export function listReminderRecords(game: GameKey): ReminderRecord[] {
   try {
     const raw = localStorage.getItem(remindersKey(game));
     if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    if (parsed.some((v) => typeof v === 'string')) {
+      const now = Date.now();
+      const seen = new Set<string>();
+      const migrated: ReminderRecord[] = [];
+      for (const v of parsed) {
+        if (typeof v === 'string' && !seen.has(v)) {
+          seen.add(v);
+          migrated.push({ eventKey: v, updatedAt: now, deleted: false });
+        } else if (isRecord(v) && !seen.has(v.eventKey)) {
+          seen.add(v.eventKey);
+          migrated.push(v);
+        }
+      }
+      writeRecords(game, migrated);
+      return migrated;
+    }
+    return parsed.filter(isRecord);
   } catch {
     return [];
   }
 }
 
-function writeReminders(game: GameKey, keys: string[]): void {
+function writeRecords(game: GameKey, records: ReminderRecord[]): void {
   try {
-    localStorage.setItem(remindersKey(game), JSON.stringify(keys));
+    localStorage.setItem(remindersKey(game), JSON.stringify(records));
   } catch {
     // storage full or unavailable — the toggle still applies this session
   }
+}
+
+/** Replaces the stored records for a game (used by sync). */
+export function setReminderRecords(game: GameKey, records: ReminderRecord[]): void {
+  writeRecords(game, records);
+}
+
+/** Keys of live (non-tombstoned) reminders. */
+export function listReminders(game: GameKey): string[] {
+  return listReminderRecords(game)
+    .filter((r) => !r.deleted)
+    .map((r) => r.eventKey);
 }
 
 export function isReminded(game: GameKey, key: string): boolean {
   return listReminders(game).includes(key);
 }
 
-/** Toggles a reminder subscription and returns the new state (true = belled). */
+/** Toggles a reminder subscription and returns the new state (true = belled).
+ * Un-belling leaves a tombstone. */
 export function toggleReminder(game: GameKey, key: string): boolean {
-  const keys = listReminders(game);
-  const idx = keys.indexOf(key);
-  if (idx >= 0) {
-    keys.splice(idx, 1);
-    writeReminders(game, keys);
-    return false;
-  }
-  keys.push(key);
-  writeReminders(game, keys);
-  return true;
+  const records = listReminderRecords(game);
+  const existing = records.find((r) => r.eventKey === key);
+  const belled = !(existing && !existing.deleted);
+  const next: ReminderRecord = { eventKey: key, updatedAt: Date.now(), deleted: !belled };
+  if (existing) Object.assign(existing, next);
+  else records.push(next);
+  writeRecords(game, records);
+  return belled;
 }
 
-/** Replaces the stored reminder set for a game (used by backup restore). */
+/** Backup restore: every key counts as a freshly added bell, unioned with
+ * whatever is already stored. */
 export function setReminders(game: GameKey, keys: string[]): void {
-  writeReminders(game, keys);
+  const records = listReminderRecords(game);
+  const now = Date.now();
+  for (const key of keys) {
+    const existing = records.find((r) => r.eventKey === key);
+    // Strictly newer than any local change, so a restore revives a tombstone.
+    const updatedAt = existing ? Math.max(now, existing.updatedAt + 1) : now;
+    if (existing) Object.assign(existing, { updatedAt, deleted: false });
+    else records.push({ eventKey: key, updatedAt, deleted: false });
+  }
+  writeRecords(game, records);
 }

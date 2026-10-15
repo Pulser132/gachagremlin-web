@@ -178,9 +178,8 @@ export function importBackup(data: unknown, options: ImportBackupOptions = {}): 
     // made locally since the backup.
     const incoming = Array.isArray(gameBackup.reminders) ? gameBackup.reminders.filter((k) => typeof k === 'string') : [];
     if (incoming.length > 0) {
-      const merged = [...new Set([...listReminders(game), ...incoming])];
       reminderCount += incoming.length;
-      setReminders(game, merged);
+      setReminders(game, incoming);
     }
 
     // Union event hide prefs the same way — a restore adds rules, never

@@ -128,6 +128,17 @@ describe('importBackup', () => {
     expect(listReminders('genshin').sort()).toEqual(['a', 'b']);
   });
 
+  it('exports live keys only and counts imports as fresh bells over tombstones', () => {
+    toggleReminder('genshin', 'a');
+    toggleReminder('genshin', 'a'); // tombstone
+    toggleReminder('genshin', 'b');
+    const backup = exportAll();
+    expect(backup.games.genshin.reminders).toEqual(['b']);
+    toggleReminder('genshin', 'b'); // tombstone b
+    importBackup(backup);
+    expect(listReminders('genshin')).toEqual(['b']);
+  });
+
   it('rejects a non-GachaGremlin or wrong-version file', () => {
     expect(() => importBackup({ app: 'other', schemaVersion: 1, games: {} })).toThrow(/not a GachaGremlin backup/i);
     expect(() => importBackup({ app: 'gachagremlin', schemaVersion: 999, games: {} })).toThrow(/Unsupported backup version/i);

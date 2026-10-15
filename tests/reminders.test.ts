@@ -1,74 +1,68 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { eventKey, isReminded, listReminders, setReminders, toggleReminder } from '../src/data/reminders.ts';
-import type { EventInfo } from '../src/types.ts';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  isReminded,
+  listReminderRecords,
+  listReminders,
+  mergeReminderRecords,
+  toggleReminder,
+  type ReminderRecord,
+} from '../src/data/reminders.ts';
 
-// Same in-memory Storage stand-in used by tests/wishStore.test.ts.
-class MemoryStorage implements Storage {
-  private map = new Map<string, string>();
-  get length() {
-    return this.map.size;
-  }
-  clear(): void {
-    this.map.clear();
-  }
-  getItem(key: string): string | null {
-    return this.map.has(key) ? this.map.get(key)! : null;
-  }
-  key(index: number): string | null {
-    return [...this.map.keys()][index] ?? null;
-  }
-  removeItem(key: string): void {
-    this.map.delete(key);
-  }
-  setItem(key: string, value: string): void {
-    this.map.set(key, value);
-  }
-}
-
-function ev(overrides: Partial<EventInfo> = {}): Pick<EventInfo, 'game' | 'type' | 'name'> {
-  return { game: 'genshin', type: 'Character Event Wish', name: 'Test Banner', ...overrides };
-}
+const KEY = 'gachagremlin:reminders:genshin';
+const rec = (updatedAt: number, deleted = false): ReminderRecord => ({ eventKey: 'k', updatedAt, deleted });
 
 beforeEach(() => {
-  vi.stubGlobal('localStorage', new MemoryStorage());
+  const map = new Map<string, string>();
+  vi.stubGlobal('localStorage', {
+    getItem: (k: string) => map.get(k) ?? null,
+    setItem: (k: string, v: string) => void map.set(k, v),
+  });
+  vi.useFakeTimers();
+  vi.setSystemTime(1_000);
+});
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllGlobals();
 });
 
-describe('eventKey', () => {
-  it('is stable across whitespace/case differences in the same event', () => {
-    expect(eventKey(ev({ name: 'Test  Banner' }))).toBe(eventKey(ev({ name: 'test banner' })));
-  });
-
-  it('differs by game, type, and name', () => {
-    expect(eventKey(ev())).not.toBe(eventKey(ev({ game: 'hsr' })));
-    expect(eventKey(ev())).not.toBe(eventKey(ev({ type: 'Weapon Event Wish' })));
-    expect(eventKey(ev())).not.toBe(eventKey(ev({ name: 'Other' })));
+describe('legacy migration', () => {
+  it('turns a bare string[] into live records stamped with the migration time', () => {
+    localStorage.setItem(KEY, JSON.stringify(['a', 'b', 'a']));
+    expect(listReminderRecords('genshin')).toEqual([
+      { eventKey: 'a', updatedAt: 1_000, deleted: false },
+      { eventKey: 'b', updatedAt: 1_000, deleted: false },
+    ]);
+    expect(JSON.parse(localStorage.getItem(KEY)!)[0]).toEqual({ eventKey: 'a', updatedAt: 1_000, deleted: false });
+    expect(listReminders('genshin')).toEqual(['a', 'b']);
   });
 });
 
-describe('toggleReminder / isReminded / listReminders', () => {
-  it('adds then removes a subscription and reports the new state', () => {
-    const key = eventKey(ev());
-    expect(isReminded('genshin', key)).toBe(false);
-
-    expect(toggleReminder('genshin', key)).toBe(true);
-    expect(isReminded('genshin', key)).toBe(true);
-    expect(listReminders('genshin')).toEqual([key]);
-
-    expect(toggleReminder('genshin', key)).toBe(false);
-    expect(isReminded('genshin', key)).toBe(false);
+describe('toggleReminder', () => {
+  it('stamps updatedAt and leaves a tombstone when un-belled', () => {
+    expect(toggleReminder('genshin', 'a')).toBe(true);
+    vi.setSystemTime(2_000);
+    expect(toggleReminder('genshin', 'a')).toBe(false);
+    expect(listReminderRecords('genshin')).toEqual([{ eventKey: 'a', updatedAt: 2_000, deleted: true }]);
+    expect(isReminded('genshin', 'a')).toBe(false);
     expect(listReminders('genshin')).toEqual([]);
   });
 
-  it('keeps reminders separate per game', () => {
-    toggleReminder('genshin', 'k1');
-    expect(listReminders('hsr')).toEqual([]);
+  it('re-belling revives the same entry', () => {
+    toggleReminder('genshin', 'a');
+    toggleReminder('genshin', 'a');
+    vi.setSystemTime(3_000);
+    expect(toggleReminder('genshin', 'a')).toBe(true);
+    expect(listReminderRecords('genshin')).toEqual([{ eventKey: 'a', updatedAt: 3_000, deleted: false }]);
   });
 });
 
-describe('setReminders', () => {
-  it('replaces the stored set wholesale', () => {
-    toggleReminder('genshin', 'old');
-    setReminders('genshin', ['a', 'b']);
-    expect(listReminders('genshin')).toEqual(['a', 'b']);
+describe('mergeReminderRecords', () => {
+  it('greater updatedAt wins', () => {
+    expect(mergeReminderRecords(rec(1, true), rec(2))).toEqual(rec(2));
+    expect(mergeReminderRecords(rec(2), rec(1, true))).toEqual(rec(2));
+  });
+  it('tie goes to the tombstone', () => {
+    expect(mergeReminderRecords(rec(5), rec(5, true)).deleted).toBe(true);
+    expect(mergeReminderRecords(rec(5, true), rec(5)).deleted).toBe(true);
   });
 });
