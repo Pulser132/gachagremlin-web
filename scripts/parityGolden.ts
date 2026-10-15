@@ -7,6 +7,8 @@
  * pins a copy of that file and asserts its own parser matches it (bot issue
  * Pulser132/GachaGremlin#27), so drift on either side fails a test.
  *
+ * Refresh order: https://github.com/Pulser132/GachaGremlin/blob/7d5e7dd/docs/api/events-parity.md
+ *
  * Run: npm run gen:parity
  */
 import { readFileSync, writeFileSync } from 'node:fs';

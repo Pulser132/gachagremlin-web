@@ -206,6 +206,18 @@ Additions land on their own; if a name would be **dropped** it prints the list, 
 exits non-zero, because nothing tells "Fandom deleted this" apart from "that API call had a bad
 day" except a human reading the diff. Re-run with `npm run gen:portraits -- --force` to accept it.
 
+### Events parity with the bot
+
+```bash
+npm run gen:parity              # regenerates tests/fixtures/parity/events.golden.json
+```
+
+The bot re-implements the event logic and pins the golden file (and `inputs.json`) by commit; this
+repo pins the bot's parity doc, [`docs/api/events-parity.md`](https://github.com/Pulser132/GachaGremlin/blob/7d5e7dd/docs/api/events-parity.md).
+`tests/parityGolden.test.ts` fails if the parser's output drifts from the golden. After a deliberate
+parser change, follow the doc's refresh order: regenerate, commit, a human reads every diff, the bot
+fixes its port, then bump the pin above to the new bot commit.
+
 ## Testing
 
 `npm test` runs against saved wiki fixtures (`tests/fixtures/`, copied from the bot repo) and
