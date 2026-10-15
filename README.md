@@ -157,7 +157,7 @@ authorization-code flow with PKCE (S256), scope `identify` only. The site never 
 secret: it sends the code and PKCE verifier to the bot (`POST /v1/auth/discord`), which does the
 Discord exchange and returns a session token. The token, its expiry and your user ID are stored
 under `gachagremlin:reminders:session`; "Sign out" revokes the token and clears it.
-Contract: [`docs/api/reminders.md`](https://github.com/Pulser132/GachaGremlin/blob/bbfdbcc/docs/api/reminders.md).
+Contract: [`docs/api/reminders.md`](https://github.com/Pulser132/GachaGremlin/blob/8b83447/docs/api/reminders.md).
 
 The sign-in row is hidden unless both build-time variables are set:
 

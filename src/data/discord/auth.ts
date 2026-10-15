@@ -2,7 +2,7 @@
  * "Sign in with Discord" for reminder sync: OAuth2 authorization-code flow
  * with PKCE (S256), scope `identify`. Optional — signed out, reminders stay
  * local-only exactly as before.
- * Contract: https://github.com/Pulser132/GachaGremlin/blob/bbfdbcc/docs/api/reminders.md
+ * Contract: https://github.com/Pulser132/GachaGremlin/blob/8b83447/docs/api/reminders.md
  *
  * The site never sees a client secret: it sends the code and PKCE verifier to
  * the bot (`POST /v1/auth/discord`), which exchanges them with Discord and
