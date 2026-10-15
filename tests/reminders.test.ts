@@ -35,6 +35,26 @@ describe('legacy migration', () => {
     expect(JSON.parse(localStorage.getItem(KEY)!)[0]).toEqual({ eventKey: 'a', updatedAt: 1_000, deleted: false });
     expect(listReminders('genshin')).toEqual(['a', 'b']);
   });
+
+  it('keeps the migration stamp stable when the write fails', () => {
+    const store = new Map<string, string>([['gachagremlin:reminders:hsr', JSON.stringify(['a'])]]);
+    vi.stubGlobal('localStorage', {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: () => {
+        throw new Error('quota');
+      },
+    });
+    const first = listReminderRecords('hsr');
+    vi.setSystemTime(9_000);
+    expect(listReminderRecords('hsr')).toEqual(first);
+  });
+
+  it('resolves a bare string and a record for the same key with the merge rule', () => {
+    const tomb = { eventKey: 'a', updatedAt: 5_000, deleted: true };
+    localStorage.setItem('gachagremlin:reminders:zzz', JSON.stringify([tomb, 'a']));
+    expect(listReminderRecords('zzz')).toEqual([tomb]);
+    expect(listReminders('zzz')).toEqual([]);
+  });
 });
 
 describe('toggleReminder', () => {

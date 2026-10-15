@@ -54,6 +54,19 @@ function isRecord(v: unknown): v is ReminderRecord {
   return typeof r.eventKey === 'string' && typeof r.updatedAt === 'number' && Number.isFinite(r.updatedAt) && typeof r.deleted === 'boolean';
 }
 
+const migrationStamps = new Map<GameKey, number>();
+
+/** Migration time for a game, fixed for the session so a failed write (which
+ * leaves the legacy shape in storage) re-migrates with the same stamp. */
+function migrationStamp(game: GameKey): number {
+  let stamp = migrationStamps.get(game);
+  if (stamp === undefined) {
+    stamp = Date.now();
+    migrationStamps.set(game, stamp);
+  }
+  return stamp;
+}
+
 /** Every stored record for a game, tombstones included. Migrates the legacy
  * `string[]` shape (treated as live, stamped with the migration time). */
 export function listReminderRecords(game: GameKey): ReminderRecord[] {
@@ -62,29 +75,18 @@ export function listReminderRecords(game: GameKey): ReminderRecord[] {
     if (!raw) return [];
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    if (parsed.some((v) => typeof v === 'string')) {
-      const now = Date.now();
-      const seen = new Set<string>();
-      const migrated: ReminderRecord[] = [];
-      for (const v of parsed) {
-        if (typeof v === 'string' && !seen.has(v)) {
-          seen.add(v);
-          migrated.push({ eventKey: v, updatedAt: now, deleted: false });
-        } else if (isRecord(v) && !seen.has(v.eventKey)) {
-          seen.add(v.eventKey);
-          migrated.push(v);
-        }
-      }
-      writeRecords(game, migrated);
-      return migrated;
-    }
+    const legacy = parsed.some((v) => typeof v === 'string');
+    const stamp = legacy ? migrationStamp(game) : 0;
     const byKey = new Map<string, ReminderRecord>();
     for (const v of parsed) {
-      if (!isRecord(v)) continue;
-      const prev = byKey.get(v.eventKey);
-      byKey.set(v.eventKey, prev ? mergeReminderRecords(prev, v) : v);
+      const rec = typeof v === 'string' ? { eventKey: v, updatedAt: stamp, deleted: false } : isRecord(v) ? v : null;
+      if (!rec) continue;
+      const prev = byKey.get(rec.eventKey);
+      byKey.set(rec.eventKey, prev ? mergeReminderRecords(prev, rec) : rec);
     }
-    return [...byKey.values()];
+    const records = [...byKey.values()];
+    if (legacy) writeRecords(game, records);
+    return records;
   } catch {
     return [];
   }
