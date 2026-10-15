@@ -35,3 +35,5 @@ workers/oauth/.wrangler
 # Claude Code local settings and worktrees
 .claude/settings.local.json
 .claude/worktrees/
+
+.claude/peer-link/

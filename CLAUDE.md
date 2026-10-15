@@ -19,3 +19,5 @@ The five canonical triage roles, each label string equal to its name. See
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See
 `docs/agents/domain.md`.
+
+Peers: this repo is linked to sibling repos — see docs/agents/peers.md; coordinate through the peer-link skill.
