@@ -1773,3 +1773,10 @@ select {
 .codes-chip { font-size: .8rem; padding: .15rem .6rem; border-radius: 999px; border: 1px solid var(--border); }
 .codes-claim { margin-top: auto; text-align: center; padding: .7rem 1rem; font-weight: 700; border-radius: .5rem; border: 1px solid currentColor; text-decoration: none; color: inherit; }
 .codes-game, .codes-checked { color: var(--text-muted); font-size: .85rem; }
+
+.codes-expired { margin-top: 1.5rem; }
+.codes-expired summary { cursor: pointer; font-weight: 700; padding: .4rem 0; }
+.codes-expired summary:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.codes-expired-list { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .4rem; }
+.codes-expired-item { display: flex; flex-wrap: wrap; gap: .25rem .75rem; align-items: baseline; color: var(--text-muted); }
+.codes-expired-code { font-family: var(--font-mono); text-decoration: line-through; }

@@ -16,7 +16,7 @@ const item = (over: Partial<CodeItem>): CodeItem => ({
 });
 
 describe('renderCodesView', () => {
-  it('lists live codes newest first with the game, and omits expired ones', () => {
+  it('lists live codes newest first with the game, keeping expired ones out of the live grid', () => {
     const view = renderCodesView('genshin', {
       items: [
         item({ code: 'OLD', firstSeenAt: 1000 }),
@@ -28,7 +28,46 @@ describe('renderCodesView', () => {
     const rows = [...view.querySelectorAll('.codes-card')];
     expect(rows.map((r) => r.querySelector('.codes-code')?.textContent)).toEqual(['NEW', 'OLD']);
     expect(rows[0].textContent).toContain('Genshin Impact');
-    expect(view.textContent).not.toContain('GONE');
+    expect(view.querySelector('.codes-grid')?.textContent).not.toContain('GONE');
+  });
+
+  describe('expired codes', () => {
+    const NOW = 1_786_400_000_000;
+    const expired = (code: string, expiredAt: number) => item({ code, status: 'expired', expiredAt, firstSeenAt: expiredAt - 86400_000 });
+    const render = (items: CodeItem[]) => renderCodesView('genshin', { items, lastCheckedAt: NOW }, NOW);
+
+    it('lists every expired item in a collapsed <details> below the live codes, most recently expired first', () => {
+      const many = Array.from({ length: 30 }, (_, i) => expired(`E${i}`, NOW - (i + 1) * 3600_000));
+      const view = render([item({ code: 'LIVE' }), ...many]);
+      const details = view.querySelector<HTMLDetailsElement>('details.codes-expired')!;
+      expect(details.open).toBe(false);
+      expect(details.querySelector('summary')?.textContent).toContain('30');
+      const codes = [...details.querySelectorAll('.codes-expired-item .codes-expired-code')].map((e) => e.textContent);
+      expect(codes).toHaveLength(30);
+      expect(codes[0]).toBe('E0');
+      expect(codes[29]).toBe('E29');
+      const grid = view.querySelector('.codes-grid')!;
+      expect(grid.compareDocumentPosition(details) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(grid.textContent).not.toContain('E0');
+    });
+
+    it('shows when each code expired', () => {
+      const at = NOW - 3 * 3600_000;
+      const t = render([expired('OLD', at)]).querySelector<HTMLTimeElement>('.codes-expired-item time')!;
+      expect(t.dateTime).toBe(new Date(at).toISOString());
+      expect(t.textContent).toContain('3h ago');
+    });
+
+    it('has no expired section when there are none', () => {
+      expect(render([item({})]).querySelector('details.codes-expired')).toBeNull();
+      expect(render([]).querySelector('details.codes-expired')).toBeNull();
+    });
+
+    it('still shows expired codes when no code is live', () => {
+      const view = render([expired('OLD', NOW - 1000)]);
+      expect(view.textContent).toContain('no live codes right now');
+      expect(view.querySelectorAll('.codes-expired-item')).toHaveLength(1);
+    });
   });
 
   it('shows the empty message and last-checked time for an empty set', () => {

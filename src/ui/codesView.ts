@@ -79,6 +79,34 @@ function card(c: CodeItem, fallbackGame: GameKey, now: number): HTMLElement {
   return el;
 }
 
+/** Collapsed `<details>` of every expired item the API returned, most recently expired first. */
+function expiredSection(items: CodeItem[], now: number): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'codes-expired';
+  const summary = document.createElement('summary');
+  summary.textContent = `Expired codes (${items.length})`;
+  const list = document.createElement('ul');
+  list.className = 'codes-expired-list';
+  for (const c of items) {
+    const li = document.createElement('li');
+    li.className = 'codes-expired-item';
+    const code = document.createElement('span');
+    code.className = 'codes-expired-code';
+    code.textContent = c.code;
+    li.appendChild(code);
+    if (c.expiredAt !== null) {
+      const t = document.createElement('time');
+      t.className = 'codes-seen';
+      t.dateTime = new Date(c.expiredAt).toISOString();
+      t.textContent = `expired ${new Date(c.expiredAt).toLocaleString()} · ${relativeAge(c.expiredAt, now)}`;
+      li.appendChild(t);
+    }
+    list.appendChild(li);
+  }
+  details.append(summary, list);
+  return details;
+}
+
 /** A grid of hero cards for the game's live Codes, newest first, plus when the bot last checked. */
 export function renderCodesView(game: GameKey, data: CodesResult, now: number = Date.now()): HTMLElement {
   const root = document.createElement('section');
@@ -96,6 +124,11 @@ export function renderCodesView(game: GameKey, data: CodesResult, now: number = 
     for (const c of live) grid.appendChild(card(c, game, now));
     root.appendChild(grid);
   }
+
+  const expired = data.items
+    .filter((c) => c.status === 'expired')
+    .sort((a, b) => (b.expiredAt ?? b.firstSeenAt) - (a.expiredAt ?? a.firstSeenAt));
+  if (expired.length > 0) root.appendChild(expiredSection(expired, now));
 
   const checked = document.createElement('p');
   checked.className = 'codes-checked';
