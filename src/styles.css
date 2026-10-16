@@ -1757,8 +1757,17 @@ select {
 }
 
 /* Codes view */
-.codes-view { max-width: 40rem; margin: 0 auto; padding: 1rem; }
-.codes-list { list-style: none; margin: 0; padding: 0; }
-.codes-item { display: flex; justify-content: space-between; gap: 1rem; padding: .6rem 0; border-bottom: 1px solid var(--border); }
-.codes-code { font-family: var(--font-mono); font-weight: 700; letter-spacing: .05em; }
+.codes-view { max-width: 60rem; margin: 0 auto; padding: 1rem; }
+.codes-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
+.codes-card { display: flex; flex-direction: column; gap: .75rem; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; }
+.codes-premium { background: color-mix(in srgb, gold 12%, transparent); }
+.codes-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.codes-badge { font-size: .75rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--border); }
+.codes-badge-new { background: var(--danger-bg); color: var(--danger-text); }
+.codes-code { font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; letter-spacing: .05em; width: 100%; padding: .6rem; cursor: pointer; border: 1px dashed var(--border); border-radius: .5rem; background: transparent; color: inherit; word-break: break-all; }
+.codes-code:focus-visible, .codes-claim:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.codes-copied { display: block; min-height: 1.2em; font-size: .85rem; color: var(--text-muted); }
+.codes-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .4rem; }
+.codes-chip { font-size: .8rem; padding: .15rem .6rem; border-radius: 999px; border: 1px solid var(--border); }
+.codes-claim { margin-top: auto; text-align: center; padding: .7rem 1rem; font-weight: 700; border-radius: .5rem; border: 1px solid currentColor; text-decoration: none; color: inherit; }
 .codes-game, .codes-checked { color: var(--text-muted); font-size: .85rem; }
