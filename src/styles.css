@@ -1780,3 +1780,8 @@ select {
 .codes-expired-list { list-style: none; margin: .5rem 0 0; padding: 0; display: grid; gap: .4rem; }
 .codes-expired-item { display: flex; flex-wrap: wrap; gap: .25rem .75rem; align-items: baseline; color: var(--text-muted); }
 .codes-expired-code { font-family: var(--font-mono); text-decoration: line-through; }
+
+.codes-dm { margin-bottom: 1rem; }
+.codes-dm label { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
+.codes-dm-note { margin: .25rem 0 0; font-size: .85rem; color: var(--text-muted); }
+.codes-dm-note.error { color: var(--danger-text); }

@@ -23,6 +23,7 @@ import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../typ
 import { renderBannersView } from './bannersView.ts';
 import { createCodesFeed, type CodesRefresh } from '../data/codesFeed.ts';
 import { renderCodesView } from './codesView.ts';
+import { buildCodeDmToggle } from './codeDmToggle.ts';
 import { applyTimelineHide, type LastHide } from './timelineHideUndo.ts';
 import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest, type HideStatus } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
@@ -328,7 +329,13 @@ export function mountApp(root: HTMLElement): void {
       }
       if (myGen !== renderGen) return;
       main.innerHTML = '';
-      main.appendChild(renderCodesView(game, codes.data!, Date.now(), codes.checkedAt, staleError ?? undefined));
+      const codesView = renderCodesView(game, codes.data!, Date.now(), codes.checkedAt, staleError ?? undefined);
+      // Signed out (or Discord not configured): the tab shows no DM toggle.
+      if (isDiscordConfigured() && getSession()) {
+        const api = createReminderApi({ baseUrl: REMINDER_API_BASE_URL, getToken: () => getSessionToken(), onUnauthorized: clearSession });
+        codesView.prepend(buildCodeDmToggle(game, api));
+      }
+      main.appendChild(codesView);
       main.setAttribute('aria-busy', 'false');
       return;
     }

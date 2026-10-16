@@ -10,6 +10,7 @@
  */
 import type { GameKey } from '../types.ts';
 import type { FetchLike } from './cloud/drive.ts';
+import { GAME_KEYS } from './wiki/games.ts';
 
 export type { FetchLike };
 
@@ -32,6 +33,8 @@ export type ReminderApiErrorKind =
   /** `422 limit_exceeded`: per-user cap of non-deleted reminders. */
   | 'limit_exceeded'
   | 'rate-limited'
+  /** `422 dms_closed`: Discord forbids the bot from DMing this user. */
+  | 'dms_closed'
   /** The request never completed (offline, DNS, blocked). */
   | 'network'
   | 'other';
@@ -78,6 +81,9 @@ export interface MeResponse {
   deliverable: boolean;
 }
 
+/** Per-game Code DM opt-in, as `/v1/me/code-dms` returns it. */
+export type CodeDmState = Record<GameKey, boolean>;
+
 export interface ReminderApi {
   me(): Promise<MeResponse>;
   logout(): Promise<void>;
@@ -86,6 +92,9 @@ export interface ReminderApi {
   remove(eventKey: string, updatedAt: number): Promise<ApiReminder>;
   /** Chunks into batches of {@link SYNC_BATCH_SIZE}; `serverTime` is the last chunk's. */
   sync(items: ReminderWrite[]): Promise<ReminderList>;
+  codeDms(): Promise<CodeDmState>;
+  /** Partial map; omitted games are unchanged. Resolves to the full resulting state. */
+  setCodeDms(changes: Partial<CodeDmState>): Promise<CodeDmState>;
 }
 
 export interface ReminderApiOptions {
@@ -117,6 +126,7 @@ async function errorFor(response: Response): Promise<ReminderApiError> {
   if (status === 401) return new ReminderApiError('unauthorized', message, status, code);
   if (status === 409 && code === 'resync_required') return new ReminderApiError('resync_required', message, status, code);
   if (status === 422 && code === 'limit_exceeded') return new ReminderApiError('limit_exceeded', message, status, code);
+  if (status === 422 && code === 'dms_closed') return new ReminderApiError('dms_closed', message, status, code);
   if (status === 429) return new ReminderApiError('rate-limited', message, status, code);
   return new ReminderApiError('other', message, status, code);
 }
@@ -159,6 +169,14 @@ export function createReminderApi(opts: ReminderApiOptions): ReminderApi {
     }
   }
 
+  async function codeDmState(response: Response): Promise<CodeDmState> {
+    const body = await json<Record<string, unknown>>(response);
+    if (typeof body !== 'object' || body === null || GAME_KEYS.some((g) => typeof body[g] !== 'boolean')) {
+      throw new ReminderApiError('other', 'Reminder service returned a code-DM state that does not match the contract');
+    }
+    return { genshin: body.genshin === true, hsr: body.hsr === true, zzz: body.zzz === true };
+  }
+
   const keyPath = (eventKey: string) => `/v1/reminders/${encodeURIComponent(eventKey)}`;
 
   return {
@@ -180,6 +198,12 @@ export function createReminderApi(opts: ReminderApiOptions): ReminderApi {
     },
     async remove(eventKey, updatedAt) {
       return json<ApiReminder>(await call('DELETE', keyPath(eventKey), { updatedAt }));
+    },
+    async codeDms() {
+      return codeDmState(await call('GET', '/v1/me/code-dms'));
+    },
+    async setCodeDms(changes) {
+      return codeDmState(await call('PUT', '/v1/me/code-dms', changes));
     },
     async sync(items) {
       const out: ApiReminder[] = [];
