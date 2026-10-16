@@ -1788,3 +1788,4 @@ select {
 .codes-dm label { display: inline-flex; align-items: center; gap: .5rem; cursor: pointer; }
 .codes-dm-note { margin: .25rem 0 0; font-size: .85rem; color: var(--text-muted); }
 .codes-dm-note.error { color: var(--danger-text); }
+.deliverable-hint a { color: inherit; }

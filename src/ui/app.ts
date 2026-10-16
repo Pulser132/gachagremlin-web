@@ -16,6 +16,8 @@ import {
 import { DEFAULT_EVENT_SORT, isEventSortOrder, sortEvents, type EventSortOrder, type SortableEvent } from '../data/eventSort.ts';
 import { createReminderApi, isReminderApiConfigured, REMINDER_API_BASE_URL } from '../data/reminderApi.ts';
 import { createReminderSync } from '../data/reminderSync.ts';
+import { createDeliverableHint } from '../data/deliverableHint.ts';
+import { DISCORD_INVITE_URL, renderDeliverableHint } from './deliverableHint.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
@@ -904,11 +906,15 @@ function buildDiscordControls(onRemindersMerged: () => void): HTMLElement {
   const reminderStatus = document.createElement('span');
   reminderStatus.className = 'data-footer-message reminder-sync-status';
 
+  const reminderApi = createReminderApi({ baseUrl: REMINDER_API_BASE_URL, getToken: () => getSessionToken(), onUnauthorized: clearSession });
   const reminderSync = createReminderSync({
     getUserId: () => getSession()?.user.id ?? null,
-    api: createReminderApi({ baseUrl: REMINDER_API_BASE_URL, getToken: () => getSessionToken(), onUnauthorized: clearSession }),
+    api: reminderApi,
     onMerged: onRemindersMerged,
   });
+
+  const hintSlot = document.createElement('span');
+  const deliverableHint = createDeliverableHint(reminderApi, () => getSession()?.user.id ?? null);
 
   const signInBtn = document.createElement('button');
   signInBtn.type = 'button';
@@ -951,6 +957,7 @@ function buildDiscordControls(onRemindersMerged: () => void): HTMLElement {
     status.classList.toggle('error', error !== null);
     status.textContent = error ?? (session ? `Signed in to Discord as ${session.user.username || session.user.id}` : '');
     paintReminderStatus();
+    hintSlot.replaceChildren(...(deliverableHint.visible() ? [renderDeliverableHint(DISCORD_INVITE_URL, () => deliverableHint.dismiss())] : []));
   }
 
   function paintReminderStatus(): void {
@@ -978,6 +985,7 @@ function buildDiscordControls(onRemindersMerged: () => void): HTMLElement {
         error = null;
         update();
         void reminderSync.request();
+        void deliverableHint.check();
       },
       (e: Error) => {
         error = e.message;
@@ -996,11 +1004,13 @@ function buildDiscordControls(onRemindersMerged: () => void): HTMLElement {
   });
 
   reminderSync.subscribe(() => update());
+  deliverableHint.subscribe(() => update());
   reminderSync.attach(window);
   void reminderSync.request(); // pull on load
+  if (getSession()) void deliverableHint.check();
 
   update();
-  wrap.append(signInBtn, signOutBtn, status, reminderStatus);
+  wrap.append(signInBtn, signOutBtn, status, reminderStatus, hintSlot);
   return wrap;
 }
 
