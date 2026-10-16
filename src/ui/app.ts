@@ -14,13 +14,15 @@ import {
   unhideEvent,
 } from '../data/eventPrefs.ts';
 import { DEFAULT_EVENT_SORT, isEventSortOrder, sortEvents, type EventSortOrder, type SortableEvent } from '../data/eventSort.ts';
-import { createReminderApi, REMINDER_API_BASE_URL } from '../data/reminderApi.ts';
+import { createReminderApi, isReminderApiConfigured, REMINDER_API_BASE_URL } from '../data/reminderApi.ts';
 import { createReminderSync } from '../data/reminderSync.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
+import { fetchCodes, type CodesResult } from '../data/codesApi.ts';
+import { renderCodesView } from './codesView.ts';
 import { applyTimelineHide, type LastHide } from './timelineHideUndo.ts';
 import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest, type HideStatus } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
@@ -45,12 +47,13 @@ const EVENT_SORT_OPTIONS: { value: EventSortOrder; label: string }[] = [
 ];
 const REGIONS: Region[] = ['America', 'Europe', 'Asia', 'SAR'];
 
-type ViewMode = 'events' | 'wishes' | 'banners' | 'timeline';
+type ViewMode = 'events' | 'wishes' | 'banners' | 'timeline' | 'codes';
 const VIEWS: { key: ViewMode; label: string }[] = [
   { key: 'events', label: 'Events' },
   { key: 'wishes', label: 'Wishes' },
   { key: 'banners', label: 'Banners' },
   { key: 'timeline', label: 'Timeline' },
+  { key: 'codes', label: 'Codes' },
 ];
 
 const wikiSource = new WikiSource();
@@ -284,6 +287,32 @@ export function mountApp(root: HTMLElement): void {
     if (wishesMode) {
       main.innerHTML = '';
       main.appendChild(renderWishesView(game, () => render()));
+      main.setAttribute('aria-busy', 'false');
+      return;
+    }
+
+    if (view === 'codes') {
+      regionLabel.hidden = true;
+      refreshBtn.hidden = true;
+      lastUpdated.hidden = true;
+      main.setAttribute('aria-busy', 'true');
+      main.innerHTML = '';
+      main.appendChild(buildSkeleton());
+      let codes: CodesResult;
+      try {
+        if (!isReminderApiConfigured()) throw new Error('the codes service is not configured for this build');
+        codes = await fetchCodes(game);
+      } catch (e) {
+        if (myGen !== renderGen) return;
+        main.innerHTML = '';
+        status.hidden = false;
+        status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} codes: ${(e as Error).message}`;
+        main.setAttribute('aria-busy', 'false');
+        return;
+      }
+      if (myGen !== renderGen) return;
+      main.innerHTML = '';
+      main.appendChild(renderCodesView(game, codes));
       main.setAttribute('aria-busy', 'false');
       return;
     }
