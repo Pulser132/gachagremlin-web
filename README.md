@@ -194,6 +194,22 @@ and trailing slash are part of the match):
 Set the same client ID as `DISCORD_CLIENT_ID` (and the secret as `DISCORD_CLIENT_SECRET`) in the bot's
 `.env`, and add the site origins to the bot's `CORS_ORIGINS`.
 
+**Keeping the live site working.** The Codes tab, Discord sign-in and reminder sync all call the bot's
+API, so they only work while the bot is running. The bot runs on the maintainer's PC and is published
+with [Tailscale Funnel](https://tailscale.com/kb/1223/funnel):
+
+- **Start the bot** after every reboot (`start-bot.bat` in the bot repo), with `API_ENABLED=true` in its
+  `.env`. If it is off, the site shows "Couldn't load … codes".
+- **Funnel** proxies the bot's local port to a public HTTPS address. It is set up once with
+  `tailscale funnel --bg 8080` and keeps running in the background across reboots. Check it with
+  `tailscale funnel status`; turn it off with `tailscale funnel --https=443 off`. Funnel must be enabled
+  for the tailnet (the command prints a link if not), along with MagicDNS and HTTPS certificates.
+- The address is `https://<machine>.<tailnet>.ts.net`. It is set as the GitHub Actions variable
+  `VITE_REMINDER_API_URL` (repo Settings → Secrets and variables → Actions → Variables), together with
+  `VITE_DISCORD_CLIENT_ID` and the optional `VITE_DISCORD_INVITE_URL`. These are baked in at build time,
+  so after changing one, re-run the **Deploy to GitHub Pages** workflow.
+- The bot's `CORS_ORIGINS` must include `https://pulser132.github.io`.
+
 ## Local development
 
 Requires Node 22+.
