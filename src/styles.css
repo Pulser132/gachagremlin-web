@@ -1760,7 +1760,9 @@ select {
 .codes-view { max-width: 60rem; margin: 0 auto; padding: 1rem; }
 .codes-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
 .codes-card { display: flex; flex-direction: column; gap: .75rem; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; }
-.codes-premium { background: color-mix(in srgb, gold 12%, transparent); }
+.codes-premium { background: color-mix(in srgb, gold 9%, transparent); }
+.codes-premium .codes-chip { font-weight: 600; background: var(--surface); border-color: color-mix(in srgb, currentColor 45%, transparent); }
+.codes-premium .codes-chip-currency { border-width: 2px; border-color: color-mix(in srgb, gold 85%, var(--text) 15%); }
 .codes-premium .codes-code { border: 2px dashed color-mix(in srgb, gold 85%, var(--text, currentColor) 15%); background: color-mix(in srgb, gold 10%, transparent); }
 .codes-head { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; }
 .codes-seen { font-size: .8rem; color: var(--text-muted); }

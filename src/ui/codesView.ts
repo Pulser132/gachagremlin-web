@@ -7,6 +7,9 @@ import { relativeAge } from './relativeAge.ts';
 /** A Code first seen within this window gets the NEW badge instead of Active. */
 const NEW_WINDOW_MS = 48 * 3600_000;
 
+/** The premium currencies of the three games: Primogem, Stellar Jade, Polychrome. */
+const PREMIUM_CURRENCY = /^(primogem|stellar jade|polychrome)s?$/i;
+
 function copyCard(c: CodeItem): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'codes-copy';
@@ -61,6 +64,7 @@ function card(c: CodeItem, fallbackGame: GameKey, now: number): HTMLElement {
     for (const r of c.rewards) {
       const chip = document.createElement('li');
       chip.className = 'codes-chip';
+      if (PREMIUM_CURRENCY.test(r.item)) chip.classList.add('codes-chip-currency');
       chip.textContent = `${r.item} ×${r.qty.toLocaleString('en-US')}`;
       chips.appendChild(chip);
     }
