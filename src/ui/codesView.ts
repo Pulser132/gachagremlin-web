@@ -1,3 +1,4 @@
+import { isCodesStale } from '../data/codesFeed.ts';
 import { liveCodes, type CodeItem, type CodesResult } from '../data/codesApi.ts';
 import { GAME_CONFIGS } from '../data/wiki/games.ts';
 import type { GameKey } from '../types.ts';
@@ -108,9 +109,27 @@ function expiredSection(items: CodeItem[], now: number): HTMLElement {
 }
 
 /** A grid of hero cards for the game's live Codes, newest first, plus when the bot last checked. */
-export function renderCodesView(game: GameKey, data: CodesResult, now: number = Date.now(), checkedAt: number | null = null): HTMLElement {
+export function renderCodesView(
+  game: GameKey,
+  data: CodesResult,
+  now: number = Date.now(),
+  checkedAt: number | null = null,
+  /** Why the last refresh failed, when this is a cached list shown after one. */
+  unreachable?: string,
+): HTMLElement {
   const root = document.createElement('section');
   root.className = 'codes-view';
+
+  if (unreachable !== undefined || isCodesStale(data.lastCheckedAt, now)) {
+    const warn = document.createElement('p');
+    warn.className = 'codes-stale';
+    warn.setAttribute('role', 'status');
+    warn.textContent =
+      unreachable !== undefined
+        ? `Couldn't refresh ${GAME_CONFIGS[game].label} codes (${unreachable}) — showing the last list we got, which may be out of date.`
+        : 'These codes may be out of date — the codes service has not checked for new ones in a while.';
+    root.appendChild(warn);
+  }
 
   const live = liveCodes(data.items);
   if (live.length === 0) {

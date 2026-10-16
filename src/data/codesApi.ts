@@ -55,7 +55,7 @@ export interface CodesApiOptions {
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
 
-function parseItem(raw: unknown): CodeItem {
+export function parseCodeItem(raw: unknown): CodeItem {
   if (!isObject(raw) || typeof raw.code !== 'string' || typeof raw.game !== 'string' || typeof raw.firstSeenAt !== 'number') {
     throw new CodesApiError('other', 'Codes service returned an item that does not match the contract');
   }
@@ -115,7 +115,7 @@ export async function fetchCodesConditional(
     throw new CodesApiError('other', 'Codes service returned a response that does not match the contract');
   }
   return {
-    items: body.items.map(parseItem),
+    items: body.items.map(parseCodeItem),
     lastCheckedAt: typeof body.lastCheckedAt === 'number' ? body.lastCheckedAt : null,
     etag: response.headers?.get('ETag') ?? null,
   };

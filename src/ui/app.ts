@@ -319,7 +319,7 @@ export function mountApp(root: HTMLElement): void {
         main.innerHTML = '';
         if (!snap) {
           status.hidden = false;
-          status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} codes: ${(e as Error).message}`;
+          status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} codes: ${(e as Error).message}. Last checked: never.`;
           main.setAttribute('aria-busy', 'false');
           return;
         }
@@ -327,12 +327,8 @@ export function mountApp(root: HTMLElement): void {
         codes = { data: snap.data, checkedAt: snap.checkedAt, changed: false };
       }
       if (myGen !== renderGen) return;
-      if (staleError) {
-        status.hidden = false;
-        status.textContent = `Couldn't refresh ${GAME_CONFIGS[game].label} codes (${staleError}) — showing the last list we got.`;
-      }
       main.innerHTML = '';
-      main.appendChild(renderCodesView(game, codes.data!, Date.now(), codes.checkedAt));
+      main.appendChild(renderCodesView(game, codes.data!, Date.now(), codes.checkedAt, staleError ?? undefined));
       main.setAttribute('aria-busy', 'false');
       return;
     }

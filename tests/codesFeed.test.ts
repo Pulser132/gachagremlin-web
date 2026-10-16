@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createCodesFeed, CODES_MIN_INTERVAL_MS } from '../src/data/codesFeed.ts';
+import { createCodesFeed, isCodesStale, CODES_MIN_INTERVAL_MS, CODES_STALE_AFTER_MS } from '../src/data/codesFeed.ts';
 import type { FetchLike } from '../src/data/cloud/drive.ts';
 import genshinFixture from './fixtures/codes/genshin.json';
 
@@ -12,7 +12,12 @@ function res(body: unknown, status = 200, etag?: string): Response {
   } as unknown as Response;
 }
 
-function setup(responses: Response[]) {
+function memStorage(init: Record<string, string> = {}) {
+  const m = new Map(Object.entries(init));
+  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => { m.set(k, v); }, m };
+}
+
+function setup(responses: Response[], storage: ReturnType<typeof memStorage> | null = null) {
   let t = 1_000_000;
   const calls: { url: string; init?: RequestInit }[] = [];
   const queue = [...responses];
@@ -20,7 +25,7 @@ function setup(responses: Response[]) {
     calls.push({ url, init });
     return queue.shift() ?? res({}, 500);
   };
-  const feed = createCodesFeed({ baseUrl: 'https://api.test', fetchImpl, now: () => t });
+  const feed = createCodesFeed({ baseUrl: 'https://api.test', fetchImpl, now: () => t, storage });
   return { feed, calls, advance: (ms: number) => { t += ms; }, clock: () => t };
 }
 
@@ -93,5 +98,38 @@ describe('createCodesFeed', () => {
     advance(CODES_MIN_INTERVAL_MS);
     await expect(feed.refresh('genshin')).rejects.toBeDefined();
     expect(feed.cached('genshin')?.data.items).toHaveLength(3);
+  });
+
+  describe('persistence', () => {
+    it('survives a reload and revalidates with the stored ETag', async () => {
+      const storage = memStorage();
+      const a = setup([res(genshinFixture, 200, '"v1"')], storage);
+      await a.feed.refresh('genshin');
+      const b = setup([res(null, 304)], storage);
+      expect(b.feed.cached('genshin')?.data.items).toHaveLength(3);
+      b.advance(CODES_MIN_INTERVAL_MS * 100);
+      await b.feed.refresh('genshin');
+      expect(b.calls[0].init?.headers).toEqual({ 'If-None-Match': '"v1"' });
+    });
+
+    it('treats corrupt storage as no cache', () => {
+      const bad = memStorage({ 'gachagremlin.codes.v1.genshin': '{nope' });
+      expect(setup([], bad).feed.cached('genshin')).toBeNull();
+      const wrong = memStorage({ 'gachagremlin.codes.v1.genshin': JSON.stringify({ checkedAt: 1, data: { items: [{}] } }) });
+      expect(setup([], wrong).feed.cached('genshin')).toBeNull();
+    });
+
+    it('works when storage throws', async () => {
+      const storage = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('quota'); } };
+      const { feed } = setup([res(genshinFixture, 200)], storage as never);
+      expect(feed.cached('genshin')).toBeNull();
+      expect((await feed.refresh('genshin')).data?.items).toHaveLength(3);
+    });
+  });
+
+  it('isCodesStale flags old or missing lastCheckedAt', () => {
+    expect(isCodesStale(1000, 1000 + CODES_STALE_AFTER_MS)).toBe(false);
+    expect(isCodesStale(1000, 1001 + CODES_STALE_AFTER_MS)).toBe(true);
+    expect(isCodesStale(null, 1000)).toBe(true);
   });
 });

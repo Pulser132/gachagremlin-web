@@ -152,4 +152,22 @@ describe('renderCodesView', () => {
       expect(view.querySelector('.codes-copied')?.textContent).toContain('Copy failed');
     });
   });
+
+  describe('stale warning', () => {
+    const NOW = 1_786_400_000_000;
+    const item = { items: [], lastCheckedAt: NOW - 1000 };
+    it('is absent for a fresh list', () => {
+      expect(renderCodesView('genshin', item, NOW).querySelector('.codes-stale')).toBeNull();
+    });
+    it('shows for an old lastCheckedAt, still showing when it was checked', () => {
+      const old = { items: [], lastCheckedAt: NOW - 7 * 3600_000 };
+      const v = renderCodesView('genshin', old, NOW);
+      expect(v.querySelector('.codes-stale')).not.toBeNull();
+      expect(v.querySelector('.codes-checked')?.textContent).toContain('Last checked');
+    });
+    it('shows when the last refresh was unreachable', () => {
+      const v = renderCodesView('genshin', item, NOW, NOW, 'offline');
+      expect(v.querySelector('.codes-stale')?.textContent).toContain('offline');
+    });
+  });
 });
