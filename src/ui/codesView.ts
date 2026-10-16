@@ -108,7 +108,7 @@ function expiredSection(items: CodeItem[], now: number): HTMLElement {
 }
 
 /** A grid of hero cards for the game's live Codes, newest first, plus when the bot last checked. */
-export function renderCodesView(game: GameKey, data: CodesResult, now: number = Date.now()): HTMLElement {
+export function renderCodesView(game: GameKey, data: CodesResult, now: number = Date.now(), checkedAt: number | null = null): HTMLElement {
   const root = document.createElement('section');
   root.className = 'codes-view';
 
@@ -134,6 +134,7 @@ export function renderCodesView(game: GameKey, data: CodesResult, now: number = 
   checked.className = 'codes-checked';
   checked.textContent =
     data.lastCheckedAt === null ? 'Codes: not checked yet' : `Last checked ${new Date(data.lastCheckedAt).toLocaleString()}`;
+  if (checkedAt !== null) checked.textContent += ` · refreshed ${new Date(checkedAt).toLocaleTimeString()}`;
   root.appendChild(checked);
   return root;
 }

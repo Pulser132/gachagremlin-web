@@ -74,15 +74,30 @@ function parseItem(raw: unknown): CodeItem {
   };
 }
 
-export async function fetchCodes(game: GameKey, opts: CodesApiOptions = {}): Promise<CodesResult> {
+export interface CodesFetched extends CodesResult {
+  /** The response's `ETag`, to send back as `If-None-Match`; `null` when absent or not exposed. */
+  etag: string | null;
+}
+
+/**
+ * Conditional GET. With an `etag`, sends `If-None-Match`; a `304` resolves to
+ * `{ notModified: true }` so the caller keeps the list it already has.
+ */
+export async function fetchCodesConditional(
+  game: GameKey,
+  etag: string | null,
+  opts: CodesApiOptions = {},
+): Promise<CodesFetched | { notModified: true }> {
   const fetchImpl: FetchLike = opts.fetchImpl ?? ((input, init) => fetch(input, init));
   const base = (opts.baseUrl ?? REMINDER_API_BASE_URL).replace(/\/+$/, '');
+  const url = `${base}/v1/codes?game=${encodeURIComponent(game)}`;
   let response: Response;
   try {
-    response = await fetchImpl(`${base}/v1/codes?game=${encodeURIComponent(game)}`);
+    response = await (etag ? fetchImpl(url, { headers: { 'If-None-Match': etag } }) : fetchImpl(url));
   } catch (e) {
     throw new CodesApiError('network', `Could not reach the codes service: ${(e as Error).message}`);
   }
+  if (response.status === 304) return { notModified: true };
   if (!response.ok) {
     throw new CodesApiError(
       response.status === 429 ? 'rate-limited' : 'other',
@@ -102,7 +117,14 @@ export async function fetchCodes(game: GameKey, opts: CodesApiOptions = {}): Pro
   return {
     items: body.items.map(parseItem),
     lastCheckedAt: typeof body.lastCheckedAt === 'number' ? body.lastCheckedAt : null,
+    etag: response.headers?.get('ETag') ?? null,
   };
+}
+
+export async function fetchCodes(game: GameKey, opts: CodesApiOptions = {}): Promise<CodesResult> {
+  const out = await fetchCodesConditional(game, null, opts);
+  if ('notModified' in out) throw new CodesApiError('other', 'Codes service returned 304 to an unconditional request', 304);
+  return { items: out.items, lastCheckedAt: out.lastCheckedAt };
 }
 
 /** Active items only, newest `firstSeenAt` first. */

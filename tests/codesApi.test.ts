@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CodesApiError, fetchCodes, liveCodes } from '../src/data/codesApi.ts';
+import { CodesApiError, fetchCodes, fetchCodesConditional, liveCodes } from '../src/data/codesApi.ts';
 import type { FetchLike } from '../src/data/cloud/drive.ts';
 import genshinFixture from './fixtures/codes/genshin.json';
 import emptyFixture from './fixtures/codes/empty.json';
@@ -58,6 +58,13 @@ describe('fetchCodes', () => {
   it('accepts an empty set with a null lastCheckedAt', async () => {
     const { impl } = stub(res(emptyFixture));
     expect(await fetchCodes('hsr', { baseUrl: BASE, fetchImpl: impl })).toEqual({ items: [], lastCheckedAt: null });
+  });
+
+  it('sends If-None-Match when given an etag and reports a 304', async () => {
+    const { impl, inits } = stub({ ok: false, status: 304, headers: { get: () => null } } as unknown as Response);
+    const out = await fetchCodesConditional('genshin', '"v1"', { baseUrl: BASE, fetchImpl: impl });
+    expect(inits[0]?.headers).toEqual({ 'If-None-Match': '"v1"' });
+    expect(out).toEqual({ notModified: true });
   });
 
   it('maps a network failure to a typed error', async () => {

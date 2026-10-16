@@ -21,7 +21,7 @@ import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
 import { renderBannersView } from './bannersView.ts';
-import { fetchCodes, type CodesResult } from '../data/codesApi.ts';
+import { createCodesFeed, type CodesRefresh } from '../data/codesFeed.ts';
 import { renderCodesView } from './codesView.ts';
 import { applyTimelineHide, type LastHide } from './timelineHideUndo.ts';
 import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest, type HideStatus } from './timelineView.ts';
@@ -215,6 +215,16 @@ export function mountApp(root: HTMLElement): void {
   // resolves) checks this after the await and bails instead of clobbering
   // whatever the newer render already put in `main`.
   let renderGen = 0;
+  const codesFeed = createCodesFeed();
+  // Window focus refreshes the Codes tab (throttled to once per 5 minutes inside the feed); no timers.
+  window.addEventListener('focus', () => {
+    if (view !== 'codes' || !isReminderApiConfigured()) return;
+    const g = game;
+    codesFeed.refresh(g).then(
+      (r) => { if (r.changed && view === 'codes' && game === g) void render(); },
+      () => { /* a failed background refresh keeps what is on screen */ },
+    );
+  });
   // Set by a Timeline hide so the next Timeline render keeps the scroll
   // position and lands focus on the next bar (or the scroller).
   let timelineRestore: { scrollLeft: number; focusBarId: string | null } | null = null;
@@ -298,21 +308,31 @@ export function mountApp(root: HTMLElement): void {
       main.setAttribute('aria-busy', 'true');
       main.innerHTML = '';
       main.appendChild(buildSkeleton());
-      let codes: CodesResult;
+      let codes: CodesRefresh;
+      let staleError: string | null = null;
       try {
         if (!isReminderApiConfigured()) throw new Error('the codes service is not configured for this build');
-        codes = await fetchCodes(game);
+        codes = await codesFeed.refresh(game);
       } catch (e) {
+        const snap = codesFeed.cached(game);
         if (myGen !== renderGen) return;
         main.innerHTML = '';
-        status.hidden = false;
-        status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} codes: ${(e as Error).message}`;
-        main.setAttribute('aria-busy', 'false');
-        return;
+        if (!snap) {
+          status.hidden = false;
+          status.textContent = `Couldn't load ${GAME_CONFIGS[game].label} codes: ${(e as Error).message}`;
+          main.setAttribute('aria-busy', 'false');
+          return;
+        }
+        staleError = (e as Error).message;
+        codes = { data: snap.data, checkedAt: snap.checkedAt, changed: false };
       }
       if (myGen !== renderGen) return;
+      if (staleError) {
+        status.hidden = false;
+        status.textContent = `Couldn't refresh ${GAME_CONFIGS[game].label} codes (${staleError}) — showing the last list we got.`;
+      }
       main.innerHTML = '';
-      main.appendChild(renderCodesView(game, codes));
+      main.appendChild(renderCodesView(game, codes.data!, Date.now(), codes.checkedAt));
       main.setAttribute('aria-busy', 'false');
       return;
     }
