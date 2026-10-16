@@ -159,6 +159,13 @@ Discord exchange and returns a session token. The token, its expiry and your use
 under `gachagremlin:reminders:session`; "Sign out" revokes the token and clears it.
 Contract: [`docs/api/reminders.md`](https://github.com/Pulser132/GachaGremlin/blob/e5544c3/docs/api/reminders.md).
 
+Once signed in, the Codes tab shows a per-game "DM me new codes" toggle backed by
+`GET`/`PUT /v1/me/code-dms`
+([`docs/api/codes.md`](https://github.com/Pulser132/GachaGremlin/blob/main/docs/api/codes.md)).
+Turning it on makes the bot send a test DM; if Discord forbids that (`422 dms_closed`) the toggle
+stays off and asks you to open your DMs. The toggle needs a live connection: a failed write is shown
+as failed and is never queued. Signed out, the tab shows Codes with no toggle.
+
 The sign-in row is hidden unless both build-time variables are set:
 
 - `VITE_DISCORD_CLIENT_ID` — the Discord application's client ID (public).

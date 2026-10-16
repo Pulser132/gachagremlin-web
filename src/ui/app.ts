@@ -23,7 +23,8 @@ import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../typ
 import { renderBannersView } from './bannersView.ts';
 import { createCodesFeed, type CodesRefresh } from '../data/codesFeed.ts';
 import { renderCodesView } from './codesView.ts';
-import { buildCodeDmToggle } from './codeDmToggle.ts';
+import { renderCodeDmToggle } from './codeDmToggle.ts';
+import { createCodeDms, type CodeDmsController } from '../data/codeDms.ts';
 import { applyTimelineHide, type LastHide } from './timelineHideUndo.ts';
 import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest, type HideStatus } from './timelineView.ts';
 import { renderCardSection } from './cardSection.ts';
@@ -217,6 +218,35 @@ export function mountApp(root: HTMLElement): void {
   // whatever the newer render already put in `main`.
   let renderGen = 0;
   const codesFeed = createCodesFeed();
+  // One Code DM controller per Discord session, shared by every Codes render so a re-render
+  // (tab open, window focus) never drops an in-flight save or its error.
+  const codeDmSlot = document.createElement('div');
+  let codeDms: { token: string; controller: CodeDmsController } | null = null;
+  const paintCodeDms = (reload = false) => {
+    const token = getSessionToken();
+    if (!token) {
+      codeDms = null;
+      codeDmSlot.replaceChildren();
+      return;
+    }
+    if (codeDms?.token !== token) {
+      const controller = createCodeDms(
+        createReminderApi({ baseUrl: REMINDER_API_BASE_URL, getToken: () => getSessionToken(), onUnauthorized: clearSession }),
+      );
+      controller.subscribe(() => paintCodeDms());
+      codeDms = { token, controller };
+      reload = true;
+    }
+    const { controller } = codeDms;
+    const state = controller.getState();
+    // A rejected token means signed out: drop the toggle rather than leave it dead.
+    if (state.error?.kind === 'unauthorized') {
+      codeDmSlot.replaceChildren();
+      return;
+    }
+    codeDmSlot.replaceChildren(renderCodeDmToggle(game, state, (on) => void controller.set(game, on)));
+    if (reload) void controller.load();
+  };
   // Window focus refreshes the Codes tab (throttled to once per 5 minutes inside the feed); no timers.
   window.addEventListener('focus', () => {
     if (view !== 'codes' || !isReminderApiConfigured()) return;
@@ -332,8 +362,8 @@ export function mountApp(root: HTMLElement): void {
       const codesView = renderCodesView(game, codes.data!, Date.now(), codes.checkedAt, staleError ?? undefined);
       // Signed out (or Discord not configured): the tab shows no DM toggle.
       if (isDiscordConfigured() && getSession()) {
-        const api = createReminderApi({ baseUrl: REMINDER_API_BASE_URL, getToken: () => getSessionToken(), onUnauthorized: clearSession });
-        codesView.prepend(buildCodeDmToggle(game, api));
+        codesView.prepend(codeDmSlot);
+        paintCodeDms(true);
       }
       main.appendChild(codesView);
       main.setAttribute('aria-busy', 'false');

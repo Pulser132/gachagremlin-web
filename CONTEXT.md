@@ -85,5 +85,5 @@ _Avoid_: Banners (see above — a different tab, a different data source)
 - `src/data/wishes/banners.ts` — per-game Banner group / pity config, the
   vocabulary Banner categories reuse (ADR-0003).
 - `src/ui/` — pure `data → DOM` render functions (`eventCard.ts`,
-  `wishesView.ts`, `bannersView.ts`, `timelineView.ts`) driven by `app.ts`, which owns fetching,
+  `wishesView.ts`, `bannersView.ts`, `timelineView.ts`, `codeDmToggle.ts`) driven by `app.ts`, which owns fetching,
   caching, and view-switching state.
