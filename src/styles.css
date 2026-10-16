@@ -1755,3 +1755,50 @@ select {
   background: var(--danger-bg);
   color: var(--danger-text);
 }
+
+/* ===== PROTOTYPE: Codes tab (throwaway) ===== */
+.cp-root { max-width: 60rem; margin: 0 auto; padding: 1rem; padding-bottom: 5rem; }
+.cp-head { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: baseline; margin-bottom: 1rem; }
+.cp-head-title { font-family: var(--font-display); font-size: 1.2rem; }
+.cp-head-note, .cp-b-added, .cp-a-added { color: var(--text-muted); font-size: .8rem; }
+.cp-banner { padding: .6rem .9rem; border-radius: 8px; margin-bottom: 1rem; }
+.cp-banner-down { background: var(--danger-bg); color: var(--danger-text); }
+.cp-banner-stale { background: #3a321a; color: #ffd98a; }
+.cp-empty { color: var(--text-muted); }
+.cp-chip { display: inline-block; padding: .1rem .5rem; margin: .1rem .25rem .1rem 0; border-radius: 999px; background: var(--surface-raised); border: 1px solid var(--border); font-size: .8rem; }
+.cp-chip-premium { background: color-mix(in srgb, var(--accent) 22%, transparent); border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.cp-badge { font-size: .65rem; padding: .1rem .4rem; border-radius: 4px; letter-spacing: .05em; }
+.cp-badge-new { background: var(--accent); color: var(--ink); font-weight: 800; }
+.cp-badge-active { background: var(--surface-raised); color: var(--text-muted); }
+.cp-badge-expired { background: var(--border); color: var(--text-muted); }
+.cp-claim { display: inline-block; padding: .25rem .7rem; border-radius: 6px; background: var(--accent); color: var(--ink); font-weight: 700; text-decoration: none; }
+.cp-claim-big { padding: .5rem 1.1rem; }
+.cp-copy, .cp-b-done, .cp-c-next, .cp-c-reset { background: var(--surface-raised); color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: .25rem .7rem; cursor: pointer; }
+.cp-a-h { font-family: var(--font-display); margin: 1rem 0 .4rem; }
+.cp-a-table { width: 100%; border-collapse: collapse; }
+.cp-a-table td { padding: .5rem .4rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.cp-a-code code { font-family: var(--font-mono); font-size: .95rem; }
+.cp-a-actions { white-space: nowrap; text-align: right; }
+.cp-a-actions > * { margin-left: .4rem; }
+tr.is-expired { opacity: .45; }
+tr.is-redeemed code, .is-redeemed .cp-b-code { text-decoration: line-through; opacity: .55; }
+.cp-b-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; }
+.cp-b-card { background: var(--surface); border: var(--card-border-width) solid var(--border); border-radius: var(--card-radius); clip-path: var(--card-clip); padding: 1rem; display: flex; flex-direction: column; gap: .7rem; }
+.cp-b-card.is-new { border-color: var(--accent); }
+.cp-b-card.is-redeemed { opacity: .5; }
+.cp-b-top { display: flex; justify-content: space-between; align-items: center; }
+.cp-b-code { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 700; letter-spacing: .06em; text-align: left; background: var(--ink); color: var(--text); border: 1px dashed var(--border); border-radius: 8px; padding: .6rem .8rem; cursor: copy; }
+.cp-b-code[data-copied]::after { content: '  copied ✓'; font-size: .75rem; color: var(--accent); }
+.cp-b-foot { display: flex; justify-content: space-between; align-items: center; margin-top: auto; }
+.cp-b-expired { margin-top: 1.5rem; color: var(--text-muted); }
+.cp-b-expired-row { font-family: var(--font-mono); font-size: .8rem; padding: .15rem 0; }
+.cp-c { max-width: 28rem; margin: 0 auto; }
+.cp-c-bar { height: .5rem; background: var(--surface-raised); border-radius: 999px; margin-top: .3rem; overflow: hidden; }
+.cp-c-fill { height: 100%; background: var(--accent); }
+.cp-c-focus { margin-top: 1.5rem; padding: 1.5rem; background: var(--surface); border: var(--card-border-width) solid var(--accent); border-radius: var(--card-radius); text-align: center; }
+.cp-c-code { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; margin: .6rem 0; letter-spacing: .08em; }
+.cp-c-steps { text-align: left; display: inline-block; line-height: 2.4; }
+.cp-c-queue, .cp-c-done { color: var(--text-muted); margin-top: 1rem; text-align: center; }
+.cp-c-reset { margin-top: 1.5rem; font-size: .75rem; }
+.cp-switcher { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 9999; display: flex; gap: .6rem; align-items: center; background: #fff; color: #111; padding: .4rem .8rem; border-radius: 999px; box-shadow: 0 4px 20px #000a; font: 600 .85rem system-ui; }
+.cp-switcher button, .cp-switcher select { border: 0; background: #eee; color: #111; border-radius: 6px; padding: .2rem .6rem; cursor: pointer; }

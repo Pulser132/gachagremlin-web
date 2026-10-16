@@ -20,6 +20,7 @@ import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.ts';
 import { WikiSource } from '../data/wiki/wikiSource.ts';
 import type { EventInfo, GameBanners, GameEvents, GameKey, Region } from '../types.ts';
+import { removeCodesPrototypeBar, renderCodesPrototype } from './codesPrototype.ts';
 import { renderBannersView } from './bannersView.ts';
 import { applyTimelineHide, type LastHide } from './timelineHideUndo.ts';
 import { focusTimelineBar, renderTimelineView, scrollTimelineToNow, updateTimelineNow, type HideRequest, type HideStatus } from './timelineView.ts';
@@ -45,12 +46,13 @@ const EVENT_SORT_OPTIONS: { value: EventSortOrder; label: string }[] = [
 ];
 const REGIONS: Region[] = ['America', 'Europe', 'Asia', 'SAR'];
 
-type ViewMode = 'events' | 'wishes' | 'banners' | 'timeline';
+type ViewMode = 'events' | 'wishes' | 'banners' | 'timeline' | 'codes';
 const VIEWS: { key: ViewMode; label: string }[] = [
   { key: 'events', label: 'Events' },
   { key: 'wishes', label: 'Wishes' },
   { key: 'banners', label: 'Banners' },
   { key: 'timeline', label: 'Timeline' },
+  { key: 'codes', label: 'Codes' },
 ];
 
 const wikiSource = new WikiSource();
@@ -273,6 +275,18 @@ export function mountApp(root: HTMLElement): void {
     });
     regionSelect.value = region;
 
+    removeCodesPrototypeBar();
+    if (view === 'codes') {
+      regionLabel.hidden = true;
+      refreshBtn.hidden = true;
+      lastUpdated.hidden = true;
+      status.hidden = true;
+      reminderBanner.hidden = true;
+      main.innerHTML = '';
+      main.appendChild(renderCodesPrototype(game));
+      main.setAttribute('aria-busy', 'false');
+      return;
+    }
     const wishesMode = view === 'wishes';
     const bannersMode = view === 'banners';
     regionLabel.hidden = wishesMode;
