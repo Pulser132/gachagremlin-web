@@ -14,7 +14,7 @@ import {
   unhideEvent,
 } from '../data/eventPrefs.ts';
 import { DEFAULT_EVENT_SORT, isEventSortOrder, sortEvents, type EventSortOrder, type SortableEvent } from '../data/eventSort.ts';
-import { createReminderApi, REMINDER_API_BASE_URL } from '../data/reminderApi.ts';
+import { createReminderApi, isReminderApiConfigured, REMINDER_API_BASE_URL } from '../data/reminderApi.ts';
 import { createReminderSync } from '../data/reminderSync.ts';
 import { eventKey, listReminders } from '../data/reminders.ts';
 import { GAME_CONFIGS, GAME_KEYS, hasBannerIndexPage } from '../data/wiki/games.ts';
@@ -300,6 +300,7 @@ export function mountApp(root: HTMLElement): void {
       main.appendChild(buildSkeleton());
       let codes: CodesResult;
       try {
+        if (!isReminderApiConfigured()) throw new Error('the codes service is not configured for this build');
         codes = await fetchCodes(game);
       } catch (e) {
         if (myGen !== renderGen) return;
