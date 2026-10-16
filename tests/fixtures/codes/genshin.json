@@ -1,0 +1,38 @@
+{
+  "items": [
+    {
+      "game": "genshin",
+      "code": "OLDER123",
+      "status": "active",
+      "rewards": [{ "item": "Mora", "qty": 10000 }],
+      "premium": false,
+      "claimUrl": "https://genshin.hoyoverse.com/gift?code=OLDER123",
+      "firstSeenAt": 1786300000000,
+      "expiredAt": null,
+      "futureField": { "ignored": true }
+    },
+    {
+      "game": "genshin",
+      "code": "ABC123XYZ",
+      "status": "active",
+      "rewards": [{ "item": "Primogem", "qty": 60 }, { "item": "Mora", "qty": 10000 }],
+      "premium": true,
+      "claimUrl": "https://genshin.hoyoverse.com/gift?code=ABC123XYZ",
+      "firstSeenAt": 1786400000000,
+      "expiredAt": null
+    },
+    {
+      "game": "genshin",
+      "code": "GONE999",
+      "status": "expired",
+      "rewards": [],
+      "premium": false,
+      "claimUrl": "https://genshin.hoyoverse.com/gift?code=GONE999",
+      "firstSeenAt": 1786500000000,
+      "expiredAt": 1786450000000
+    }
+  ],
+  "lastCheckedAt": 1786400100000,
+  "serverTime": 1786400123456,
+  "newTopLevelField": 1
+}
