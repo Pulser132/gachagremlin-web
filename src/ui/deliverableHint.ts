@@ -1,7 +1,5 @@
-const DEFAULT_INVITE_URL = 'https://discord.gg/VEVbKKDey7';
-
-/** The bot's Discord server invite (public). `VITE_DISCORD_INVITE_URL` overrides it at build time. */
-export const DISCORD_INVITE_URL: string = String(import.meta.env.VITE_DISCORD_INVITE_URL ?? '').trim() || DEFAULT_INVITE_URL;
+/** Build-time Discord server invite (public). Blank → the hint has no join link. */
+export const DISCORD_INVITE_URL: string = String(import.meta.env.VITE_DISCORD_INVITE_URL ?? '').trim();
 
 /** A dismissible note: the bot can only DM users who share a server with it. */
 export function renderDeliverableHint(inviteUrl: string, onDismiss: () => void): HTMLElement {

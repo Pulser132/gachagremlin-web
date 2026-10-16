@@ -170,7 +170,7 @@ The sign-in row is hidden unless both build-time variables are set:
 
 - `VITE_DISCORD_CLIENT_ID` — the Discord application's client ID (public).
 - `VITE_REMINDER_API_URL` — the bot's public API origin.
-- `VITE_DISCORD_INVITE_URL` — optional; overrides the default bot server invite (`https://discord.gg/VEVbKKDey7`) used by the hint below.
+- `VITE_DISCORD_INVITE_URL` — optional; the bot's Discord server invite, used by the hint below.
 
 Once signed in, reminders sync both ways with the bot: pulled on page load and when the tab regains
 focus, pushed on every bell/un-bell or backup restore, and queued while offline (flushed on
@@ -180,7 +180,8 @@ reconnect). The footer shows `Reminders synced`, `Reminders offline — N change
 appear as un-belled after the next pull. Signing out keeps your local bells but stops syncing.
 
 After sign-in the site calls `GET /v1/me`. If `deliverable` is `false` (best-effort: the bot shares no
-server with you, so it probably can't DM you) the footer shows a dismissible note, with a link to join the bot's server. It is a hint, not an error: a failed call shows nothing, and dismissal
+server with you, so it probably can't DM you) the footer shows a dismissible note, with a join link when
+`VITE_DISCORD_INVITE_URL` is set. It is a hint, not an error: a failed call shows nothing, and dismissal
 is remembered per user.
 
 **Maintainer setup (manual).** In the [Discord Developer Portal](https://discord.com/developers/applications)
