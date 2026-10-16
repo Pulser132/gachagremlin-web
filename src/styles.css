@@ -1761,7 +1761,9 @@ select {
 .codes-grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); }
 .codes-card { display: flex; flex-direction: column; gap: .75rem; padding: 1rem; border: 1px solid var(--border); border-radius: .75rem; }
 .codes-premium { background: color-mix(in srgb, gold 12%, transparent); }
-.codes-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.codes-head { display: flex; flex-wrap: wrap; align-items: center; gap: .25rem .5rem; }
+.codes-seen { font-size: .8rem; color: var(--text-muted); }
+.codes-game { margin-left: auto; }
 .codes-badge { font-size: .75rem; font-weight: 700; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--border); }
 .codes-badge-new { background: var(--danger-bg); color: var(--danger-text); }
 .codes-code { font-family: var(--font-mono); font-weight: 700; font-size: 1.5rem; letter-spacing: .05em; width: 100%; padding: .6rem; cursor: pointer; border: 1px dashed var(--border); border-radius: .5rem; background: transparent; color: inherit; word-break: break-all; }

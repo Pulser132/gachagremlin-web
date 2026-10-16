@@ -72,6 +72,24 @@ describe('renderCodesView', () => {
       expect(badges).toEqual(['NEW', 'Active']);
     });
 
+    it('tints only cards whose premium field is true', () => {
+      const view = render([item({ code: 'P', premium: true }), item({ code: 'N', premium: false })]);
+      const [p, n] = [...view.querySelectorAll('.codes-card')];
+      expect(p.classList.contains('codes-premium')).toBe(true);
+      expect(n.classList.contains('codes-premium')).toBe(false);
+    });
+
+    it('shows the absolute first-seen time and a relative age beside the badge', () => {
+      const firstSeenAt = NOW - 2 * 3600_000;
+      const view = render([item({ firstSeenAt })]);
+      const head = view.querySelector('.codes-head')!;
+      expect(head.querySelector('.codes-badge')).not.toBeNull();
+      const time = head.querySelector<HTMLTimeElement>('time.codes-seen')!;
+      expect(time.dateTime).toBe(new Date(firstSeenAt).toISOString());
+      expect(time.textContent).toContain(new Date(firstSeenAt).toLocaleString());
+      expect(time.textContent).toContain('2h ago');
+    });
+
     it('copies the code on click and confirms visibly and to screen readers', async () => {
       const writeText = vi.fn().mockResolvedValue(undefined);
       Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });

@@ -1,6 +1,7 @@
 import { liveCodes, type CodeItem, type CodesResult } from '../data/codesApi.ts';
 import { GAME_CONFIGS } from '../data/wiki/games.ts';
 import type { GameKey } from '../types.ts';
+import { relativeAge } from './relativeAge.ts';
 
 /** A Code first seen within this window gets the NEW badge instead of Active. */
 const NEW_WINDOW_MS = 48 * 3600_000;
@@ -45,7 +46,11 @@ function card(c: CodeItem, fallbackGame: GameKey, now: number): HTMLElement {
   const label = document.createElement('span');
   label.className = 'codes-game';
   label.textContent = GAME_CONFIGS[c.game]?.label ?? GAME_CONFIGS[fallbackGame].label;
-  head.append(badge, label);
+  const seen = document.createElement('time');
+  seen.className = 'codes-seen';
+  seen.dateTime = new Date(c.firstSeenAt).toISOString();
+  seen.textContent = `${new Date(c.firstSeenAt).toLocaleString()} · ${relativeAge(c.firstSeenAt, now)}`;
+  head.append(badge, seen, label);
   el.append(head, copyCard(c));
 
   if (c.rewards.length > 0) {
