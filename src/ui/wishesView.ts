@@ -1,13 +1,31 @@
 import { scheduleSync } from '../data/cloud/sync.ts';
 import { findBannerGroup, GAME_BANNER_CONFIGS, type BannerGroup, type GameBannerConfig } from '../data/wishes/banners.ts';
-import { guaranteeState, pityAtEach5Star, pityCounts } from '../data/wishes/pity.ts';
+import { bannerStats, guaranteeState, pityAtEach5Star, pityCounts, type BannerStats, type FiveStarPull } from '../data/wishes/pity.ts';
 import { portraitUrl } from '../data/wishes/portraits/resolve.ts';
 import { getActiveAccount } from '../data/wishes/store.ts';
 import type { GameKey, WishAccount, WishItem } from '../types.ts';
 import { openImportDialog, type ImportSummary } from './importDialog.ts';
-import { createItemIcon } from './itemIcons.ts';
+import { classifyItem, createItemIcon } from './itemIcons.ts';
 import { renderPullChart } from './pullChart.ts';
 import { renderUidSwitcher } from './uidSwitcher.ts';
+
+const HIDE_BEGINNER_KEY = 'gachagremlin:hideBeginnerBanner';
+
+function readHideBeginner(): boolean {
+  try {
+    return localStorage.getItem(HIDE_BEGINNER_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeHideBeginner(hide: boolean): void {
+  try {
+    localStorage.setItem(HIDE_BEGINNER_KEY, hide ? '1' : '0');
+  } catch {
+    // Private browsing / quota: the toggle just won't persist.
+  }
+}
 
 const RARITY_STARS: Record<string, string> = { '5': '★★★★★', '4': '★★★★', '3': '★★★' };
 
@@ -77,7 +95,22 @@ export function renderWishesView(game: GameKey, onChange: () => void): HTMLEleme
     return wrap;
   }
 
-  wrap.appendChild(renderBannerCards(game, account, config));
+  const beginner = config.groups.find((g) => g.beginner);
+  if (beginner) {
+    const label = el('label', { className: 'beginner-toggle' });
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.checked = readHideBeginner();
+    box.addEventListener('change', () => {
+      writeHideBeginner(box.checked);
+      onChange();
+    });
+    label.appendChild(box);
+    label.appendChild(el('span', { text: `Hide ${beginner.label}` }));
+    wrap.appendChild(label);
+  }
+
+  wrap.appendChild(renderBannerCards(game, account, config, readHideBeginner()));
   wrap.appendChild(renderHistoryTable(game, account));
 
   return wrap;
@@ -135,6 +168,95 @@ function statRow(label: string, sub: string, value: string, valueClass: string, 
   return row;
 }
 
+const dec = (n: number): string => n.toLocaleString(undefined, { maximumFractionDigits: 2 });
+const percentOf = (n: number, of: number): string => (of > 0 ? `${dec((n / of) * 100)}%` : '—');
+
+/** The 4★ sub-rows are keyed by what the category is called in each game. */
+function fourStarTypeLabel(itemType: string, game: GameKey): string {
+  const key = classifyItem(itemType, game);
+  if (key === 'character') return game === 'zzz' ? 'Agent' : 'Character';
+  if (key === 'unknown') return itemType || 'Other';
+  return { weapon: 'Weapon', lightcone: 'Light Cone', wengine: 'W-Engine', bangboo: 'Bangboo' }[key];
+}
+
+/** One row of the breakdown table: a label (indented under its parent when
+ * `child`) and up to three right-aligned figures — total, share, average pity. */
+function breakdownRow(
+  label: string,
+  cells: [string, string, string],
+  opts: { tone: '5' | '4'; child?: boolean; title?: string },
+): HTMLElement {
+  const row = el('div', { className: `breakdown-row tone-${opts.tone}${opts.child ? ' child' : ''}` });
+  const name = el('span', { className: 'breakdown-label', text: label });
+  if (opts.title) name.title = opts.title;
+  row.appendChild(name);
+  for (const c of cells) row.appendChild(el('span', { className: 'breakdown-cell', text: c }));
+  return row;
+}
+
+/** The detailed stats under the pity gauges: 5★ and 4★ totals, share of all
+ * pulls, average pity, the 50/50 record, and the 4★ split by category. */
+function renderBreakdown(game: GameKey, group: BannerGroup, s: BannerStats): HTMLElement {
+  const box = el('div', { className: 'breakdown' });
+  box.setAttribute('role', 'table');
+  box.setAttribute('aria-label', `${group.label} statistics`);
+
+  const head = el('div', { className: 'breakdown-row breakdown-head' });
+  head.setAttribute('role', 'row');
+  head.appendChild(el('span'));
+  for (const t of ['Total', 'Percent', 'Avg pity']) head.appendChild(el('span', { className: 'breakdown-cell', text: t }));
+  box.appendChild(head);
+
+  const avg = (n: number | null): string => (n === null ? '—' : dec(n));
+
+  box.appendChild(breakdownRow('5★', [String(s.fiveCount), percentOf(s.fiveCount, s.total), avg(s.fiveAvgPity)], { tone: '5' }));
+  if (group.has5050 && s.flips > 0) {
+    const odds = (group.oddsLabel ?? '50/50').replace('/', ':');
+    box.appendChild(
+      breakdownRow(`Win ${odds}`, [String(s.wins), percentOf(s.wins, s.flips), ''], {
+        tone: '5',
+        child: true,
+        title: `${s.wins} of ${s.flips} coin flips. 5★s guaranteed after a loss aren't counted.`,
+      }),
+    );
+  }
+
+  if (s.fourCount > 0) {
+    box.appendChild(breakdownRow('4★', [String(s.fourCount), percentOf(s.fourCount, s.total), avg(s.fourAvgPity)], { tone: '4' }));
+    // Split only when it says something: a single category is just the parent row again.
+    if (s.fourByType.size > 1) {
+      for (const [type, n] of [...s.fourByType].sort((a, b) => b[1] - a[1])) {
+        box.appendChild(breakdownRow(fourStarTypeLabel(type, game), [String(n), percentOf(n, s.total), ''], { tone: '4', child: true }));
+      }
+    }
+  }
+  return box;
+}
+
+/** Pity tier for a 5★ chip: early, middle or deep into the soft-pity ramp. */
+function pityTier(pity: number, hardPity: number): 'early' | 'mid' | 'late' {
+  const f = pity / hardPity;
+  if (f <= 0.45) return 'early';
+  if (f <= 0.8) return 'mid';
+  return 'late';
+}
+
+/** Every 5★ on this banner, oldest first, as a name + the pity it took.
+ * Gold outline = the limited pull (a won 50/50 or a guarantee); the number's
+ * colour says how deep the pity ran. */
+function renderPullChips(group: BannerGroup, fives: FiveStarPull[]): HTMLElement {
+  const list = el('ul', { className: 'pull-chips' });
+  list.setAttribute('aria-label', `${group.label} 5★ pulls, oldest first`);
+  for (const { item, pity, limited } of fives) {
+    const li = el('li', { className: `pull-chip${limited ? ' limited' : ''}` });
+    li.appendChild(el('span', { className: 'pull-chip-name', text: item.name }));
+    li.appendChild(el('span', { className: `pull-chip-pity tier-${pityTier(pity, group.hardPity)}`, text: String(pity) }));
+    if (limited) li.title = 'Limited 5★';
+    list.appendChild(li);
+  }
+  return list;
+}
+
 function renderBannerCard(game: GameKey, account: WishAccount, group: BannerGroup, config: GameBannerConfig): HTMLElement {
   const counts = pityCounts(account.items, group);
   const card = el('article', { className: 'banner-card' });
@@ -179,6 +301,12 @@ function renderBannerCard(game: GameKey, account: WishAccount, group: BannerGrou
 
   card.appendChild(statRow('4★ Pity', 'Guaranteed at 10', String(counts.since4Star), 'stat-4'));
 
+  const stats = bannerStats(account.items, group, config.standardPool5Star);
+  if (stats.fiveCount > 0 || stats.fourCount > 0) {
+    card.appendChild(renderBreakdown(game, group, stats));
+  }
+  if (stats.fives.length > 0) card.appendChild(renderPullChips(group, stats.fives));
+
   // Expander (the reference's chevron): the last five 5★s and their pity.
   const fives = account.items.filter((i) => i.rank === '5' && group.bannerTypes.includes(i.bannerType));
   if (fives.length > 0) {
@@ -201,9 +329,10 @@ function renderBannerCard(game: GameKey, account: WishAccount, group: BannerGrou
 
 /** The Wish Counter grid: one card per banner group, then the pulls-per-month
  * chart filling the last cell. */
-function renderBannerCards(game: GameKey, account: WishAccount, config: GameBannerConfig): HTMLElement {
+function renderBannerCards(game: GameKey, account: WishAccount, config: GameBannerConfig, hideBeginner: boolean): HTMLElement {
   const grid = el('section', { className: 'banner-grid' });
   for (const group of config.groups) {
+    if (hideBeginner && group.beginner) continue;
     grid.appendChild(renderBannerCard(game, account, group, config));
   }
   grid.appendChild(renderPullChart(account.items, config.itemLabel));
@@ -289,8 +418,14 @@ function appendItemIcon(cell: HTMLElement, item: WishItem, game: GameKey): void 
 
 function renderHistoryTable(game: GameKey, account: WishAccount): HTMLElement {
   const config = GAME_BANNER_CONFIGS[game];
-  const section = el('section', { className: 'wishes-history' });
-  section.appendChild(el('h3', { text: 'Pull History' }));
+  // A native disclosure: closed until the player opens it. The table is still
+  // built up front, so opening is instant and filters keep their state.
+  const section = el('details', { className: 'wishes-history' });
+  const summary = el('summary');
+  summary.appendChild(el('h3', { text: 'Pull History' }));
+  summary.appendChild(el('span', { className: 'history-chevron' }));
+  summary.lastElementChild!.setAttribute('aria-hidden', 'true');
+  section.appendChild(summary);
 
   const filters = el('div', { className: 'history-filters' });
 

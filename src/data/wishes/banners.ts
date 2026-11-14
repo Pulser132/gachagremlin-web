@@ -37,6 +37,8 @@ export interface BannerGroup {
    * when omitted.
    */
   oddsLabel?: string;
+  /** One-time starter banner; the Wishes tab can hide its card. */
+  beginner?: boolean;
 }
 
 export interface GameBannerConfig {
@@ -50,7 +52,7 @@ export const GAME_BANNER_CONFIGS: Record<GameKey, GameBannerConfig> = {
   genshin: {
     itemLabel: 'Wishes',
     groups: [
-      { key: 'novice', label: 'Beginners’ Wish', bannerTypes: ['100'], hardPity: 90, has5050: false },
+      { key: 'novice', label: 'Beginners’ Wish', bannerTypes: ['100'], hardPity: 90, has5050: false, beginner: true },
       { key: 'standard', label: 'Wanderlust Invocation', bannerTypes: ['200'], hardPity: 90, has5050: false },
       { key: 'character', label: 'Character Event Wish', bannerTypes: ['301', '400'], hardPity: 90, has5050: true },
       { key: 'weapon', label: 'Weapon Event Wish', bannerTypes: ['302'], hardPity: 80, has5050: false },
@@ -82,7 +84,7 @@ export const GAME_BANNER_CONFIGS: Record<GameKey, GameBannerConfig> = {
     itemLabel: 'Warps',
     groups: [
       { key: 'standard', label: 'Stellar Warp', bannerTypes: ['1'], hardPity: 90, has5050: false },
-      { key: 'departure', label: 'Departure Warp', bannerTypes: ['2'], hardPity: 50, has5050: false },
+      { key: 'departure', label: 'Departure Warp', bannerTypes: ['2'], hardPity: 50, has5050: false, beginner: true },
       { key: 'character', label: 'Character Event Warp', bannerTypes: ['11'], hardPity: 90, has5050: true },
       { key: 'lightcone', label: 'Light Cone Event Warp', bannerTypes: ['12'], hardPity: 80, has5050: true, oddsLabel: '75/25' },
       { key: 'collab-character', label: 'Collaboration Character Warp', bannerTypes: ['21'], hardPity: 90, has5050: true },

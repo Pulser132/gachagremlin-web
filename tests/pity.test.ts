@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_BANNER_CONFIGS, findBannerGroup } from '../src/data/wishes/banners.ts';
-import { guaranteeState, pityAtEach5Star, pityCounts } from '../src/data/wishes/pity.ts';
+import { bannerStats, guaranteeState, pityAtEach5Star, pityCounts } from '../src/data/wishes/pity.ts';
 import type { WishItem } from '../src/types.ts';
 
 const characterGroup = findBannerGroup('genshin', '301')!;
@@ -77,5 +77,38 @@ describe('pityAtEach5Star', () => {
     expect(result.get('3')).toBe(3);
     expect(result.get('5')).toBe(2);
     expect(result.size).toBe(2);
+  });
+});
+
+describe('bannerStats', () => {
+  it('counts 5★/4★ totals, average pity and the 50/50 record, skipping guaranteed 5★s', () => {
+    const items = [
+      item('1', '301', '3'),
+      item('2', '301', '4', 'Bennett'),
+      item('3', '301', '5', 'Mona'), // pity 3, lost the flip
+      item('4', '301', '3'),
+      item('5', '301', '5', 'Furina'), // pity 2, guaranteed -> not a flip
+      item('6', '301', '5', 'Nahida'), // pity 1, won the flip
+      item('7', '301', '4', 'Xingqiu'),
+      item('8', '302', '5', 'Other banner'), // ignored
+    ];
+    const s = bannerStats(items, characterGroup, standardPool);
+    expect(s.total).toBe(7);
+    expect(s.fiveCount).toBe(3);
+    expect(s.fiveAvgPity).toBe(2);
+    expect(s.flips).toBe(2);
+    expect(s.wins).toBe(1);
+    expect(s.fives.map((f) => [f.item.name, f.pity, f.limited])).toEqual([
+      ['Mona', 3, false],
+      ['Furina', 2, true],
+      ['Nahida', 1, true],
+    ]);
+    expect(s.fourCount).toBe(2);
+    expect(s.fourAvgPity).toBe(1.5); // first 4★ at pity 2, then a 5★ resets the count and the next lands at 1
+  });
+
+  it('returns null averages and no flips with no pulls', () => {
+    const s = bannerStats([], characterGroup, standardPool);
+    expect(s).toMatchObject({ total: 0, fiveAvgPity: null, fourAvgPity: null, flips: 0 });
   });
 });

@@ -52,6 +52,83 @@ export function guaranteeState(items: WishItem[], group: BannerGroup, standardPo
   return { guaranteed: false }; // no 5★ pulled yet on this banner group
 }
 
+export interface FiveStarPull {
+  item: WishItem;
+  /** Pulls it took to land (since the previous 5★ on this group, inclusive). */
+  pity: number;
+  /** On a `has5050` group: true when it's the limited item rather than a
+   * standard-pool one. Always false on groups without a 50/50. */
+  limited: boolean;
+}
+
+export interface BannerStats {
+  total: number;
+  fiveCount: number;
+  /** Mean pity across 5★s, or null with none. */
+  fiveAvgPity: number | null;
+  /** 50/50 results on a `has5050` group. Guaranteed 5★s (after a loss) are
+   * excluded — they were never a coin flip. */
+  flips: number;
+  wins: number;
+  fourCount: number;
+  /** Mean pulls between 4★s (a 5★ also resets the count), or null with none. */
+  fourAvgPity: number | null;
+  /** 4★ count per `itemType`, in first-seen order. */
+  fourByType: Map<string, number>;
+  /** Every 5★, oldest first. */
+  fives: FiveStarPull[];
+}
+
+/** Everything the banner card's stats table and pull chips show, computed in
+ * one pass over the group's pulls. */
+export function bannerStats(items: WishItem[], group: BannerGroup, standardPool5Star: string[]): BannerStats {
+  const groupItems = itemsForGroup(items, group);
+  const stats: BannerStats = {
+    total: groupItems.length,
+    fiveCount: 0,
+    fiveAvgPity: null,
+    flips: 0,
+    wins: 0,
+    fourCount: 0,
+    fourAvgPity: null,
+    fourByType: new Map(),
+    fives: [],
+  };
+
+  let since5 = 0;
+  let since4 = 0;
+  let fivePitySum = 0;
+  let fourPitySum = 0;
+  let afterLoss = false;
+  for (const item of groupItems) {
+    since5++;
+    since4++;
+    if (item.rank === '5') {
+      const lost = group.has5050 && standardPool5Star.includes(item.name);
+      if (group.has5050) {
+        if (!afterLoss) {
+          stats.flips++;
+          if (!lost) stats.wins++;
+        }
+        afterLoss = lost;
+      }
+      stats.fives.push({ item, pity: since5, limited: group.has5050 && !lost });
+      fivePitySum += since5;
+      stats.fiveCount++;
+      since5 = 0;
+      since4 = 0;
+    } else if (item.rank === '4') {
+      stats.fourCount++;
+      fourPitySum += since4;
+      stats.fourByType.set(item.itemType, (stats.fourByType.get(item.itemType) ?? 0) + 1);
+      since4 = 0;
+    }
+  }
+  if (stats.fiveCount > 0) stats.fiveAvgPity = fivePitySum / stats.fiveCount;
+  if (stats.fourCount > 0) stats.fourAvgPity = fourPitySum / stats.fourCount;
+  return stats;
+}
+
 /**
  * Maps each 5★ item's id to the pity it took to land (pulls since the
  * previous 5★ on the same banner group, inclusive of itself) — used by the
